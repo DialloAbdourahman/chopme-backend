@@ -1,10 +1,17 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
-import { EnumUserRole } from './enums/user.roles';
+import { EnumUserRole } from '../common/enums/user.roles';
 import { CreateUserDto } from './dtos/create.user.dto';
 import { UpdateUserDto } from './dtos/update.user.dto';
+import { InjectModel } from '@nestjs/mongoose';
+import { Model } from 'mongoose';
+import { User, UserDocument } from 'src/users/schemas/user.schema';
 
 @Injectable()
 export class UsersService {
+  constructor(
+    @InjectModel(User.name) private readonly userModel: Model<UserDocument>,
+  ) {}
+
   private users = [
     {
       id: 1,
@@ -43,13 +50,19 @@ export class UsersService {
     return foundUser;
   }
 
-  create(user: CreateUserDto) {
-    const newUser = {
-      id: this.users.length + 1,
-      ...user,
-    };
-    this.users.push(newUser);
-    return newUser;
+  async create(user: CreateUserDto) {
+    // const createdUser = new this.userModel({
+    //   name: user.name,
+    //   email: user.email,
+    //   role: user.role,
+    // });
+    // return createdUser.save();
+    const createdUser = await new this.userModel({
+      name: user.name,
+      email: user.name,
+      role: user.role,
+    }).save();
+    return createdUser.public();
   }
 
   update(id: number, toBeUpdatedUser: UpdateUserDto) {

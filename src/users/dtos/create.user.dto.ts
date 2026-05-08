@@ -1,4 +1,4 @@
-import { EnumUserRole } from '../enums/user.roles';
+import { EnumUserRole } from '../../common/enums/user.roles';
 import { IsString, IsEnum, IsEmail, Length } from 'class-validator';
 
 export class CreateUserDto {
