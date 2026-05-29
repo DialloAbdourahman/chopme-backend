@@ -1,58 +1,47 @@
 import jwt, { JwtPayload } from 'jsonwebtoken';
 import { LoggedInUserTokenData } from '../interfaces/loggedin-user-token-data';
 
-export class TokenUtils {
-  static createAccessToken(
+export class JWTUtils {
+  static createToken(
     payload: LoggedInUserTokenData,
     secret: string,
     duration: number,
   ): string {
     return jwt.sign(payload, secret, {
-      expiresIn: duration,
+      expiresIn: duration * 60,
     });
   }
 
-  static verifyAccessToken(
-    token: string,
-    secret: string,
-  ): LoggedInUserTokenData {
+  static verifyToken(token: string, secret: string): LoggedInUserTokenData {
     try {
       const decoded = jwt.verify(token, secret) as JwtPayload;
       return {
         id: decoded.id,
         email: decoded.email,
         role: decoded.role,
+        clientId: decoded.clientId,
+        restaurantId: decoded.restaurantId,
       };
     } catch (error) {
       throw error;
     }
   }
 
-  static createRefreshToken(
-    payload: LoggedInUserTokenData,
-    secret: string,
-    duration: number,
-  ): string {
-    return jwt.sign(payload, secret, {
-      expiresIn: duration,
-    });
-  }
-
-  static verifyRefreshToken(
-    token: string,
-    secret: string,
-  ): LoggedInUserTokenData | null {
-    try {
-      const decoded = jwt.verify(token, secret) as JwtPayload;
-      return {
-        id: decoded.id,
-        email: decoded.email,
-        role: decoded.role,
-      };
-    } catch {
-      return null;
-    }
-  }
+  // static verifyRefreshToken(
+  //   token: string,
+  //   secret: string,
+  // ): LoggedInUserTokenData | null {
+  //   try {
+  //     const decoded = jwt.verify(token, secret) as JwtPayload;
+  //     return {
+  //       id: decoded.id,
+  //       email: decoded.email,
+  //       role: decoded.role,
+  //     };
+  //   } catch {
+  //     return null;
+  //   }
+  // }
 
   //   static createActivationToken(userId: string): string {
   //     return jwt.sign({ userId }, getGeneralConfig().activationTokenSecret);

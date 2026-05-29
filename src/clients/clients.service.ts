@@ -11,6 +11,11 @@ import { OrchestrationResult } from 'src/common/utils/orchestration.result';
 import { EnumStatusCode } from 'src/common/enums/response-status-code';
 import { OrchestrationException } from 'src/common/exceptions/orchestration.exception';
 import * as bcrypt from 'bcrypt';
+import { JWTUtils } from 'src/common/utils/jwt-utils';
+import { env } from 'src/config/env';
+import { UserPublicOutputDto } from 'src/users/dto/output/user-output.dto';
+import { plainToInstance } from 'class-transformer';
+import { ClientPublicOutputDto } from './dto/output/client-output.dto';
 
 @Injectable()
 export class ClientsService {
@@ -86,9 +91,51 @@ export class ClientsService {
         '[create] Client signup transaction committed successfully',
       );
 
-      return OrchestrationResult.Success<Client>({
+      this.logger.log('[create] Generating tokens...');
+      const accessToken = JWTUtils.createToken(
+        {
+          id: user._id.toString(),
+          email: user.email,
+          role: user.role,
+          clientId: client._id.toString(),
+        },
+        env.accessTokenSecret,
+        env.accessTokenDurationMins,
+      );
+      const refreshToken = JWTUtils.createToken(
+        {
+          id: user._id.toString(),
+          email: user.email,
+          role: user.role,
+        },
+        env.refreshTokenSecret,
+        env.refreshTokenDurationMins,
+      );
+
+      user.token = refreshToken;
+      await user.save();
+
+      const publicUser = plainToInstance(UserPublicOutputDto, user, {
+        excludeExtraneousValues: true,
+      });
+
+      const publicClient = plainToInstance(ClientPublicOutputDto, client, {
+        excludeExtraneousValues: true,
+      });
+
+      return OrchestrationResult.Success<{
+        accessToken: string;
+        refreshToken: string;
+        user: UserPublicOutputDto;
+        client: ClientPublicOutputDto;
+      }>({
         statusCode: EnumStatusCode.LOGGED_IN_SUCCESSFULLY,
-        data: client,
+        data: {
+          accessToken,
+          refreshToken,
+          user: publicUser,
+          client: publicClient,
+        },
         message: 'Client account created successfully',
       });
     } catch (error) {
@@ -109,8 +156,5 @@ export class ClientsService {
   }
 }
 
-// Make sure envs works.
-// Generate tokens.
-// Manage the ouput dtos and use them alongside the tokens in the response.
 // Go back to the user and implement the login and /token route.
 // Manage the middleware.

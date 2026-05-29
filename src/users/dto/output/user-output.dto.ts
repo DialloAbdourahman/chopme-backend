@@ -1,34 +1,24 @@
-// import { Expose, Type } from 'class-transformer';
+import { Expose } from 'class-transformer';
+import { EnumUserRole } from 'src/common/enums/user-roles';
 
-// export class DoctorPublicOutputDto {
-//   @Expose()
-//   id: string;
+export class UserPublicOutputDto {
+  @Expose()
+  id: string;
 
-//   @Expose()
-//   title: string;
+  @Expose()
+  email: string;
 
-//   @Expose()
-//   professionalEmail: string;
+  @Expose()
+  role: EnumUserRole;
+}
 
-//   @Expose()
-//   slug: string;
+export class UserPrivateOutputDto extends UserPublicOutputDto {
+  @Expose()
+  createdAt: Date;
 
-//   @Expose()
-//   biography: string | null;
+  @Expose()
+  updatedAt: Date;
 
-//   @Expose()
-//   isActive: boolean;
-
-//   @Expose()
-//   isVerified: boolean;
-
-//   @Expose()
-//   photo: string | null;
-
-//   @Expose()
-//   averageRating: number;
-
-//   @Expose()
-//   @Type(() => SpecialtyOutputDto)
-//   specialty: SpecialtyOutputDto;
-// }
+  @Expose()
+  deletedAt: Date | null;
+}

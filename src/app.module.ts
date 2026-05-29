@@ -7,12 +7,13 @@ import { LoggerModule } from './common/logger/logger.module';
 import { ThrottlerGuard, ThrottlerModule } from '@nestjs/throttler';
 import { APP_GUARD } from '@nestjs/core';
 import { ClientsModule } from './clients/clients.module';
+import { env } from './config/env';
 
 @Module({
   imports: [
     LoggerModule,
     UsersModule,
-    MongooseModule.forRoot('mongodb://localhost:27017/nestjs-tutorial'),
+    MongooseModule.forRoot(env.mongodbUri),
     ThrottlerModule.forRoot([
       {
         name: 'short',
