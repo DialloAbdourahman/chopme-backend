@@ -1,7 +1,7 @@
 import { Body, Controller, Get, Post, ValidationPipe } from '@nestjs/common';
 import { UsersService } from './users.service';
-import { EmailPasswordLoginDto } from './dtos/input/email-password-login.dto';
-import { GoogleLoginDto } from './dtos/input/google-login.dto';
+import { EmailPasswordLoginDto } from './dto/input/email-password-login.dto';
+import { GoogleLoginDto } from './dto/input/google-login.dto';
 
 @Controller('users')
 export class UsersController {
@@ -10,17 +10,17 @@ export class UsersController {
   @Post('email-password-login')
   emailPasswordLogin(
     @Body(new ValidationPipe())
-    user: EmailPasswordLoginDto,
+    emailPasswordLoginDto: EmailPasswordLoginDto,
   ) {
-    return this.usersService.emailPasswordLogin(user);
+    return this.usersService.emailPasswordLogin(emailPasswordLoginDto);
   }
 
   @Post('google-login')
   googleLogin(
     @Body(new ValidationPipe())
-    user: GoogleLoginDto,
+    googleLoginDto: GoogleLoginDto,
   ) {
-    return this.usersService.googleLogin(user);
+    return this.usersService.googleLogin(googleLoginDto);
   }
 
   @Post('token')

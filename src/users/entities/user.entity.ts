@@ -19,6 +19,9 @@ export class User extends BaseSchema {
   @Prop({ unique: true })
   email: string;
 
+  @Prop()
+  password: string;
+
   @Prop({ enum: EnumUserRole, type: String })
   role: EnumUserRole;
 

@@ -2,12 +2,12 @@ import { Injectable, Logger, NotFoundException } from '@nestjs/common';
 
 import { InjectModel } from '@nestjs/mongoose';
 import { Model } from 'mongoose';
-import { User, UserDocument } from 'src/users/schemas/user.schema';
+import { User, UserDocument } from 'src/users/entities/user.entity';
 import { OrchestrationResult } from 'src/common/utils/orchestration.result';
 import { EnumStatusCode } from 'src/common/enums/response-status-code';
 import { OrchestrationException } from 'src/common/exceptions/orchestration.exception';
-import { EmailPasswordLoginDto } from './dtos/input/email-password-login.dto';
-import { GoogleLoginDto } from './dtos/input/google-login.dto';
+import { EmailPasswordLoginDto } from './dto/input/email-password-login.dto';
+import { GoogleLoginDto } from './dto/input/google-login.dto';
 
 @Injectable()
 export class UsersService {
