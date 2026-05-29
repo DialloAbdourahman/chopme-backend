@@ -1,54 +1,40 @@
-import {
-  Body,
-  Controller,
-  Delete,
-  Get,
-  Param,
-  Patch,
-  Post,
-  Query,
-  ParseIntPipe,
-  ParseEnumPipe,
-  ValidationPipe,
-} from '@nestjs/common';
+import { Body, Controller, Get, Post, ValidationPipe } from '@nestjs/common';
 import { UsersService } from './users.service';
-import { EnumUserRole } from '../common/enums/user.roles';
-import { CreateUserDto } from './dtos/create.user.dto';
-import { UpdateUserDto } from './dtos/update.user.dto';
+import { EmailPasswordLoginDto } from './dtos/input/email-password-login.dto';
+import { GoogleLoginDto } from './dtos/input/google-login.dto';
 
 @Controller('users')
 export class UsersController {
   constructor(private usersService: UsersService) {}
 
-  @Get()
-  findAll(@Query('role', new ParseEnumPipe(EnumUserRole)) role?: EnumUserRole) {
-    return this.usersService.findAll(role);
-  }
-
-  @Get(':id')
-  findOne(@Param('id', new ParseIntPipe()) id: number) {
-    return this.usersService.findOne(id);
-  }
-
-  @Post()
-  createUser(
+  @Post('email-password-login')
+  emailPasswordLogin(
     @Body(new ValidationPipe())
-    user: CreateUserDto,
+    user: EmailPasswordLoginDto,
   ) {
-    return this.usersService.create(user);
+    return this.usersService.emailPasswordLogin(user);
   }
 
-  @Patch(':id')
-  updateUser(
-    @Param('id', new ParseIntPipe()) id: number,
+  @Post('google-login')
+  googleLogin(
     @Body(new ValidationPipe())
-    user: UpdateUserDto,
+    user: GoogleLoginDto,
   ) {
-    return this.usersService.update(id, user);
+    return this.usersService.googleLogin(user);
   }
 
-  @Delete(':id')
-  deleteUser(@Param('id', new ParseIntPipe()) id: number) {
-    return this.usersService.delete(id);
+  @Post('token')
+  refreshToken() {
+    return this.usersService.refreshToken('token');
+  }
+
+  @Post('logout')
+  logout() {
+    return this.usersService.logout('token');
+  }
+
+  @Get('me')
+  me() {
+    return this.usersService.getMyProfile('token');
   }
 }
