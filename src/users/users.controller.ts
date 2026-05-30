@@ -1,4 +1,11 @@
-import { Body, Controller, Get, Post, ValidationPipe } from '@nestjs/common';
+import {
+  Body,
+  Controller,
+  Get,
+  Post,
+  ValidationPipe,
+  Headers,
+} from '@nestjs/common';
 import { UsersService } from './users.service';
 import { EmailPasswordLoginDto } from './dto/input/email-password-login.dto';
 import { GoogleLoginDto } from './dto/input/google-login.dto';
@@ -24,17 +31,20 @@ export class UsersController {
   }
 
   @Post('token')
-  refreshToken() {
-    return this.usersService.refreshToken('token');
+  refreshToken(@Headers('authorization') authorization: string) {
+    const token = authorization?.split(' ')[1] || '';
+    return this.usersService.refreshToken(token);
   }
 
   @Post('logout')
-  logout() {
-    return this.usersService.logout('token');
+  logout(@Headers('authorization') authorization: string) {
+    const token = authorization?.split(' ')[1] || '';
+    return this.usersService.logout(token);
   }
 
   @Get('me')
-  me() {
-    return this.usersService.getMyProfile('token');
+  me(@Headers('authorization') authorization: string) {
+    const token = authorization?.split(' ')[1] || '';
+    return this.usersService.getMyProfile(token);
   }
 }
