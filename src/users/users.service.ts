@@ -13,11 +13,10 @@ import { EmailPasswordLoginDto } from './dto/input/email-password-login.dto';
 import { GoogleLoginDto } from './dto/input/google-login.dto';
 import { EnumAuthType } from 'src/common/enums/auth-types';
 import { EnumUserRole } from 'src/common/enums/user-roles';
-import { JWTUtils } from 'src/common/utils/jwt-utils';
 import { env } from 'src/config/env';
 import { UserPublicOutputDto } from 'src/users/dto/output/user-output.dto';
-import { ClientPublicOutputDto } from 'src/clients/dto/output/client-output.dto';
 import { LoggedInUserTokenData } from 'src/common/interfaces/loggedin-user-token-data';
+import { JwtService } from '@nestjs/jwt';
 
 @Injectable()
 export class UsersService {
@@ -27,6 +26,7 @@ export class UsersService {
     @InjectModel(User.name) private readonly userModel: Model<UserDocument>,
     @InjectModel(Client.name)
     private readonly clientModel: Model<ClientDocument>,
+    private jwtService: JwtService,
   ) {}
 
   private async buildTokenPayload(
@@ -113,17 +113,15 @@ export class UsersService {
 
     const tokenPayload = await this.buildTokenPayload(user);
 
-    const accessToken = JWTUtils.createToken(
-      tokenPayload,
-      env.accessTokenSecret,
-      env.accessTokenDurationMins,
-    );
+    const accessToken = await this.jwtService.signAsync(tokenPayload, {
+      secret: env.accessTokenSecret,
+      expiresIn: `${env.accessTokenDurationMins}m`,
+    });
 
-    const refreshToken = JWTUtils.createToken(
-      tokenPayload,
-      env.refreshTokenSecret,
-      env.refreshTokenDurationMins,
-    );
+    const refreshToken = await this.jwtService.signAsync(tokenPayload, {
+      secret: env.refreshTokenSecret,
+      expiresIn: `${env.refreshTokenDurationMins}m`,
+    });
 
     user.token = refreshToken;
     await user.save();
@@ -174,7 +172,9 @@ export class UsersService {
 
     let decoded: LoggedInUserTokenData;
     try {
-      decoded = JWTUtils.verifyToken(token, env.refreshTokenSecret);
+      decoded = this.jwtService.verify(token, {
+        secret: env.refreshTokenSecret,
+      });
     } catch (error) {
       this.logger.log(
         `[refreshToken] Invalid or expired refresh token: ${error?.message}`,
@@ -201,17 +201,15 @@ export class UsersService {
 
     const tokenPayload = await this.buildTokenPayload(user);
 
-    const accessToken = JWTUtils.createToken(
-      tokenPayload,
-      env.accessTokenSecret,
-      env.accessTokenDurationMins,
-    );
+    const accessToken = await this.jwtService.signAsync(tokenPayload, {
+      secret: env.accessTokenSecret,
+      expiresIn: `${env.accessTokenDurationMins}m`,
+    });
 
-    const refreshToken = JWTUtils.createToken(
-      tokenPayload,
-      env.refreshTokenSecret,
-      env.refreshTokenDurationMins,
-    );
+    const refreshToken = await this.jwtService.signAsync(tokenPayload, {
+      secret: env.refreshTokenSecret,
+      expiresIn: `${env.refreshTokenDurationMins}m`,
+    });
 
     user.token = refreshToken;
     await user.save();
