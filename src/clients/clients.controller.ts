@@ -1,6 +1,18 @@
-import { Controller, Post, Body, ValidationPipe } from '@nestjs/common';
+import {
+  Body,
+  Controller,
+  Get,
+  Post,
+  UseGuards,
+  ValidationPipe,
+} from '@nestjs/common';
 import { ClientsService } from './clients.service';
 import { CreateClientDto } from './dto/input/create-client.dto';
+import { AuthGuard } from 'src/common/guards/auth.guard';
+import { CurrentUser } from 'src/common/decorators/current-user.decorator';
+import type { LoggedInUserTokenData } from 'src/common/interfaces/loggedin-user-token-data';
+import { RoleGuard, Roles } from 'src/common/guards/role.guard';
+import { EnumUserRole } from 'src/common/enums/user-roles';
 
 @Controller('clients')
 export class ClientsController {
@@ -9,5 +21,12 @@ export class ClientsController {
   @Post()
   create(@Body(new ValidationPipe()) createClientDto: CreateClientDto) {
     return this.clientsService.create(createClientDto);
+  }
+
+  @Get('me')
+  @UseGuards(AuthGuard, RoleGuard)
+  @Roles(EnumUserRole.CLIENT)
+  me(@CurrentUser() user: LoggedInUserTokenData) {
+    return this.clientsService.getMyClientProfile(user);
   }
 }

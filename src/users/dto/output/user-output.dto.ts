@@ -6,19 +6,22 @@ export class UserPublicOutputDto {
   id: string;
 
   @Expose()
+  fullName: string;
+
+  @Expose()
   email: string;
 
   @Expose()
   role: EnumUserRole;
-}
 
-export class UserPrivateOutputDto extends UserPublicOutputDto {
   @Expose()
   createdAt: Date;
 
   @Expose()
   updatedAt: Date;
+}
 
+export class UserPrivateOutputDto extends UserPublicOutputDto {
   @Expose()
   deletedAt: Date | null;
 }

@@ -12,7 +12,9 @@ import { EnumStatusCode } from 'src/common/enums/response-status-code';
 import { OrchestrationException } from 'src/common/exceptions/orchestration.exception';
 import * as bcrypt from 'bcrypt';
 import { env } from 'src/config/env';
-import { UserPublicOutputDto } from 'src/users/dto/output/user-output.dto';
+import { LoggedInUserTokenData } from 'src/common/interfaces/loggedin-user-token-data';
+import { ClientPublicOutputDto } from './dto/output/client-output.dto';
+import { plainToInstance } from 'class-transformer';
 
 @Injectable()
 export class ClientsService {
@@ -50,7 +52,7 @@ export class ClientsService {
     session.startTransaction();
 
     try {
-      const { firstName, lastName, password } = createClientDto;
+      const { fullName, password } = createClientDto;
 
       this.logger.log(
         `[create] Checking if user with email=${normalizedEmail} exists already`,
@@ -62,8 +64,7 @@ export class ClientsService {
 
       // Create the User document
       const user = new this.userModel({
-        firstName,
-        lastName,
+        fullName,
         email: normalizedEmail,
         password: hashedPassword,
         role: EnumUserRole.CLIENT,
@@ -108,5 +109,42 @@ export class ClientsService {
     } finally {
       session.endSession();
     }
+  }
+
+  async getMyClientProfile(user: LoggedInUserTokenData) {
+    this.logger.log(
+      `[getMyClientProfile] Fetching client for user id=${user.id}`,
+    );
+
+    const client = await this.clientModel
+      .findOne({
+        user: new Types.ObjectId(user.id),
+      })
+      .populate('user');
+
+    if (!client) {
+      this.logger.log(
+        `[getMyClientProfile] Client not found for user id=${user.id}`,
+      );
+      throw new OrchestrationException({
+        statusCode: EnumStatusCode.NOT_FOUND,
+        message: 'Client not found',
+        code: 404,
+      });
+    }
+
+    const publicClient = plainToInstance(ClientPublicOutputDto, client, {
+      excludeExtraneousValues: true,
+    });
+
+    console.log('yoo');
+
+    console.log(publicClient);
+
+    return OrchestrationResult.Success<ClientPublicOutputDto>({
+      statusCode: EnumStatusCode.RECOVERED_SUCCESSFULLY,
+      data: publicClient,
+      message: 'Client profile fetched successfully',
+    });
   }
 }

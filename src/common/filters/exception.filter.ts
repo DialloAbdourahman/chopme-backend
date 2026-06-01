@@ -38,6 +38,7 @@ export class OrchestrationExceptionFilter implements ExceptionFilter {
       this.logger.warn(
         `[HttpException] ${request.method} ${request.url} — ${exception.message}`,
       );
+      console.log(exception);
 
       return response.status(status).json({
         code: EnumStatusResponse.FAILURE,

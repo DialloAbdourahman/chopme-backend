@@ -1,14 +1,13 @@
-import { Expose } from 'class-transformer';
+import { Expose, Type } from 'class-transformer';
+import { UserPublicOutputDto } from 'src/users/dto/output/user-output.dto';
 
 export class ClientPublicOutputDto {
   @Expose()
   id: string;
 
   @Expose()
-  customer_id: string;
-
-  @Expose()
-  userId: string;
+  @Type(() => UserPublicOutputDto)
+  user: UserPublicOutputDto;
 
   @Expose()
   address: {
@@ -17,15 +16,15 @@ export class ClientPublicOutputDto {
     longitude: number;
     latitude: number;
   };
-}
 
-export class ClientPrivateOutputDto extends ClientPublicOutputDto {
   @Expose()
   createdAt: Date;
 
   @Expose()
   updatedAt: Date;
+}
 
+export class ClientPrivateOutputDto extends ClientPublicOutputDto {
   @Expose()
   deletedAt: Date | null;
 }

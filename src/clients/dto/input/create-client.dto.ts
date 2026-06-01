@@ -2,10 +2,7 @@ import { IsEmail, IsString, Matches, MinLength } from 'class-validator';
 
 export class CreateClientDto {
   @IsString()
-  firstName: string;
-
-  @IsString()
-  lastName: string;
+  fullName: string;
 
   @IsString()
   @IsEmail(undefined, {
