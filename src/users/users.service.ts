@@ -69,7 +69,11 @@ export class UsersService {
       `[emailPasswordLogin] Fetching user with email=${normalizedEmail}`,
     );
 
-    const user = await this.userModel.findOne({ email: normalizedEmail });
+    const user = await this.userModel.findOne({
+      email: normalizedEmail,
+      deleted: false,
+      active: true,
+    });
 
     if (!user) {
       this.logger.log(
@@ -164,8 +168,8 @@ export class UsersService {
     if (!token) {
       this.logger.log('[refreshToken] No token provided');
       throw new OrchestrationException({
-        statusCode: EnumStatusCode.INVALID_CREDENTIALS,
-        message: 'Invalid credentials',
+        statusCode: EnumStatusCode.NO_TOKEN_PROVIDED,
+        message: 'No token provided',
         code: 401,
       });
     }
@@ -186,7 +190,11 @@ export class UsersService {
       });
     }
 
-    const user = await this.userModel.findById(decoded.id);
+    const user = await this.userModel.findOne({
+      _id: decoded.id,
+      deleted: false,
+      active: true,
+    });
 
     if (!user || user.token !== token) {
       this.logger.log(
@@ -235,19 +243,62 @@ export class UsersService {
     });
   }
 
-  async logout(token: string) {
+  async logout(user: LoggedInUserTokenData) {
+    this.logger.log(`[logout] Logging out user id=${user.id}`);
+
+    const dbUser = await this.userModel.findOne({
+      _id: user.id,
+      deleted: false,
+      active: true,
+    });
+
+    if (!dbUser) {
+      this.logger.log(`[logout] User not found or inactive for id=${user.id}`);
+      throw new OrchestrationException({
+        statusCode: EnumStatusCode.NOT_FOUND,
+        message: 'User not found',
+        code: 404,
+      });
+    }
+
+    dbUser.token = '';
+    await dbUser.save();
+
     return OrchestrationResult.Success<string>({
-      statusCode: EnumStatusCode.LOGGED_IN_SUCCESSFULLY,
-      data: 'Token',
-      message: 'User logged in successfully',
+      statusCode: EnumStatusCode.LOGGED_OUT_SUCCESSFULLY,
+      data: 'Logged out',
+      message: 'User logged out successfully',
     });
   }
 
-  async getMyProfile(token: string) {
-    return OrchestrationResult.Success<string>({
-      statusCode: EnumStatusCode.LOGGED_IN_SUCCESSFULLY,
-      data: 'Token',
-      message: 'User logged in successfully',
+  async getMyProfile(user: LoggedInUserTokenData) {
+    this.logger.log(`[getMyProfile] Fetching profile for user id=${user.id}`);
+
+    const dbUser = await this.userModel.findOne({
+      _id: user.id,
+      deleted: false,
+      active: true,
+    });
+
+    if (!dbUser) {
+      this.logger.log(
+        `[getMyProfile] User not found or inactive for id=${user.id}`,
+      );
+      throw new OrchestrationException({
+        statusCode: EnumStatusCode.NOT_FOUND,
+        message: 'User not found',
+        code: 404,
+      });
+    }
+
+    const publicUser = plainToInstance(UserPublicOutputDto, dbUser, {
+      excludeExtraneousValues: true,
+    });
+
+    return OrchestrationResult.Success<UserPublicOutputDto>({
+      statusCode: EnumStatusCode.RECOVERED_SUCCESSFULLY,
+      data: publicUser,
+      message: 'Profile fetched successfully',
     });
   }
 }

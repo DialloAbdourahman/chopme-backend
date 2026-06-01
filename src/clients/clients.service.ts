@@ -110,6 +110,3 @@ export class ClientsService {
     }
   }
 }
-
-// USE REAL NESTJS JWT TO MANAGE AUTHENTICATION AND RBAC
-// Manage the middleware.

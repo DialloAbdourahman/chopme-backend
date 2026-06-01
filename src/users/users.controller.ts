@@ -5,10 +5,14 @@ import {
   Post,
   ValidationPipe,
   Headers,
+  UseGuards,
 } from '@nestjs/common';
 import { UsersService } from './users.service';
 import { EmailPasswordLoginDto } from './dto/input/email-password-login.dto';
 import { GoogleLoginDto } from './dto/input/google-login.dto';
+import { AuthGuard } from 'src/common/guards/auth.guard';
+import { CurrentUser } from 'src/common/decorators/current-user.decorator';
+import type { LoggedInUserTokenData } from 'src/common/interfaces/loggedin-user-token-data';
 
 @Controller('users')
 export class UsersController {
@@ -37,14 +41,21 @@ export class UsersController {
   }
 
   @Post('logout')
-  logout(@Headers('authorization') authorization: string) {
-    const token = authorization?.split(' ')[1] || '';
-    return this.usersService.logout(token);
+  @UseGuards(AuthGuard)
+  logout(@CurrentUser() user: LoggedInUserTokenData) {
+    return this.usersService.logout(user);
   }
 
   @Get('me')
-  me(@Headers('authorization') authorization: string) {
-    const token = authorization?.split(' ')[1] || '';
-    return this.usersService.getMyProfile(token);
+  @UseGuards(AuthGuard)
+  me(@CurrentUser() user: LoggedInUserTokenData) {
+    return this.usersService.getMyProfile(user);
   }
+
+  // @Get('me')
+  // @UseGuards(AuthGuard, RoleGuard)
+  // @Roles(EnumUserRole.CLIENT, EnumUserRole.ADMIN)
+  // me(@CurrentUser() user: LoggedInUserTokenData) {
+  //   return this.usersService.getMyProfile(user);
+  // }
 }
