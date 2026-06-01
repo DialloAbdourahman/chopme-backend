@@ -12,7 +12,7 @@ import { EnumStatusCode } from 'src/common/enums/response-status-code';
 import { OrchestrationException } from 'src/common/exceptions/orchestration.exception';
 import * as bcrypt from 'bcrypt';
 import { env } from 'src/config/env';
-import { LoggedInUserTokenData } from 'src/common/interfaces/loggedin-user-token-data';
+import { ILoggedInUserTokenData } from 'src/common/interfaces/loggedin-user-token-data';
 import { ClientPublicOutputDto } from './dto/output/client-output.dto';
 import { plainToInstance } from 'class-transformer';
 
@@ -111,7 +111,7 @@ export class ClientsService {
     }
   }
 
-  async getMyClientProfile(user: LoggedInUserTokenData) {
+  async getMyClientProfile(user: ILoggedInUserTokenData) {
     this.logger.log(
       `[getMyClientProfile] Fetching client for user id=${user.id}`,
     );

@@ -2,12 +2,12 @@ import { CanActivate, ExecutionContext, Injectable } from '@nestjs/common';
 import { JwtService, TokenExpiredError, JsonWebTokenError } from '@nestjs/jwt';
 import { Request } from 'express';
 import { env } from 'src/config/env';
-import { LoggedInUserTokenData } from '../interfaces/loggedin-user-token-data';
+import { ILoggedInUserTokenData } from '../interfaces/loggedin-user-token-data';
 import { OrchestrationException } from '../exceptions/orchestration.exception';
 import { EnumStatusCode } from '../enums/response-status-code';
 
 export interface AuthenticatedRequest extends Request {
-  user: LoggedInUserTokenData;
+  user: ILoggedInUserTokenData;
 }
 
 @Injectable()
@@ -29,7 +29,7 @@ export class AuthGuard implements CanActivate {
     try {
       const payload = (await this.jwtService.verifyAsync(token, {
         secret: env.accessTokenSecret,
-      })) as LoggedInUserTokenData;
+      })) as ILoggedInUserTokenData;
 
       request.user = payload;
     } catch (error) {

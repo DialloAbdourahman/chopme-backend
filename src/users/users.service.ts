@@ -15,7 +15,7 @@ import { EnumAuthType } from 'src/common/enums/auth-types';
 import { EnumUserRole } from 'src/common/enums/user-roles';
 import { env } from 'src/config/env';
 import { UserPublicOutputDto } from 'src/users/dto/output/user-output.dto';
-import { LoggedInUserTokenData } from 'src/common/interfaces/loggedin-user-token-data';
+import { ILoggedInUserTokenData } from 'src/common/interfaces/loggedin-user-token-data';
 import { JwtService } from '@nestjs/jwt';
 
 @Injectable()
@@ -31,8 +31,8 @@ export class UsersService {
 
   private async buildTokenPayload(
     user: UserDocument,
-  ): Promise<LoggedInUserTokenData> {
-    const payload: LoggedInUserTokenData = {
+  ): Promise<ILoggedInUserTokenData> {
+    const payload: ILoggedInUserTokenData = {
       id: user._id.toString(),
       email: user.email,
       role: user.role,
@@ -151,7 +151,8 @@ export class UsersService {
     });
   }
 
-  async googleLogin(user: GoogleLoginDto) {
+  async googleLogin(googleLoginDto: GoogleLoginDto) {
+    const code = googleLoginDto.code;
     this.logger.log(`[googleLogin] Fetching user email=`);
 
     this.logger.log(`[findOne] Found user `);
@@ -174,7 +175,7 @@ export class UsersService {
       });
     }
 
-    let decoded: LoggedInUserTokenData;
+    let decoded: ILoggedInUserTokenData;
     try {
       decoded = this.jwtService.verify(token, {
         secret: env.refreshTokenSecret,
@@ -243,7 +244,7 @@ export class UsersService {
     });
   }
 
-  async logout(user: LoggedInUserTokenData) {
+  async logout(user: ILoggedInUserTokenData) {
     this.logger.log(`[logout] Logging out user id=${user.id}`);
 
     const dbUser = await this.userModel.findOne({
@@ -271,7 +272,7 @@ export class UsersService {
     });
   }
 
-  async getMyProfile(user: LoggedInUserTokenData) {
+  async getMyProfile(user: ILoggedInUserTokenData) {
     this.logger.log(`[getMyProfile] Fetching profile for user id=${user.id}`);
 
     const dbUser = await this.userModel.findOne({
@@ -302,3 +303,105 @@ export class UsersService {
     });
   }
 }
+
+// const oauthGoogle = async (req: Request, res: Response) => {
+//   let { code } = req.body;
+//   let googleUser;
+
+//   try {
+//     googleUser = await getUserFromGoogle(code);
+
+//     if (!googleUser || !googleUser.email || !googleUser.name) {
+//       OrchestrationResult.serverError(
+//         res,
+//         CODES.GOOGLE_AUTH_ERROR,
+//         "Failed to authenticate with Google"
+//       );
+//       return;
+//     }
+//   } catch (error) {
+//     console.error(error);
+//     OrchestrationResult.serverError(
+//       res,
+//       CODES.GOOGLE_AUTH_ERROR,
+//       "Failed to authenticate with Google"
+//     );
+//     return;
+//   }
+
+//   const existingUser = await prisma.user.findUnique({
+//     where: {
+//       email: googleUser.email,
+//     },
+//   });
+
+//   let user;
+
+//   if (existingUser) {
+//     if (existingUser.type !== "Client") {
+//       OrchestrationResult.badRequest(
+//         res,
+//         CODES.CLIENT_ONLY,
+//         "Admins are not allowed to use this route"
+//       );
+//       return;
+//     }
+
+//     if (!existingUser?.isActive) {
+//       OrchestrationResult.badRequest(
+//         res,
+//         CODES.ACCOUNT_NOT_ACTIVATED,
+//         "Activate your account"
+//       );
+//       return;
+//     }
+
+//     if (existingUser?.isDeleted) {
+//       OrchestrationResult.badRequest(
+//         res,
+//         CODES.ACCOUNT_DELETED,
+//         "Your account has been deleted, contact support."
+//       );
+//       return;
+//     }
+
+//     user = existingUser;
+//   } else {
+//     user = await prisma.user.create({
+//       data: {
+//         email: googleUser.email,
+//         name: googleUser.name,
+//         type: UserType.Client,
+//         isActive: true,
+//       },
+//     });
+//   }
+
+//   const { accessToken, refreshToken } = generateTokens({
+//     id: user.id,
+//     email: user.email,
+//     type: user.type,
+//   });
+
+//   await prisma.user.update({
+//     where: {
+//       id: user.id,
+//     },
+//     data: {
+//       token: refreshToken,
+//     },
+//   });
+
+//   const data: UserReturned = {
+//     id: user.id,
+//     name: user.name || "",
+//     email: user.email,
+//     type: user.type,
+//     createdAt: user.createdAt,
+//     updatedAt: user.updatedAt,
+//     accessToken,
+//     refreshToken,
+//   };
+
+//   OrchestrationResult.item(res, data, 200);
+// };

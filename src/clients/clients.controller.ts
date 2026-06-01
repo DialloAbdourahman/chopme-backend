@@ -10,7 +10,7 @@ import { ClientsService } from './clients.service';
 import { CreateClientDto } from './dto/input/create-client.dto';
 import { AuthGuard } from 'src/common/guards/auth.guard';
 import { CurrentUser } from 'src/common/decorators/current-user.decorator';
-import type { LoggedInUserTokenData } from 'src/common/interfaces/loggedin-user-token-data';
+import type { ILoggedInUserTokenData } from 'src/common/interfaces/loggedin-user-token-data';
 import { RoleGuard, Roles } from 'src/common/guards/role.guard';
 import { EnumUserRole } from 'src/common/enums/user-roles';
 
@@ -26,7 +26,7 @@ export class ClientsController {
   @Get('me')
   @UseGuards(AuthGuard, RoleGuard)
   @Roles(EnumUserRole.CLIENT)
-  me(@CurrentUser() user: LoggedInUserTokenData) {
+  me(@CurrentUser() user: ILoggedInUserTokenData) {
     return this.clientsService.getMyClientProfile(user);
   }
 }

@@ -12,7 +12,7 @@ import { EmailPasswordLoginDto } from './dto/input/email-password-login.dto';
 import { GoogleLoginDto } from './dto/input/google-login.dto';
 import { AuthGuard } from 'src/common/guards/auth.guard';
 import { CurrentUser } from 'src/common/decorators/current-user.decorator';
-import type { LoggedInUserTokenData } from 'src/common/interfaces/loggedin-user-token-data';
+import type { ILoggedInUserTokenData } from 'src/common/interfaces/loggedin-user-token-data';
 
 @Controller('users')
 export class UsersController {
@@ -42,20 +42,20 @@ export class UsersController {
 
   @Post('logout')
   @UseGuards(AuthGuard)
-  logout(@CurrentUser() user: LoggedInUserTokenData) {
+  logout(@CurrentUser() user: ILoggedInUserTokenData) {
     return this.usersService.logout(user);
   }
 
   @Get('me')
   @UseGuards(AuthGuard)
-  me(@CurrentUser() user: LoggedInUserTokenData) {
+  me(@CurrentUser() user: ILoggedInUserTokenData) {
     return this.usersService.getMyProfile(user);
   }
 
   // @Get('me')
   // @UseGuards(AuthGuard, RoleGuard)
   // @Roles(EnumUserRole.CLIENT, EnumUserRole.ADMIN)
-  // me(@CurrentUser() user: LoggedInUserTokenData) {
+  // me(@CurrentUser() user: ILoggedInUserTokenData) {
   //   return this.usersService.getMyProfile(user);
   // }
 }

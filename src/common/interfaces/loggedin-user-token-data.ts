@@ -1,6 +1,6 @@
 import { EnumUserRole } from '../enums/user-roles';
 
-export interface LoggedInUserTokenData {
+export interface ILoggedInUserTokenData {
   id: string;
   email: string;
   role: EnumUserRole;
