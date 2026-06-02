@@ -19,5 +19,4 @@ async function bootstrap() {
 }
 bootstrap();
 
-// Implement update user and client information.
 // Implement restaurant module (CRUD).

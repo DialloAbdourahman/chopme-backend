@@ -3,11 +3,13 @@ import {
   Controller,
   Get,
   Post,
+  Patch,
   UseGuards,
   ValidationPipe,
 } from '@nestjs/common';
 import { ClientsService } from './clients.service';
 import { CreateClientDto } from './dto/input/create-client.dto';
+import { UpdateClientDto } from './dto/input/update-client.dto';
 import { AuthGuard } from 'src/common/guards/auth.guard';
 import { CurrentUser } from 'src/common/decorators/current-user.decorator';
 import type { ILoggedInUserTokenData } from 'src/common/interfaces/loggedin-user-token-data';
@@ -28,5 +30,15 @@ export class ClientsController {
   @Roles(EnumUserRole.CLIENT)
   me(@CurrentUser() user: ILoggedInUserTokenData) {
     return this.clientsService.getMyClientProfile(user);
+  }
+
+  @Patch('me')
+  @UseGuards(AuthGuard, RoleGuard)
+  @Roles(EnumUserRole.CLIENT)
+  updateMe(
+    @CurrentUser() user: ILoggedInUserTokenData,
+    @Body(new ValidationPipe()) updateClientDto: UpdateClientDto,
+  ) {
+    return this.clientsService.updateMyClientProfile(user, updateClientDto);
   }
 }

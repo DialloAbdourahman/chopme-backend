@@ -3,6 +3,7 @@ import {
   Controller,
   Get,
   Post,
+  Patch,
   ValidationPipe,
   Headers,
   UseGuards,
@@ -10,6 +11,7 @@ import {
 import { UsersService } from './users.service';
 import { EmailPasswordLoginDto } from './dto/input/email-password-login.dto';
 import { GoogleLoginDto } from './dto/input/google-login.dto';
+import { UpdateUserDto } from './dto/input/update-user.dto';
 import { AuthGuard } from 'src/common/guards/auth.guard';
 import { CurrentUser } from 'src/common/decorators/current-user.decorator';
 import type { ILoggedInUserTokenData } from 'src/common/interfaces/loggedin-user-token-data';
@@ -50,6 +52,15 @@ export class UsersController {
   @UseGuards(AuthGuard)
   me(@CurrentUser() user: ILoggedInUserTokenData) {
     return this.usersService.getMyProfile(user);
+  }
+
+  @Patch('me')
+  @UseGuards(AuthGuard)
+  updateMe(
+    @CurrentUser() user: ILoggedInUserTokenData,
+    @Body(new ValidationPipe()) updateUserDto: UpdateUserDto,
+  ) {
+    return this.usersService.updateMyProfile(user, updateUserDto);
   }
 
   // @Get('me')

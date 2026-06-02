@@ -15,6 +15,7 @@ import { env } from 'src/config/env';
 import { ILoggedInUserTokenData } from 'src/common/interfaces/loggedin-user-token-data';
 import { ClientPublicOutputDto } from './dto/output/client-output.dto';
 import { plainToInstance } from 'class-transformer';
+import { UpdateClientDto } from './dto/input/update-client.dto';
 
 @Injectable()
 export class ClientsService {
@@ -133,7 +134,9 @@ export class ClientsService {
       });
     }
 
-    const publicClient = plainToInstance(ClientPublicOutputDto, client, {
+    const clientObject = client.toObject();
+
+    const publicClient = plainToInstance(ClientPublicOutputDto, clientObject, {
       excludeExtraneousValues: true,
     });
 
@@ -145,6 +148,65 @@ export class ClientsService {
       statusCode: EnumStatusCode.RECOVERED_SUCCESSFULLY,
       data: publicClient,
       message: 'Client profile fetched successfully',
+    });
+  }
+
+  async updateMyClientProfile(
+    user: ILoggedInUserTokenData,
+    updateClientDto: UpdateClientDto,
+  ) {
+    this.logger.log(
+      `[updateMyClientProfile] Updating client for user id=${user.id}`,
+    );
+
+    const client = await this.clientModel
+      .findOne({
+        user: new Types.ObjectId(user.id),
+      })
+      .populate('user');
+
+    if (!client) {
+      this.logger.log(
+        `[updateMyClientProfile] Client not found for user id=${user.id}`,
+      );
+      throw new OrchestrationException({
+        statusCode: EnumStatusCode.NOT_FOUND,
+        message: 'Client not found',
+        code: 404,
+      });
+    }
+
+    const currentAddress = client.address || ({} as any);
+
+    if (updateClientDto.country !== undefined) {
+      currentAddress.country = updateClientDto.country;
+    }
+
+    if (updateClientDto.city !== undefined) {
+      currentAddress.city = updateClientDto.city;
+    }
+
+    if (updateClientDto.longitude !== undefined) {
+      currentAddress.longitude = Number(updateClientDto.longitude);
+    }
+
+    if (updateClientDto.latitude !== undefined) {
+      currentAddress.latitude = Number(updateClientDto.latitude);
+    }
+
+    client.address = currentAddress;
+    await client.save();
+
+    const clientObject = client.toObject();
+
+    const publicClient = plainToInstance(ClientPublicOutputDto, clientObject, {
+      excludeExtraneousValues: true,
+    });
+
+    return OrchestrationResult.Success<ClientPublicOutputDto>({
+      statusCode: EnumStatusCode.UPDATED_SUCCESSFULLY,
+      data: publicClient,
+      message: 'Client profile updated successfully',
     });
   }
 }

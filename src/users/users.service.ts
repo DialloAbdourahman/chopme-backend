@@ -461,4 +461,43 @@ export class UsersService {
       message: 'Profile fetched successfully',
     });
   }
+
+  async updateMyProfile(
+    user: ILoggedInUserTokenData,
+    updateUserDto: { fullName?: string },
+  ) {
+    this.logger.log(
+      `[updateMyProfile] Updating profile for user id=${user.id}`,
+    );
+
+    const dbUser = await this.userModel.findOne({
+      _id: user.id,
+      deleted: false,
+      active: true,
+    });
+
+    if (!dbUser) {
+      this.logger.log(
+        `[updateMyProfile] User not found or inactive for id=${user.id}`,
+      );
+      throw new OrchestrationException({
+        statusCode: EnumStatusCode.NOT_FOUND,
+        message: 'User not found',
+        code: 404,
+      });
+    }
+
+    dbUser.fullName = updateUserDto.fullName || dbUser.fullName;
+    await dbUser.save();
+
+    const publicUser = plainToInstance(UserPublicOutputDto, dbUser, {
+      excludeExtraneousValues: true,
+    });
+
+    return OrchestrationResult.Success<UserPublicOutputDto>({
+      statusCode: EnumStatusCode.UPDATED_SUCCESSFULLY,
+      data: publicUser,
+      message: 'Profile updated successfully',
+    });
+  }
 }
