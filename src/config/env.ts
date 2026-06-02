@@ -10,6 +10,10 @@ export interface EnvConfig {
 
   accessTokenDurationMins: number;
   refreshTokenDurationMins: number;
+
+  googleClientId: string;
+  googleClientSecret: string;
+  googleRedirectLink: string;
 }
 
 export const env: EnvConfig = {
@@ -24,4 +28,8 @@ export const env: EnvConfig = {
   refreshTokenDurationMins: Number(
     process.env.REFRESH_TOKEN_DURATION_MINS ?? 60,
   ),
+
+  googleClientId: process.env.GOOGLE_CLIENT_ID!,
+  googleClientSecret: process.env.GOOGLE_CLIENT_SECRET!,
+  googleRedirectLink: process.env.GOOGLE_REDIRECT_LINK!,
 };

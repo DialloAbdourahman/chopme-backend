@@ -1,7 +1,7 @@
 import { Injectable, Logger } from '@nestjs/common';
 
-import { InjectModel } from '@nestjs/mongoose';
-import { Model } from 'mongoose';
+import { InjectConnection, InjectModel } from '@nestjs/mongoose';
+import { Connection, Model } from 'mongoose';
 import * as bcrypt from 'bcrypt';
 import { plainToInstance } from 'class-transformer';
 import { User, UserDocument } from 'src/users/entities/user.entity';
@@ -17,16 +17,21 @@ import { env } from 'src/config/env';
 import { UserPublicOutputDto } from 'src/users/dto/output/user-output.dto';
 import { ILoggedInUserTokenData } from 'src/common/interfaces/loggedin-user-token-data';
 import { JwtService } from '@nestjs/jwt';
+import { getUserFromGoogle } from 'src/common/utils/get-user-from-google';
+import type { IUserFromGoogle } from 'src/common/interfaces/user-from-google';
 
 @Injectable()
 export class UsersService {
   private readonly logger = new Logger(UsersService.name);
 
   constructor(
-    @InjectModel(User.name) private readonly userModel: Model<UserDocument>,
+    @InjectModel(User.name)
+    private readonly userModel: Model<UserDocument>,
     @InjectModel(Client.name)
     private readonly clientModel: Model<ClientDocument>,
-    private jwtService: JwtService,
+    @InjectConnection()
+    private readonly connection: Connection,
+    private readonly jwtService: JwtService,
   ) {}
 
   private async buildTokenPayload(
@@ -91,8 +96,8 @@ export class UsersService {
         `[emailPasswordLogin] Invalid login method for email=${normalizedEmail}`,
       );
       throw new OrchestrationException({
-        statusCode: EnumStatusCode.INVALID_CREDENTIALS,
-        message: 'Invalid credentials',
+        statusCode: EnumStatusCode.LOGIN_METHOD_NOT_ALLOWED,
+        message: 'Login method not allowed',
         code: 401,
       });
     }
@@ -152,13 +157,167 @@ export class UsersService {
   }
 
   async googleLogin(googleLoginDto: GoogleLoginDto) {
-    const code = googleLoginDto.code;
-    this.logger.log(`[googleLogin] Fetching user email=`);
+    this.logger.log('[googleLogin] Starting Google login flow');
 
-    this.logger.log(`[findOne] Found user `);
-    return OrchestrationResult.Success<string>({
+    const code = googleLoginDto.code;
+    let googleUser: IUserFromGoogle | null = null;
+
+    try {
+      this.logger.log('[googleLogin] Exchanging code for Google user');
+      googleUser = await getUserFromGoogle({
+        code,
+        googleClientId: env.googleClientId,
+        googleClientSecret: env.googleClientSecret,
+        googleRedirectLink: env.googleRedirectLink,
+      });
+
+      if (!googleUser || !googleUser.email || !googleUser.name) {
+        this.logger.error('[googleLogin] Failed to retrieve Google user');
+        throw new OrchestrationException({
+          statusCode: EnumStatusCode.INTERNAL_SERVER_ERROR,
+          message: 'Failed to authenticate with Google',
+          code: 500,
+        });
+      }
+    } catch (error) {
+      this.logger.error(
+        `[googleLogin] Error authenticating with Google: ${error?.message}`,
+        error?.stack,
+      );
+      if (error instanceof OrchestrationException) {
+        throw error;
+      }
+      throw new OrchestrationException({
+        statusCode: EnumStatusCode.INTERNAL_SERVER_ERROR,
+        message: 'Failed to authenticate with Google',
+        code: 500,
+      });
+    }
+
+    const normalizedEmail = googleUser.email.toLowerCase().trim();
+
+    this.logger.log(
+      `[googleLogin] Looking up user with email=${normalizedEmail}`,
+    );
+
+    let user = await this.userModel.findOne({ email: normalizedEmail });
+
+    if (user) {
+      this.logger.log(`[googleLogin] Found existing user id=${user._id}`);
+
+      if (user.role !== EnumUserRole.CLIENT) {
+        this.logger.log(
+          `[googleLogin] Unsupported role=${user.role} for email=${normalizedEmail}`,
+        );
+        throw new OrchestrationException({
+          statusCode: EnumStatusCode.LOGIN_METHOD_NOT_ALLOWED,
+          message: 'Only clients can login with Google',
+          code: 401,
+        });
+      }
+
+      if (!user.active || user.deleted) {
+        this.logger.log(
+          `[googleLogin] Inactive or deleted user for email=${normalizedEmail}`,
+        );
+        throw new OrchestrationException({
+          statusCode: EnumStatusCode.INVALID_CREDENTIALS,
+          message: 'Invalid credentials',
+          code: 401,
+        });
+      }
+
+      if (user.authType !== EnumAuthType.GOOGLE) {
+        this.logger.log(
+          `[googleLogin] Invalid login method for email=${normalizedEmail}`,
+        );
+        throw new OrchestrationException({
+          statusCode: EnumStatusCode.INVALID_CREDENTIALS,
+          message: 'Invalid credentials',
+          code: 401,
+        });
+      }
+    } else {
+      this.logger.log(
+        `[googleLogin] No existing user for email=${normalizedEmail}, creating new CLIENT user`,
+      );
+
+      const session = await this.connection.startSession();
+      session.startTransaction();
+
+      try {
+        user = new this.userModel({
+          fullName: googleUser.name,
+          email: normalizedEmail,
+          password: '',
+          role: EnumUserRole.CLIENT,
+          authType: EnumAuthType.GOOGLE,
+          active: true,
+        });
+        await user.save({ session });
+        this.logger.log(`[googleLogin] Created user id=${user._id}`);
+
+        const client = new this.clientModel({
+          user: user._id,
+        });
+        await client.save({ session });
+
+        this.logger.log(
+          `[googleLogin] Created client id=${client._id} for user id=${user._id}`,
+        );
+
+        await session.commitTransaction();
+      } catch (error) {
+        await session.abortTransaction();
+        this.logger.error(
+          `[googleLogin] Error during client signup: ${error?.message}`,
+          error?.stack,
+        );
+
+        throw new OrchestrationException({
+          statusCode: EnumStatusCode.UNABLE_TO_CREATE_ACCOUNT,
+          message: 'Unable to create client account',
+          code: 500,
+        });
+      } finally {
+        session.endSession();
+      }
+    }
+
+    this.logger.log('[googleLogin] Generating tokens...');
+
+    const tokenPayload = await this.buildTokenPayload(user);
+
+    const accessToken = await this.jwtService.signAsync(tokenPayload, {
+      secret: env.accessTokenSecret,
+      expiresIn: `${env.accessTokenDurationMins}m`,
+    });
+
+    const refreshToken = await this.jwtService.signAsync(tokenPayload, {
+      secret: env.refreshTokenSecret,
+      expiresIn: `${env.refreshTokenDurationMins}m`,
+    });
+
+    user.token = refreshToken;
+    await user.save();
+
+    const publicUser = plainToInstance(UserPublicOutputDto, user, {
+      excludeExtraneousValues: true,
+    });
+
+    this.logger.log('[googleLogin] Google login successful');
+
+    return OrchestrationResult.Success<{
+      accessToken: string;
+      refreshToken: string;
+      user: UserPublicOutputDto;
+    }>({
       statusCode: EnumStatusCode.LOGGED_IN_SUCCESSFULLY,
-      data: 'Token',
+      data: {
+        accessToken,
+        refreshToken,
+        user: publicUser,
+      },
       message: 'User logged in successfully',
     });
   }
@@ -303,105 +462,3 @@ export class UsersService {
     });
   }
 }
-
-// const oauthGoogle = async (req: Request, res: Response) => {
-//   let { code } = req.body;
-//   let googleUser;
-
-//   try {
-//     googleUser = await getUserFromGoogle(code);
-
-//     if (!googleUser || !googleUser.email || !googleUser.name) {
-//       OrchestrationResult.serverError(
-//         res,
-//         CODES.GOOGLE_AUTH_ERROR,
-//         "Failed to authenticate with Google"
-//       );
-//       return;
-//     }
-//   } catch (error) {
-//     console.error(error);
-//     OrchestrationResult.serverError(
-//       res,
-//       CODES.GOOGLE_AUTH_ERROR,
-//       "Failed to authenticate with Google"
-//     );
-//     return;
-//   }
-
-//   const existingUser = await prisma.user.findUnique({
-//     where: {
-//       email: googleUser.email,
-//     },
-//   });
-
-//   let user;
-
-//   if (existingUser) {
-//     if (existingUser.type !== "Client") {
-//       OrchestrationResult.badRequest(
-//         res,
-//         CODES.CLIENT_ONLY,
-//         "Admins are not allowed to use this route"
-//       );
-//       return;
-//     }
-
-//     if (!existingUser?.isActive) {
-//       OrchestrationResult.badRequest(
-//         res,
-//         CODES.ACCOUNT_NOT_ACTIVATED,
-//         "Activate your account"
-//       );
-//       return;
-//     }
-
-//     if (existingUser?.isDeleted) {
-//       OrchestrationResult.badRequest(
-//         res,
-//         CODES.ACCOUNT_DELETED,
-//         "Your account has been deleted, contact support."
-//       );
-//       return;
-//     }
-
-//     user = existingUser;
-//   } else {
-//     user = await prisma.user.create({
-//       data: {
-//         email: googleUser.email,
-//         name: googleUser.name,
-//         type: UserType.Client,
-//         isActive: true,
-//       },
-//     });
-//   }
-
-//   const { accessToken, refreshToken } = generateTokens({
-//     id: user.id,
-//     email: user.email,
-//     type: user.type,
-//   });
-
-//   await prisma.user.update({
-//     where: {
-//       id: user.id,
-//     },
-//     data: {
-//       token: refreshToken,
-//     },
-//   });
-
-//   const data: UserReturned = {
-//     id: user.id,
-//     name: user.name || "",
-//     email: user.email,
-//     type: user.type,
-//     createdAt: user.createdAt,
-//     updatedAt: user.updatedAt,
-//     accessToken,
-//     refreshToken,
-//   };
-
-//   OrchestrationResult.item(res, data, 200);
-// };

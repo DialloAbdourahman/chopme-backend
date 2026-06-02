@@ -18,3 +18,6 @@ async function bootstrap() {
   await app.listen(env.port);
 }
 bootstrap();
+
+// Implement update user and client information.
+// Implement restaurant module (CRUD).

@@ -1,13 +1,21 @@
 import { OAuth2Client } from 'google-auth-library';
 import { IUserFromGoogle } from '../interfaces/user-from-google';
 
-export const getUserFromGoogle = async (
-  code: string,
-): Promise<IUserFromGoogle | null> => {
+export const getUserFromGoogle = async ({
+  code,
+  googleClientId,
+  googleClientSecret,
+  googleRedirectLink,
+}: {
+  code: string;
+  googleClientId: string;
+  googleClientSecret: string;
+  googleRedirectLink: string;
+}): Promise<IUserFromGoogle | null> => {
   const client = new OAuth2Client(
-    process.env.GOOGLE_CLIENT_ID,
-    process.env.GOOGLE_CLIENT_SECRET,
-    process.env.GOOGLE_REDIRECT_LINK,
+    googleClientId,
+    googleClientSecret,
+    googleRedirectLink,
   );
 
   // Exchange the authorization code for tokens
