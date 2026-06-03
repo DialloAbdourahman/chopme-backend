@@ -18,6 +18,11 @@ import { RoleGuard, Roles } from 'src/common/guards/role.guard';
 import { EnumUserRole } from 'src/common/enums/user-roles';
 import { CurrentUser } from 'src/common/decorators/current-user.decorator';
 import type { ILoggedInUserTokenData } from 'src/common/interfaces/loggedin-user-token-data';
+import {
+  RestaurantRoleGuard,
+  RestaurantRoles,
+} from 'src/common/guards/restaurant-role.guard';
+import { EnumRestaurantMemberRole } from 'src/common/enums/restaurant-member-role';
 
 @Controller('restaurants')
 export class RestaurantsController {
@@ -48,16 +53,43 @@ export class RestaurantsController {
     return this.restaurantsService.findOne(id);
   }
 
+  @Patch(':id/toggle-closed')
+  @UseGuards(AuthGuard, RoleGuard, RestaurantRoleGuard)
+  @Roles(EnumUserRole.RESTAURANT_MEMBER)
+  @RestaurantRoles(EnumRestaurantMemberRole.MANAGER)
+  toggleClosed(
+    @Param('id') id: string,
+    @CurrentUser() user: ILoggedInUserTokenData,
+  ) {
+    return this.restaurantsService.toggleClosed(id, user);
+  }
+
+  @Patch(':id/restore')
+  @UseGuards(AuthGuard, RoleGuard)
+  @Roles(EnumUserRole.ADMIN)
+  restore(
+    @Param('id') id: string,
+    @CurrentUser() user: ILoggedInUserTokenData,
+  ) {
+    return this.restaurantsService.restore(id, user);
+  }
+
   @Patch(':id')
+  @UseGuards(AuthGuard, RoleGuard, RestaurantRoleGuard)
+  @Roles(EnumUserRole.RESTAURANT_MEMBER)
+  @RestaurantRoles(EnumRestaurantMemberRole.MANAGER)
   update(
     @Param('id') id: string,
-    @Body() updateRestaurantDto: UpdateRestaurantDto,
+    @Body(new ValidationPipe()) updateRestaurantDto: UpdateRestaurantDto,
+    @CurrentUser() user: ILoggedInUserTokenData,
   ) {
-    return this.restaurantsService.update(+id, updateRestaurantDto);
+    return this.restaurantsService.update(id, updateRestaurantDto, user);
   }
 
   @Delete(':id')
-  remove(@Param('id') id: string) {
-    return this.restaurantsService.remove(+id);
+  @UseGuards(AuthGuard, RoleGuard)
+  @Roles(EnumUserRole.ADMIN)
+  remove(@Param('id') id: string, @CurrentUser() user: ILoggedInUserTokenData) {
+    return this.restaurantsService.remove(id, user);
   }
 }

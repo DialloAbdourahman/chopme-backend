@@ -20,7 +20,5 @@ async function bootstrap() {
 }
 bootstrap();
 
-// Implement restaurant update restaurant route (by restaurant manager).
-// Implement route to toggle closing of a restaurant (by restaurant manager)
-// Implement route that allows an admin to delete a restaurant.
 // Implement route to search a restaurant with filters.
+// Implement an s3 service that will allow the admin or restaurant manager to upload images on s3.

@@ -36,8 +36,8 @@ export class Restaurant extends BaseSchema {
   address: {
     country: string;
     city: string;
-    longitude: number;
-    latitude: number;
+    longitude?: number;
+    latitude?: number;
   };
 
   @Prop({

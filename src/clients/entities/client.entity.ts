@@ -25,8 +25,8 @@ export class Client extends BaseSchema {
   address: {
     country: string;
     city: string;
-    longitude: number;
-    latitude: number;
+    longitude?: number;
+    latitude?: number;
   };
 }
 

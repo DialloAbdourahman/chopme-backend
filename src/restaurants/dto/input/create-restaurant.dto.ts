@@ -10,7 +10,7 @@ import {
 } from 'class-validator';
 import { Type } from 'class-transformer';
 
-class RestaurantAddressDto {
+export class RestaurantAddressDto {
   @IsString()
   country: string;
 
@@ -24,7 +24,7 @@ class RestaurantAddressDto {
   latitude?: number;
 }
 
-class DeliveryPricingKmDto {
+export class DeliveryPricingKmDto {
   @IsNumber()
   from: number;
 
@@ -35,7 +35,7 @@ class DeliveryPricingKmDto {
   price: number;
 }
 
-class AvailabilityDto {
+export class AvailabilityDto {
   @IsString()
   day: string;
 

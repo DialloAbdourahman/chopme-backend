@@ -35,6 +35,23 @@ export class RestaurantsService {
     private readonly connection: Connection,
   ) {}
 
+  private ensureUserCanManageRestaurant(
+    restaurantId: string,
+    user: ILoggedInUserTokenData,
+    context: string,
+  ) {
+    if (!user.restaurantId || user.restaurantId !== restaurantId) {
+      this.logger.log(
+        `[${context}] User id=${user.id} is not allowed to update restaurant id=${restaurantId}`,
+      );
+      throw new OrchestrationException({
+        statusCode: EnumStatusCode.NOT_ALLOWED,
+        message: 'You do not have permission to update this restaurant',
+        code: 403,
+      });
+    }
+  }
+
   async create(
     createRestaurantDto: CreateRestaurantDto,
     adminUser: ILoggedInUserTokenData,
@@ -242,11 +259,202 @@ export class RestaurantsService {
     });
   }
 
-  update(id: number, updateRestaurantDto: UpdateRestaurantDto) {
-    return `This action updates a #${id} restaurant`;
+  async update(
+    restaurantId: string,
+    updateRestaurantDto: UpdateRestaurantDto,
+    user: ILoggedInUserTokenData,
+  ) {
+    this.logger.log(
+      `[update] Updating restaurant id=${restaurantId} by user id=${user.id}`,
+    );
+
+    this.ensureUserCanManageRestaurant(restaurantId, user, 'update');
+
+    const restaurant = await this.restaurantModel.findOne({
+      _id: new Types.ObjectId(restaurantId),
+      deleted: false,
+    });
+
+    if (!restaurant) {
+      this.logger.log(`[update] Restaurant not found id=${restaurantId}`);
+      throw new OrchestrationException({
+        statusCode: EnumStatusCode.NOT_FOUND,
+        message: 'Restaurant not found',
+        code: 404,
+      });
+    }
+
+    const {
+      name,
+      slogan,
+      description,
+      phone,
+      restaurantEmail,
+      pictures,
+      deliveryPricingKm,
+      availability,
+      address,
+    } = updateRestaurantDto;
+
+    if (name !== undefined) {
+      restaurant.name = name.trim();
+    }
+    if (slogan !== undefined) {
+      restaurant.slogan = slogan;
+    }
+    if (description !== undefined) {
+      restaurant.description = description;
+    }
+    if (phone !== undefined) {
+      restaurant.phone = phone;
+    }
+    if (restaurantEmail !== undefined) {
+      restaurant.email = restaurantEmail;
+    }
+    if (pictures !== undefined) {
+      restaurant.pictures = pictures;
+    }
+    if (deliveryPricingKm !== undefined) {
+      restaurant.deliveryPricingKm = deliveryPricingKm;
+    }
+    if (availability !== undefined) {
+      restaurant.availability = availability;
+    }
+    if (address !== undefined) {
+      restaurant.address = address;
+    }
+
+    await restaurant.save();
+
+    const restaurantObject = restaurant.toObject();
+
+    const publicRestaurant = plainToInstance(
+      RestaurantPublicOutputDto,
+      restaurantObject,
+      {
+        excludeExtraneousValues: true,
+      },
+    );
+
+    return OrchestrationResult.Success<RestaurantPublicOutputDto>({
+      statusCode: EnumStatusCode.UPDATED_SUCCESSFULLY,
+      data: publicRestaurant,
+      message: 'Restaurant updated successfully',
+    });
   }
 
-  remove(id: number) {
-    return `This action removes a #${id} restaurant`;
+  async toggleClosed(restaurantId: string, user: ILoggedInUserTokenData) {
+    this.logger.log(
+      `[toggleClosed] Toggling isClosed for restaurant id=${restaurantId} by user id=${user.id}`,
+    );
+
+    this.ensureUserCanManageRestaurant(restaurantId, user, 'toggleClosed');
+
+    const restaurant = await this.restaurantModel.findOne({
+      _id: new Types.ObjectId(restaurantId),
+      deleted: false,
+    });
+
+    if (!restaurant) {
+      this.logger.log(`[toggleClosed] Restaurant not found id=${restaurantId}`);
+      throw new OrchestrationException({
+        statusCode: EnumStatusCode.NOT_FOUND,
+        message: 'Restaurant not found',
+        code: 404,
+      });
+    }
+
+    restaurant.isClosed = !restaurant.isClosed;
+    await restaurant.save();
+
+    const restaurantObject = restaurant.toObject();
+
+    const publicRestaurant = plainToInstance(
+      RestaurantPublicOutputDto,
+      restaurantObject,
+      {
+        excludeExtraneousValues: true,
+      },
+    );
+
+    return OrchestrationResult.Success<RestaurantPublicOutputDto>({
+      statusCode: EnumStatusCode.UPDATED_SUCCESSFULLY,
+      data: publicRestaurant,
+      message: 'Restaurant closing state updated successfully',
+    });
+  }
+
+  async remove(restaurantId: string, adminUser: ILoggedInUserTokenData) {
+    this.logger.log(
+      `[remove] Soft deleting restaurant id=${restaurantId} by admin id=${adminUser.id}`,
+    );
+
+    const restaurant = await this.restaurantModel.findOne({
+      _id: new Types.ObjectId(restaurantId),
+      deleted: false,
+    });
+
+    if (!restaurant) {
+      this.logger.log(`[remove] Restaurant not found id=${restaurantId}`);
+      throw new OrchestrationException({
+        statusCode: EnumStatusCode.NOT_FOUND,
+        message: 'Restaurant not found',
+        code: 404,
+      });
+    }
+
+    restaurant.deleted = true;
+    restaurant.deletedAt = new Date();
+    restaurant.deletedBy = new Types.ObjectId(adminUser.id);
+
+    await restaurant.save();
+
+    return OrchestrationResult.Success<string>({
+      statusCode: EnumStatusCode.DELETED_SUCCESSFULLY,
+      data: 'Restaurant deleted successfully',
+      message: 'Restaurant deleted successfully',
+    });
+  }
+
+  async restore(restaurantId: string, adminUser: ILoggedInUserTokenData) {
+    this.logger.log(
+      `[restore] Restoring restaurant id=${restaurantId} by admin id=${adminUser.id}`,
+    );
+
+    const restaurant = await this.restaurantModel.findOne({
+      _id: new Types.ObjectId(restaurantId),
+      deleted: true,
+    });
+
+    if (!restaurant) {
+      this.logger.log(`[restore] Restaurant not found id=${restaurantId}`);
+      throw new OrchestrationException({
+        statusCode: EnumStatusCode.NOT_FOUND,
+        message: 'Restaurant not found',
+        code: 404,
+      });
+    }
+
+    restaurant.deleted = false;
+    restaurant.deletedAt = null;
+    restaurant.deletedBy = null;
+
+    await restaurant.save();
+
+    const restaurantObject = restaurant.toObject();
+
+    const publicRestaurant = plainToInstance(
+      RestaurantPublicOutputDto,
+      restaurantObject,
+      {
+        excludeExtraneousValues: true,
+      },
+    );
+
+    return OrchestrationResult.Success<RestaurantPublicOutputDto>({
+      statusCode: EnumStatusCode.UPDATED_SUCCESSFULLY,
+      data: publicRestaurant,
+      message: 'Restaurant restored successfully',
+    });
   }
 }
