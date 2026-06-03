@@ -6,6 +6,10 @@ import * as bcrypt from 'bcrypt';
 import { plainToInstance } from 'class-transformer';
 import { User, UserDocument } from 'src/users/entities/user.entity';
 import { Client, ClientDocument } from 'src/clients/entities/client.entity';
+import {
+  RestaurantMember,
+  RestaurantMemberDocument,
+} from 'src/restaurants/entities/restaurant-member.entity';
 import { OrchestrationResult } from 'src/common/utils/orchestration.result';
 import { EnumStatusCode } from 'src/common/enums/response-status-code';
 import { OrchestrationException } from 'src/common/exceptions/orchestration.exception';
@@ -29,6 +33,8 @@ export class UsersService {
     private readonly userModel: Model<UserDocument>,
     @InjectModel(Client.name)
     private readonly clientModel: Model<ClientDocument>,
+    @InjectModel(RestaurantMember.name)
+    private readonly restaurantMemberModel: Model<RestaurantMemberDocument>,
     @InjectConnection()
     private readonly connection: Connection,
     private readonly jwtService: JwtService,
@@ -61,7 +67,30 @@ export class UsersService {
       payload.clientId = client._id.toString();
     }
 
-    // Future roles (e.g. restaurant manager) can be handled here.
+    if (user.role === EnumUserRole.RESTAURANT_MEMBER) {
+      this.logger.log(
+        `[buildTokenPayload] Fetching restaurant member for user id=${user._id}`,
+      );
+
+      const restaurantMember = await this.restaurantMemberModel.findOne({
+        user: user._id,
+      });
+
+      if (!restaurantMember) {
+        this.logger.error(
+          `[buildTokenPayload] No restaurant member linked to user id=${user._id}`,
+        );
+        throw new OrchestrationException({
+          statusCode: EnumStatusCode.INVALID_CREDENTIALS,
+          message: 'Invalid credentials',
+          code: 401,
+        });
+      }
+
+      payload.restaurantMemberId = restaurantMember._id.toString();
+      payload.restaurantId = restaurantMember.restaurant.toString();
+      payload.restaurantMemberRole = restaurantMember.role;
+    }
 
     return payload;
   }

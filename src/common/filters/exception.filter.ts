@@ -19,6 +19,8 @@ export class OrchestrationExceptionFilter implements ExceptionFilter {
     const response = ctx.getResponse<Response>();
     const request = ctx.getRequest<Request>();
 
+    console.log(exception);
+
     // 🎯 Case 1 — Our custom OrchestrationException
     if (exception instanceof OrchestrationException) {
       this.logger.warn(
@@ -38,7 +40,6 @@ export class OrchestrationExceptionFilter implements ExceptionFilter {
       this.logger.warn(
         `[HttpException] ${request.method} ${request.url} — ${exception.message}`,
       );
-      console.log(exception);
 
       return response.status(status).json({
         code: EnumStatusResponse.FAILURE,

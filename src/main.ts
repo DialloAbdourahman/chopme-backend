@@ -7,6 +7,7 @@ import { stringToArray } from './common/utils/string-to-array';
 
 async function bootstrap() {
   const app = await NestFactory.create(AppModule);
+
   app.setGlobalPrefix('api');
   app.enableCors({
     origin: stringToArray(env.allowedOrigins),
@@ -19,4 +20,7 @@ async function bootstrap() {
 }
 bootstrap();
 
-// Implement restaurant module (CRUD).
+// Implement restaurant update restaurant route (by restaurant manager).
+// Implement route to toggle closing of a restaurant (by restaurant manager)
+// Implement route that allows an admin to delete a restaurant.
+// Implement route to search a restaurant with filters.

@@ -8,6 +8,7 @@ import { ThrottlerGuard, ThrottlerModule } from '@nestjs/throttler';
 import { APP_GUARD } from '@nestjs/core';
 import { ClientsModule } from './clients/clients.module';
 import { env } from './config/env';
+import { RestaurantsModule } from './restaurants/restaurants.module';
 
 @Module({
   imports: [
@@ -32,6 +33,7 @@ import { env } from './config/env';
       },
     ]),
     ClientsModule,
+    RestaurantsModule,
   ],
   controllers: [AppController],
   providers: [
