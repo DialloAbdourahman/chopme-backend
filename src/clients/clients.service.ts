@@ -15,7 +15,7 @@ import { env } from 'src/config/env';
 import { ILoggedInUserTokenData } from 'src/common/interfaces/loggedin-user-token-data';
 import { ClientPublicOutputDto } from './dto/output/client-output.dto';
 import { plainToInstance } from 'class-transformer';
-import { UpdateClientDto } from './dto/input/update-client.dto';
+import { UpdateAddressDto } from './dto/input/update-address.dto';
 
 @Injectable()
 export class ClientsService {
@@ -151,12 +151,12 @@ export class ClientsService {
     });
   }
 
-  async updateMyClientProfile(
+  async updateMyClientLocation(
     user: ILoggedInUserTokenData,
-    updateClientDto: UpdateClientDto,
+    updateClientDto: UpdateAddressDto,
   ) {
     this.logger.log(
-      `[updateMyClientProfile] Updating client for user id=${user.id}`,
+      `[updateMyClientLocation] Updating client location for user id=${user.id}`,
     );
 
     const client = await this.clientModel
@@ -167,7 +167,7 @@ export class ClientsService {
 
     if (!client) {
       this.logger.log(
-        `[updateMyClientProfile] Client not found for user id=${user.id}`,
+        `[updateMyClientLocation] Client not found for user id=${user.id}`,
       );
       throw new OrchestrationException({
         statusCode: EnumStatusCode.NOT_FOUND,
@@ -178,21 +178,8 @@ export class ClientsService {
 
     const currentAddress = client.address || ({} as any);
 
-    if (updateClientDto.country !== undefined) {
-      currentAddress.country = updateClientDto.country;
-    }
-
-    if (updateClientDto.city !== undefined) {
-      currentAddress.city = updateClientDto.city;
-    }
-
-    if (updateClientDto.longitude !== undefined) {
-      currentAddress.longitude = Number(updateClientDto.longitude);
-    }
-
-    if (updateClientDto.latitude !== undefined) {
-      currentAddress.latitude = Number(updateClientDto.latitude);
-    }
+    currentAddress.longitude = Number(updateClientDto.longitude);
+    currentAddress.latitude = Number(updateClientDto.latitude);
 
     client.address = currentAddress;
     await client.save();

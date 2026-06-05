@@ -9,7 +9,7 @@ import {
 } from '@nestjs/common';
 import { ClientsService } from './clients.service';
 import { CreateClientDto } from './dto/input/create-client.dto';
-import { UpdateClientDto } from './dto/input/update-client.dto';
+import { UpdateAddressDto } from './dto/input/update-address.dto';
 import { AuthGuard } from 'src/common/guards/auth.guard';
 import { CurrentUser } from 'src/common/decorators/current-user.decorator';
 import type { ILoggedInUserTokenData } from 'src/common/interfaces/loggedin-user-token-data';
@@ -32,13 +32,13 @@ export class ClientsController {
     return this.clientsService.getMyClientProfile(user);
   }
 
-  @Patch('me')
+  @Patch('me/location')
   @UseGuards(AuthGuard, RoleGuard)
   @Roles(EnumUserRole.CLIENT)
   updateMe(
     @CurrentUser() user: ILoggedInUserTokenData,
-    @Body(new ValidationPipe()) updateClientDto: UpdateClientDto,
+    @Body(new ValidationPipe()) updateClientDto: UpdateAddressDto,
   ) {
-    return this.clientsService.updateMyClientProfile(user, updateClientDto);
+    return this.clientsService.updateMyClientLocation(user, updateClientDto);
   }
 }

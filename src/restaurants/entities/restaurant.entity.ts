@@ -1,6 +1,8 @@
 import { Prop, Schema, SchemaFactory } from '@nestjs/mongoose';
 import { HydratedDocument } from 'mongoose';
 import { BaseSchema } from 'src/common/schemas/base.schema';
+import { EnumCities } from 'src/common/enums/cities';
+import { EnumCountries } from 'src/common/enums/countries';
 
 export type RestaurantDocument = HydratedDocument<Restaurant>;
 
@@ -26,18 +28,19 @@ export class Restaurant extends BaseSchema {
 
   @Prop({
     type: {
-      country: { type: String },
-      city: { type: String },
-      longitude: { type: Number },
-      latitude: { type: Number },
+      country: { type: String, enum: EnumCountries, required: true },
+      city: { type: String, enum: EnumCities, required: true },
+      longitude: { type: Number, required: true },
+      latitude: { type: Number, required: true },
     },
     _id: false,
+    required: true,
   })
   address: {
-    country: string;
-    city: string;
-    longitude?: number;
-    latitude?: number;
+    country: EnumCountries;
+    city: EnumCities;
+    longitude: number;
+    latitude: number;
   };
 
   @Prop({

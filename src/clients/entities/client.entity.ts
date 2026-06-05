@@ -15,18 +15,15 @@ export class Client extends BaseSchema {
 
   @Prop({
     type: {
-      country: { type: String },
-      city: { type: String },
-      longitude: { type: Number },
-      latitude: { type: Number },
+      longitude: { type: Number, required: true },
+      latitude: { type: Number, required: true },
     },
     _id: false,
+    required: false,
   })
-  address: {
-    country: string;
-    city: string;
-    longitude?: number;
-    latitude?: number;
+  address?: {
+    longitude: number;
+    latitude: number;
   };
 }
 

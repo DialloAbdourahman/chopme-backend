@@ -1,6 +1,7 @@
 import {
   IsArray,
   IsEmail,
+  IsEnum,
   IsNumber,
   IsOptional,
   IsString,
@@ -9,19 +10,21 @@ import {
   ValidateNested,
 } from 'class-validator';
 import { Type } from 'class-transformer';
+import { EnumCities } from 'src/common/enums/cities';
+import { EnumCountries } from 'src/common/enums/countries';
 
 export class RestaurantAddressDto {
-  @IsString()
-  country: string;
+  @IsEnum(EnumCountries)
+  country: EnumCountries;
 
-  @IsString()
-  city: string;
+  @IsEnum(EnumCities)
+  city: EnumCities;
 
-  @IsOptional()
-  longitude?: number;
+  @IsNumber()
+  longitude: number;
 
-  @IsOptional()
-  latitude?: number;
+  @IsNumber()
+  latitude: number;
 }
 
 export class DeliveryPricingKmDto {
@@ -85,15 +88,9 @@ export class CreateRestaurantDto {
   @IsString()
   restaurantEmail?: string;
 
-  @IsOptional()
   @ValidateNested()
   @Type(() => RestaurantAddressDto)
-  address?: RestaurantAddressDto;
-
-  @IsOptional()
-  @IsArray()
-  @IsString({ each: true })
-  pictures?: string[];
+  address: RestaurantAddressDto;
 
   @IsOptional()
   @IsArray()

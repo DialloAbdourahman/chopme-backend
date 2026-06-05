@@ -102,7 +102,6 @@ export class RestaurantsService {
         phone,
         restaurantEmail,
         address,
-        pictures,
         deliveryPricingKm,
         availability,
       } = createRestaurantDto;
@@ -134,7 +133,7 @@ export class RestaurantsService {
         phone,
         email: restaurantEmail,
         address,
-        pictures: pictures ?? [],
+        pictures: [],
         deliveryPricingKm: deliveryPricingKm ?? [],
         createdBy: createdById,
         availability: availability ?? [],
@@ -293,7 +292,6 @@ export class RestaurantsService {
       pictures,
       deliveryPricingKm,
       availability,
-      address,
     } = updateRestaurantDto;
 
     if (name !== undefined) {
@@ -319,9 +317,6 @@ export class RestaurantsService {
     }
     if (availability !== undefined) {
       restaurant.availability = availability;
-    }
-    if (address !== undefined) {
-      restaurant.address = address;
     }
 
     await restaurant.save();

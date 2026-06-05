@@ -3,7 +3,7 @@ import { Type } from 'class-transformer';
 import {
   AvailabilityDto,
   DeliveryPricingKmDto,
-  RestaurantAddressDto,
+  // RestaurantAddressDto,
 } from './create-restaurant.dto';
 
 export class UpdateRestaurantDto {
@@ -26,11 +26,6 @@ export class UpdateRestaurantDto {
   @IsOptional()
   @IsString()
   restaurantEmail?: string;
-
-  @IsOptional()
-  @ValidateNested()
-  @Type(() => RestaurantAddressDto)
-  address?: RestaurantAddressDto;
 
   @IsOptional()
   @IsArray()
