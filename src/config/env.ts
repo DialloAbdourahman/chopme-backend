@@ -14,6 +14,12 @@ export interface EnvConfig {
   googleClientId: string;
   googleClientSecret: string;
   googleRedirectLink: string;
+
+  s3BucketName: string;
+  s3BucketRegion: string;
+
+  maxRestaurantImages: number;
+  maxRestaurantImageSizeInMb: number;
 }
 
 export const env: EnvConfig = {
@@ -32,4 +38,12 @@ export const env: EnvConfig = {
   googleClientId: process.env.GOOGLE_CLIENT_ID!,
   googleClientSecret: process.env.GOOGLE_CLIENT_SECRET!,
   googleRedirectLink: process.env.GOOGLE_REDIRECT_LINK!,
+
+  s3BucketName: process.env.S3_BUCKET_NAME!,
+  s3BucketRegion: process.env.S3_BUCKET_REGION!,
+
+  maxRestaurantImages: Number(process.env.MAX_RESTAURANT_IMAGES ?? 10),
+  maxRestaurantImageSizeInMb: Number(
+    process.env.MAX_RESTAURANT_IMAGE_SIZE_IN_MB ?? 5,
+  ),
 };

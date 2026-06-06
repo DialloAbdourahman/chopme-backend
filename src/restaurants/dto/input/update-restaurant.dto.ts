@@ -3,14 +3,10 @@ import { Type } from 'class-transformer';
 import {
   AvailabilityDto,
   DeliveryPricingKmDto,
-  // RestaurantAddressDto,
+  RestaurantAddressDto,
 } from './create-restaurant.dto';
 
 export class UpdateRestaurantDto {
-  @IsOptional()
-  @IsString()
-  name?: string;
-
   @IsOptional()
   @IsString()
   slogan?: string;
@@ -43,4 +39,15 @@ export class UpdateRestaurantDto {
   @ValidateNested({ each: true })
   @Type(() => AvailabilityDto)
   availability?: AvailabilityDto[];
+}
+
+export class AdminUpdateRestaurantDto {
+  @IsOptional()
+  @IsString()
+  name?: string;
+
+  @IsOptional()
+  @ValidateNested()
+  @Type(() => RestaurantAddressDto)
+  address?: RestaurantAddressDto;
 }

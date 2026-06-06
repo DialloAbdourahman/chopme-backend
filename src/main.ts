@@ -20,6 +20,4 @@ async function bootstrap() {
 }
 bootstrap();
 
-// Allow the admin to update the information of a restaurant aka address now, name (remove it from manager update and only admin should).
-// Implement an s3 service that will allow the admin or restaurant manager to upload images on s3. AND REMOVE IMAGE UPLOAD DURING REATAURANT CREATINGO AND JUST ALLOW IT ON UPDATE. Also add the field profile picture.
 // Implement route to search a restaurant with filters.

@@ -2,7 +2,10 @@ import { Injectable, Logger } from '@nestjs/common';
 import { InjectConnection, InjectModel } from '@nestjs/mongoose';
 import { Connection, Model, Types } from 'mongoose';
 import { CreateRestaurantDto } from './dto/input/create-restaurant.dto';
-import { UpdateRestaurantDto } from './dto/input/update-restaurant.dto';
+import {
+  UpdateRestaurantDto,
+  AdminUpdateRestaurantDto,
+} from './dto/input/update-restaurant.dto';
 import { Restaurant, RestaurantDocument } from './entities/restaurant.entity';
 import { User, UserDocument } from 'src/users/entities/user.entity';
 import {
@@ -19,10 +22,13 @@ import { EnumRestaurantMemberRole } from 'src/common/enums/restaurant-member-rol
 import type { ILoggedInUserTokenData } from 'src/common/interfaces/loggedin-user-token-data';
 import { plainToInstance } from 'class-transformer';
 import { RestaurantPublicOutputDto } from './dto/output/restaurant-output.dto';
+import { AwsS3Helper } from 'src/common/aws/s3';
+import { env } from 'src/config/env';
 
 @Injectable()
 export class RestaurantsService {
   private readonly logger = new Logger(RestaurantsService.name);
+  private readonly s3Helper: AwsS3Helper;
 
   constructor(
     @InjectModel(Restaurant.name)
@@ -33,7 +39,12 @@ export class RestaurantsService {
     private readonly restaurantMemberModel: Model<RestaurantMemberDocument>,
     @InjectConnection()
     private readonly connection: Connection,
-  ) {}
+  ) {
+    this.s3Helper = new AwsS3Helper({
+      bucketName: env.s3BucketName,
+      bucketRegion: env.s3BucketRegion,
+    });
+  }
 
   private ensureUserCanManageRestaurant(
     restaurantId: string,
@@ -284,7 +295,6 @@ export class RestaurantsService {
     }
 
     const {
-      name,
       slogan,
       description,
       phone,
@@ -294,9 +304,6 @@ export class RestaurantsService {
       availability,
     } = updateRestaurantDto;
 
-    if (name !== undefined) {
-      restaurant.name = name.trim();
-    }
     if (slogan !== undefined) {
       restaurant.slogan = slogan;
     }
@@ -317,6 +324,57 @@ export class RestaurantsService {
     }
     if (availability !== undefined) {
       restaurant.availability = availability;
+    }
+
+    await restaurant.save();
+
+    const restaurantObject = restaurant.toObject();
+
+    const publicRestaurant = plainToInstance(
+      RestaurantPublicOutputDto,
+      restaurantObject,
+      {
+        excludeExtraneousValues: true,
+      },
+    );
+
+    return OrchestrationResult.Success<RestaurantPublicOutputDto>({
+      statusCode: EnumStatusCode.UPDATED_SUCCESSFULLY,
+      data: publicRestaurant,
+      message: 'Restaurant updated successfully',
+    });
+  }
+
+  async adminUpdate(
+    restaurantId: string,
+    adminUpdateRestaurantDto: AdminUpdateRestaurantDto,
+    adminUser: ILoggedInUserTokenData,
+  ) {
+    this.logger.log(
+      `[adminUpdate] Admin updating restaurant id=${restaurantId} by admin email=${adminUser.email}`,
+    );
+
+    const restaurant = await this.restaurantModel.findOne({
+      _id: new Types.ObjectId(restaurantId),
+      deleted: false,
+    });
+
+    if (!restaurant) {
+      this.logger.log(`[adminUpdate] Restaurant not found id=${restaurantId}`);
+      throw new OrchestrationException({
+        statusCode: EnumStatusCode.NOT_FOUND,
+        message: 'Restaurant not found',
+        code: 404,
+      });
+    }
+
+    const { name, address } = adminUpdateRestaurantDto;
+
+    if (name !== undefined) {
+      restaurant.name = name.trim();
+    }
+    if (address !== undefined) {
+      restaurant.address = address;
     }
 
     await restaurant.save();
@@ -450,6 +508,137 @@ export class RestaurantsService {
       statusCode: EnumStatusCode.UPDATED_SUCCESSFULLY,
       data: publicRestaurant,
       message: 'Restaurant restored successfully',
+    });
+  }
+
+  async uploadRestaurantImage(
+    restaurantId: string,
+    file: Express.Multer.File,
+    user: ILoggedInUserTokenData,
+  ) {
+    this.logger.log(
+      `[uploadRestaurantImage] Uploading image for restaurant id=${restaurantId} by user id=${user.id}`,
+    );
+
+    this.ensureUserCanManageRestaurant(
+      restaurantId,
+      user,
+      'uploadRestaurantImage',
+    );
+
+    const restaurant = await this.restaurantModel.findOne({
+      _id: new Types.ObjectId(restaurantId),
+      deleted: false,
+    });
+
+    if (!restaurant) {
+      this.logger.log(
+        `[uploadRestaurantImage] Restaurant not found id=${restaurantId}`,
+      );
+      throw new OrchestrationException({
+        statusCode: EnumStatusCode.NOT_FOUND,
+        message: 'Restaurant not found',
+        code: 404,
+      });
+    }
+
+    if (restaurant.pictures.length >= env.maxRestaurantImages) {
+      this.logger.log(
+        `[uploadRestaurantImage] Restaurant id=${restaurantId} has reached maximum image limit of ${env.maxRestaurantImages}`,
+      );
+      throw new OrchestrationException({
+        statusCode: EnumStatusCode.MAX_IMAGES_REACHED,
+        message: `Maximum image limit of ${env.maxRestaurantImages} reached`,
+        code: 400,
+      });
+    }
+
+    const fileExtension = file.originalname.split('.').pop();
+    const key = `restaurants/${restaurantId}/images/${Date.now()}.${fileExtension}`;
+
+    await this.s3Helper.uploadImage(key, file.mimetype, file.buffer);
+
+    restaurant.pictures.push(key);
+    await restaurant.save();
+
+    const restaurantObject = restaurant.toObject();
+
+    const publicRestaurant = plainToInstance(
+      RestaurantPublicOutputDto,
+      restaurantObject,
+      {
+        excludeExtraneousValues: true,
+      },
+    );
+
+    return OrchestrationResult.Success<RestaurantPublicOutputDto>({
+      statusCode: EnumStatusCode.CREATED_SUCCESSFULLY,
+      data: publicRestaurant,
+      message: 'Image uploaded successfully',
+    });
+  }
+
+  async deleteRestaurantImage(
+    restaurantId: string,
+    key: string,
+    user: ILoggedInUserTokenData,
+  ) {
+    this.logger.log(
+      `[deleteRestaurantImage] Deleting image key=${key} for restaurant id=${restaurantId} by user id=${user.id}`,
+    );
+
+    this.ensureUserCanManageRestaurant(
+      restaurantId,
+      user,
+      'deleteRestaurantImage',
+    );
+
+    const restaurant = await this.restaurantModel.findOne({
+      _id: new Types.ObjectId(restaurantId),
+      deleted: false,
+    });
+
+    if (!restaurant) {
+      this.logger.log(
+        `[deleteRestaurantImage] Restaurant not found id=${restaurantId}`,
+      );
+      throw new OrchestrationException({
+        statusCode: EnumStatusCode.NOT_FOUND,
+        message: 'Restaurant not found',
+        code: 404,
+      });
+    }
+
+    if (!restaurant.pictures.includes(key)) {
+      this.logger.log(
+        `[deleteRestaurantImage] Image key=${key} not found in restaurant id=${restaurantId}`,
+      );
+      throw new OrchestrationException({
+        statusCode: EnumStatusCode.NOT_FOUND,
+        message: 'Image not found',
+        code: 404,
+      });
+    }
+
+    await this.s3Helper.deleteImageFromS3(key);
+
+    restaurant.pictures = restaurant.pictures.filter((pic) => pic !== key);
+    await restaurant.save();
+
+    const restaurantObject = restaurant.toObject();
+
+    const publicRestaurant = plainToInstance(
+      RestaurantPublicOutputDto,
+      restaurantObject,
+      {
+        excludeExtraneousValues: true,
+      },
+    );
+
+    return OrchestrationResult.Success<RestaurantPublicOutputDto>({
+      statusCode: EnumStatusCode.DELETED_SUCCESSFULLY,
+      data: publicRestaurant,
+      message: 'Image deleted successfully',
     });
   }
 }

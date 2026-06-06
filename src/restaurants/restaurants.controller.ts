@@ -9,10 +9,16 @@ import {
   Query,
   UseGuards,
   ValidationPipe,
+  UseInterceptors,
+  UploadedFile,
 } from '@nestjs/common';
+import { FileInterceptor } from '@nestjs/platform-express';
 import { RestaurantsService } from './restaurants.service';
 import { CreateRestaurantDto } from './dto/input/create-restaurant.dto';
-import { UpdateRestaurantDto } from './dto/input/update-restaurant.dto';
+import {
+  UpdateRestaurantDto,
+  AdminUpdateRestaurantDto,
+} from './dto/input/update-restaurant.dto';
 import { AuthGuard } from 'src/common/guards/auth.guard';
 import { RoleGuard, Roles } from 'src/common/guards/role.guard';
 import { EnumUserRole } from 'src/common/enums/user-roles';
@@ -23,6 +29,9 @@ import {
   RestaurantRoles,
 } from 'src/common/guards/restaurant-role.guard';
 import { EnumRestaurantMemberRole } from 'src/common/enums/restaurant-member-role';
+import { env } from 'src/config/env';
+import { OrchestrationException } from 'src/common/exceptions/orchestration.exception';
+import { EnumStatusCode } from 'src/common/enums/response-status-code';
 
 @Controller('restaurants')
 export class RestaurantsController {
@@ -74,6 +83,22 @@ export class RestaurantsController {
     return this.restaurantsService.restore(id, user);
   }
 
+  @Patch(':id/admin')
+  @UseGuards(AuthGuard, RoleGuard)
+  @Roles(EnumUserRole.ADMIN)
+  adminUpdate(
+    @Param('id') id: string,
+    @Body(new ValidationPipe())
+    adminUpdateRestaurantDto: AdminUpdateRestaurantDto,
+    @CurrentUser() user: ILoggedInUserTokenData,
+  ) {
+    return this.restaurantsService.adminUpdate(
+      id,
+      adminUpdateRestaurantDto,
+      user,
+    );
+  }
+
   @Patch(':id')
   @UseGuards(AuthGuard, RoleGuard, RestaurantRoleGuard)
   @Roles(EnumUserRole.RESTAURANT_MEMBER)
@@ -84,6 +109,50 @@ export class RestaurantsController {
     @CurrentUser() user: ILoggedInUserTokenData,
   ) {
     return this.restaurantsService.update(id, updateRestaurantDto, user);
+  }
+
+  @Post(':id/upload-image')
+  @UseGuards(AuthGuard, RoleGuard, RestaurantRoleGuard)
+  @Roles(EnumUserRole.RESTAURANT_MEMBER)
+  @RestaurantRoles(EnumRestaurantMemberRole.MANAGER)
+  @UseInterceptors(
+    FileInterceptor('file', {
+      fileFilter: (_, file, callback) => {
+        if (!file.mimetype.startsWith('image/')) {
+          return callback(
+            new OrchestrationException({
+              statusCode: EnumStatusCode.ONLY_IMAGE_FILES_ALLOWED,
+              message: 'Only image files are allowed',
+              code: 400,
+            }),
+            false,
+          );
+        }
+        callback(null, true);
+      },
+      limits: {
+        fileSize: env.maxRestaurantImageSizeInMb * 1024 * 1024,
+      },
+    }),
+  )
+  uploadImage(
+    @Param('id') id: string,
+    @UploadedFile() file: Express.Multer.File,
+    @CurrentUser() user: ILoggedInUserTokenData,
+  ) {
+    return this.restaurantsService.uploadRestaurantImage(id, file, user);
+  }
+
+  @Delete(':id/images')
+  @UseGuards(AuthGuard, RoleGuard, RestaurantRoleGuard)
+  @Roles(EnumUserRole.RESTAURANT_MEMBER)
+  @RestaurantRoles(EnumRestaurantMemberRole.MANAGER)
+  deleteImage(
+    @Param('id') id: string,
+    @Query('key') key: string,
+    @CurrentUser() user: ILoggedInUserTokenData,
+  ) {
+    return this.restaurantsService.deleteRestaurantImage(id, key, user);
   }
 
   @Delete(':id')
