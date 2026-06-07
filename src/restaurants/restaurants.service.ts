@@ -25,6 +25,8 @@ import { RestaurantPublicOutputDto } from './dto/output/restaurant-output.dto';
 import { AwsS3Helper } from 'src/common/aws/s3';
 import { env } from 'src/config/env';
 import { EnumRestaurantType } from 'src/common/enums/restaurant-types';
+import type { Pagination } from 'src/common/interfaces/pagination';
+import { FindRestaurantDto } from './dto/input/find-restaurant.dto';
 
 @Injectable()
 export class RestaurantsService {
@@ -231,19 +233,22 @@ export class RestaurantsService {
     });
   }
 
-  async findAll(filters: {
-    search?: string;
-    city?: string;
-    longitude?: number;
-    latitude?: number;
-    radiusKm?: number;
-    type?: EnumRestaurantType;
-    onlyOpened?: boolean;
-  }) {
+  async findAll(filters: FindRestaurantDto) {
     this.logger.log(`[findAll] Finding restaurants with filters`, filters);
 
-    const { search, city, type, onlyOpened, latitude, longitude, radiusKm } =
-      filters;
+    const {
+      search,
+      city,
+      type,
+      onlyOpened,
+      latitude,
+      longitude,
+      radiusKm,
+      page = 1,
+      limit = 10,
+    } = filters;
+
+    console.log(page, limit);
 
     const pipeline: any[] = [];
 
@@ -318,7 +323,20 @@ export class RestaurantsService {
 
     this.logger.log(`[findAll] Finding restaurants with filters`, pipeline);
 
-    const restaurants = await this.restaurantModel.aggregate(pipeline);
+    // Get total count
+    const countPipeline = [...pipeline, { $count: 'count' }];
+    const [countResult] = await this.restaurantModel.aggregate(countPipeline);
+    const totalItems = countResult?.count || 0;
+
+    // Get paginated items
+    const itemsPipeline = [
+      ...pipeline,
+      { $skip: (page - 1) * limit },
+      { $limit: limit },
+    ];
+    const restaurants = await this.restaurantModel.aggregate(itemsPipeline);
+
+    const totalPages = Math.ceil(totalItems / limit);
 
     const publicRestaurants = plainToInstance(
       RestaurantPublicOutputDto,
@@ -328,9 +346,17 @@ export class RestaurantsService {
       },
     );
 
-    return OrchestrationResult.Success<RestaurantPublicOutputDto[]>({
+    const paginatedResult: Pagination<RestaurantPublicOutputDto> = {
+      items: publicRestaurants,
+      page,
+      totalPages,
+      totalItems,
+      itemsPerPage: limit,
+    };
+
+    return OrchestrationResult.Success<Pagination<RestaurantPublicOutputDto>>({
       statusCode: EnumStatusCode.RECOVERED_SUCCESSFULLY,
-      data: publicRestaurants,
+      data: paginatedResult,
       message: 'Restaurants retrieved successfully',
     });
   }

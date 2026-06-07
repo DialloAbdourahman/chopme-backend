@@ -20,4 +20,5 @@ async function bootstrap() {
 }
 bootstrap();
 
-// Implement route to search a restaurant with filters.
+// Read find restaurant code well and understand it.
+// Try to add availability filter in the find all.
