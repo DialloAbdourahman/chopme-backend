@@ -115,6 +115,7 @@ export class RestaurantsService {
         address,
         deliveryPricingKm,
         availability,
+        location,
       } = createRestaurantDto;
 
       const hashedPassword = await bcrypt.hash(password, 10);
@@ -148,6 +149,7 @@ export class RestaurantsService {
         deliveryPricingKm: deliveryPricingKm ?? [],
         createdBy: createdById,
         availability: availability ?? [],
+        location,
       });
       await restaurant.save({ session });
       this.logger.log(`[create] Created restaurant id=${restaurant._id}`);
@@ -368,13 +370,16 @@ export class RestaurantsService {
       });
     }
 
-    const { name, address } = adminUpdateRestaurantDto;
+    const { name, address, location } = adminUpdateRestaurantDto;
 
     if (name !== undefined) {
       restaurant.name = name.trim();
     }
     if (address !== undefined) {
       restaurant.address = address;
+    }
+    if (location !== undefined) {
+      restaurant.location = location;
     }
 
     await restaurant.save();

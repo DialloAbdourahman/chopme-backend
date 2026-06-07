@@ -1,8 +1,6 @@
 import { Prop, Schema, SchemaFactory } from '@nestjs/mongoose';
 import { HydratedDocument } from 'mongoose';
 import { BaseSchema } from 'src/common/schemas/base.schema';
-import { EnumCities } from 'src/common/enums/cities';
-import { EnumCountries } from 'src/common/enums/countries';
 
 export type RestaurantDocument = HydratedDocument<Restaurant>;
 
@@ -28,19 +26,38 @@ export class Restaurant extends BaseSchema {
 
   @Prop({
     type: {
-      country: { type: String, enum: EnumCountries, required: true },
-      city: { type: String, enum: EnumCities, required: true },
-      longitude: { type: Number, required: true },
-      latitude: { type: Number, required: true },
+      country: { type: String, required: true },
+      city: { type: String, required: true },
+      countryCode: { type: String, required: true },
+      state: { type: String, required: false },
+      longName: { type: String, required: false },
     },
     _id: false,
     required: true,
   })
   address: {
-    country: EnumCountries;
-    city: EnumCities;
-    longitude: number;
-    latitude: number;
+    country: string;
+    city: string;
+    countryCode: string;
+    state?: string;
+    longName?: string;
+  };
+
+  @Prop({
+    type: {
+      type: String,
+      enum: ['Point'],
+      required: true,
+      default: 'Point',
+    },
+    coordinates: {
+      type: [Number],
+      required: true,
+    },
+  })
+  location: {
+    type: string;
+    coordinates: number[];
   };
 
   @Prop({
@@ -104,6 +121,8 @@ export class Restaurant extends BaseSchema {
 }
 
 export const RestaurantSchema = SchemaFactory.createForClass(Restaurant);
+
+RestaurantSchema.index({ location: '2dsphere' });
 
 RestaurantSchema.pre<RestaurantDocument>('save', function () {
   if (!this.isModified('name') && this.slug) {

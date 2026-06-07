@@ -10,21 +10,34 @@ import {
   ValidateNested,
 } from 'class-validator';
 import { Type } from 'class-transformer';
-import { EnumCities } from 'src/common/enums/cities';
-import { EnumCountries } from 'src/common/enums/countries';
 
 export class RestaurantAddressDto {
-  @IsEnum(EnumCountries)
-  country: EnumCountries;
+  @IsString()
+  country: string;
 
-  @IsEnum(EnumCities)
-  city: EnumCities;
+  @IsString()
+  city: string;
 
-  @IsNumber()
-  longitude: number;
+  @IsString()
+  @IsOptional()
+  longName: string;
 
-  @IsNumber()
-  latitude: number;
+  @IsString()
+  countryCode: string;
+
+  @IsString()
+  @IsOptional()
+  state: string;
+}
+
+export class RestaurantLocationDto {
+  @IsString()
+  @IsEnum(['Point'])
+  type: string;
+
+  @IsArray()
+  @IsNumber({}, { each: true })
+  coordinates: number[];
 }
 
 export class DeliveryPricingKmDto {
@@ -91,6 +104,10 @@ export class CreateRestaurantDto {
   @ValidateNested()
   @Type(() => RestaurantAddressDto)
   address: RestaurantAddressDto;
+
+  @ValidateNested()
+  @Type(() => RestaurantLocationDto)
+  location: RestaurantLocationDto;
 
   @IsOptional()
   @IsArray()

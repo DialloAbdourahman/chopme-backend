@@ -4,6 +4,7 @@ import {
   AvailabilityDto,
   DeliveryPricingKmDto,
   RestaurantAddressDto,
+  RestaurantLocationDto,
 } from './create-restaurant.dto';
 
 export class UpdateRestaurantDto {
@@ -50,4 +51,9 @@ export class AdminUpdateRestaurantDto {
   @ValidateNested()
   @Type(() => RestaurantAddressDto)
   address?: RestaurantAddressDto;
+
+  @IsOptional()
+  @ValidateNested()
+  @Type(() => RestaurantLocationDto)
+  location?: RestaurantLocationDto;
 }

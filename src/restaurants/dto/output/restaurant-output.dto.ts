@@ -26,8 +26,15 @@ export class RestaurantPublicOutputDto {
   address: {
     country: string;
     city: string;
-    longitude: number;
-    latitude: number;
+    countryCode: string;
+    state?: string;
+    longName?: string;
+  };
+
+  @Expose()
+  location: {
+    type: 'Point';
+    coordinates: [number, number];
   };
 
   @Expose()
