@@ -32,6 +32,7 @@ import { EnumRestaurantMemberRole } from 'src/common/enums/restaurant-member-rol
 import { env } from 'src/config/env';
 import { OrchestrationException } from 'src/common/exceptions/orchestration.exception';
 import { EnumStatusCode } from 'src/common/enums/response-status-code';
+import { EnumRestaurantType } from 'src/common/enums/restaurant-types';
 
 @Controller('restaurants')
 export class RestaurantsController {
@@ -53,8 +54,25 @@ export class RestaurantsController {
   }
 
   @Get()
-  findAll() {
-    return this.restaurantsService.findAll();
+  findAll(
+    @Query('search') search: string,
+    @Query('city') city: string,
+    @Query('longitude') longitude: number,
+    @Query('latitude') latitude: number,
+    @Query('radiusKm') radiusKm: number,
+    @Query('type') type: EnumRestaurantType,
+    // @Query('rating') rating: number, // Coming soon when we will get many restaurants
+    @Query('opened') onlyOpened: boolean,
+  ) {
+    return this.restaurantsService.findAll({
+      search,
+      city,
+      longitude,
+      latitude,
+      type,
+      radiusKm,
+      onlyOpened,
+    });
   }
 
   @Get(':id')

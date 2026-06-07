@@ -10,6 +10,7 @@ import {
   ValidateNested,
 } from 'class-validator';
 import { Type } from 'class-transformer';
+import { EnumRestaurantType } from 'src/common/enums/restaurant-types';
 
 export class RestaurantAddressDto {
   @IsString()
@@ -100,6 +101,9 @@ export class CreateRestaurantDto {
   @IsOptional()
   @IsString()
   restaurantEmail?: string;
+
+  @IsEnum(EnumRestaurantType)
+  type: EnumRestaurantType;
 
   @ValidateNested()
   @Type(() => RestaurantAddressDto)

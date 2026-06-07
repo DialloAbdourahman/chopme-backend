@@ -1,8 +1,9 @@
-import { Expose } from 'class-transformer';
+import { Expose, Transform } from 'class-transformer';
 import { EnumUserRole } from 'src/common/enums/user-roles';
 
 export class UserPublicOutputDto {
   @Expose()
+  @Transform(({ obj }) => obj._id?.toString())
   id: string;
 
   @Expose()

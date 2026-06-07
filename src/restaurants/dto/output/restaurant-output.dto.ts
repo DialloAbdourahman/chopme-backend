@@ -1,7 +1,8 @@
-import { Expose } from 'class-transformer';
+import { Expose, Transform } from 'class-transformer';
 
 export class RestaurantPublicOutputDto {
   @Expose()
+  @Transform(({ obj }) => obj._id?.toString())
   id: string;
 
   @Expose()
@@ -21,6 +22,9 @@ export class RestaurantPublicOutputDto {
 
   @Expose()
   email?: string;
+
+  @Expose()
+  type: string;
 
   @Expose()
   address: {
@@ -58,6 +62,15 @@ export class RestaurantPublicOutputDto {
 
   @Expose()
   isClosed: boolean;
+
+  @Expose()
+  @Transform(({ obj }) => {
+    if (obj.distance) {
+      return Math.round((obj.distance / 1000) * 100) / 100;
+    }
+    return undefined;
+  })
+  distanceKm?: number;
 
   @Expose()
   availability: {

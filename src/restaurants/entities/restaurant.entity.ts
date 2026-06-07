@@ -1,5 +1,6 @@
 import { Prop, Schema, SchemaFactory } from '@nestjs/mongoose';
 import { HydratedDocument } from 'mongoose';
+import { EnumRestaurantType } from 'src/common/enums/restaurant-types';
 import { BaseSchema } from 'src/common/schemas/base.schema';
 
 export type RestaurantDocument = HydratedDocument<Restaurant>;
@@ -23,6 +24,9 @@ export class Restaurant extends BaseSchema {
 
   @Prop({ required: false })
   email?: string;
+
+  @Prop({ enum: EnumRestaurantType, type: String })
+  type: EnumRestaurantType;
 
   @Prop({
     type: {

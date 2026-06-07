@@ -24,6 +24,7 @@ import { plainToInstance } from 'class-transformer';
 import { RestaurantPublicOutputDto } from './dto/output/restaurant-output.dto';
 import { AwsS3Helper } from 'src/common/aws/s3';
 import { env } from 'src/config/env';
+import { EnumRestaurantType } from 'src/common/enums/restaurant-types';
 
 @Injectable()
 export class RestaurantsService {
@@ -116,6 +117,7 @@ export class RestaurantsService {
         deliveryPricingKm,
         availability,
         location,
+        type,
       } = createRestaurantDto;
 
       const hashedPassword = await bcrypt.hash(password, 10);
@@ -150,6 +152,7 @@ export class RestaurantsService {
         createdBy: createdById,
         availability: availability ?? [],
         location,
+        type,
       });
       await restaurant.save({ session });
       this.logger.log(`[create] Created restaurant id=${restaurant._id}`);
@@ -228,8 +231,108 @@ export class RestaurantsService {
     });
   }
 
-  findAll() {
-    return `This action returns all restaurants`;
+  async findAll(filters: {
+    search?: string;
+    city?: string;
+    longitude?: number;
+    latitude?: number;
+    radiusKm?: number;
+    type?: EnumRestaurantType;
+    onlyOpened?: boolean;
+  }) {
+    this.logger.log(`[findAll] Finding restaurants with filters`, filters);
+
+    const { search, city, type, onlyOpened, latitude, longitude, radiusKm } =
+      filters;
+
+    const pipeline: any[] = [];
+
+    // If geospatial search is requested, use $geoNear as first stage
+    if (longitude && latitude && radiusKm) {
+      const radiusMeters = radiusKm * 1000;
+      pipeline.push({
+        $geoNear: {
+          near: {
+            type: 'Point',
+            coordinates: [Number(longitude), Number(latitude)],
+          },
+          maxDistance: radiusMeters,
+          spherical: true,
+          distanceField: 'distance',
+        },
+      });
+    }
+
+    // Filter out deleted restaurants
+    pipeline.push({
+      $match: {
+        deleted: false,
+      },
+    });
+
+    // Sort by distance if geospatial search was used
+    if (longitude && latitude && radiusKm) {
+      pipeline.push({
+        $sort: {
+          distance: 1,
+        },
+      });
+    }
+
+    if (search) {
+      pipeline.push({
+        $match: {
+          $or: [
+            { name: { $regex: search, $options: 'i' } },
+            { description: { $regex: search, $options: 'i' } },
+            { slogan: { $regex: search, $options: 'i' } },
+          ],
+        },
+      });
+    }
+
+    // Only apply city filter if not using geospatial search
+    if (!longitude && !latitude && city) {
+      pipeline.push({
+        $match: {
+          'address.city': { $regex: city, $options: 'i' },
+        },
+      });
+    }
+
+    if (type) {
+      pipeline.push({
+        $match: {
+          type,
+        },
+      });
+    }
+
+    if (onlyOpened) {
+      pipeline.push({
+        $match: {
+          isClosed: false,
+        },
+      });
+    }
+
+    this.logger.log(`[findAll] Finding restaurants with filters`, pipeline);
+
+    const restaurants = await this.restaurantModel.aggregate(pipeline);
+
+    const publicRestaurants = plainToInstance(
+      RestaurantPublicOutputDto,
+      restaurants,
+      {
+        excludeExtraneousValues: true,
+      },
+    );
+
+    return OrchestrationResult.Success<RestaurantPublicOutputDto[]>({
+      statusCode: EnumStatusCode.RECOVERED_SUCCESSFULLY,
+      data: publicRestaurants,
+      message: 'Restaurants retrieved successfully',
+    });
   }
 
   async findOne(idOrSlug: string) {
@@ -370,7 +473,7 @@ export class RestaurantsService {
       });
     }
 
-    const { name, address, location } = adminUpdateRestaurantDto;
+    const { name, address, location, type } = adminUpdateRestaurantDto;
 
     if (name !== undefined) {
       restaurant.name = name.trim();
@@ -380,6 +483,9 @@ export class RestaurantsService {
     }
     if (location !== undefined) {
       restaurant.location = location;
+    }
+    if (type !== undefined) {
+      restaurant.type = type;
     }
 
     await restaurant.save();

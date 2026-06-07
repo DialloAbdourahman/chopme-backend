@@ -1,4 +1,10 @@
-import { IsArray, IsOptional, IsString, ValidateNested } from 'class-validator';
+import {
+  IsArray,
+  IsEnum,
+  IsOptional,
+  IsString,
+  ValidateNested,
+} from 'class-validator';
 import { Type } from 'class-transformer';
 import {
   AvailabilityDto,
@@ -6,6 +12,7 @@ import {
   RestaurantAddressDto,
   RestaurantLocationDto,
 } from './create-restaurant.dto';
+import { EnumRestaurantType } from 'src/common/enums/restaurant-types';
 
 export class UpdateRestaurantDto {
   @IsOptional()
@@ -46,6 +53,10 @@ export class AdminUpdateRestaurantDto {
   @IsOptional()
   @IsString()
   name?: string;
+
+  @IsOptional()
+  @IsEnum(EnumRestaurantType)
+  type?: EnumRestaurantType;
 
   @IsOptional()
   @ValidateNested()
