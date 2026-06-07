@@ -9,6 +9,8 @@ import { APP_GUARD } from '@nestjs/core';
 import { ClientsModule } from './clients/clients.module';
 import { env } from './config/env';
 import { RestaurantsModule } from './restaurants/restaurants.module';
+import { MenusModule } from './menus/menus.module';
+import { OrdersModule } from './orders/orders.module';
 
 @Module({
   imports: [
@@ -34,6 +36,8 @@ import { RestaurantsModule } from './restaurants/restaurants.module';
     ]),
     ClientsModule,
     RestaurantsModule,
+    MenusModule,
+    OrdersModule,
   ],
   controllers: [AppController],
   providers: [
