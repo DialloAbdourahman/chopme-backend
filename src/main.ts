@@ -19,6 +19,3 @@ async function bootstrap() {
   await app.listen(env.port);
 }
 bootstrap();
-
-// Read find restaurant code well and understand it.
-// Try to add availability filter in the find all.

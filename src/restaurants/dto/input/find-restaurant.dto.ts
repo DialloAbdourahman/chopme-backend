@@ -36,10 +36,10 @@ export class FindRestaurantDto {
   @IsOptional()
   type?: EnumRestaurantType;
 
-  @IsBoolean()
-  @IsOptional()
-  @Type(() => Boolean)
-  onlyOpened?: boolean;
+  // @IsBoolean()
+  // @IsOptional()
+  // @Type(() => Boolean)
+  // onlyOpened?: boolean;
 
   @IsNumber()
   @IsOptional()

@@ -240,7 +240,7 @@ export class RestaurantsService {
       search,
       city,
       type,
-      onlyOpened,
+      // onlyOpened,
       latitude,
       longitude,
       radiusKm,
@@ -313,13 +313,13 @@ export class RestaurantsService {
       });
     }
 
-    if (onlyOpened) {
-      pipeline.push({
-        $match: {
-          isClosed: false,
-        },
-      });
-    }
+    // if (onlyOpened) {
+    //   pipeline.push({
+    //     $match: {
+    //       isClosed: false,
+    //     },
+    //   });
+    // }
 
     this.logger.log(`[findAll] Finding restaurants with filters`, pipeline);
 
