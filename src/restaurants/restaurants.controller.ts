@@ -146,6 +146,38 @@ export class RestaurantsController {
     return this.restaurantsService.uploadRestaurantImage(id, file, user);
   }
 
+  @Post(':id/upload-cover-image')
+  @UseGuards(AuthGuard, RoleGuard, RestaurantRoleGuard)
+  @Roles(EnumUserRole.RESTAURANT_MEMBER)
+  @RestaurantRoles(EnumRestaurantMemberRole.MANAGER)
+  @UseInterceptors(
+    FileInterceptor('file', {
+      fileFilter: (_, file, callback) => {
+        if (!file.mimetype.startsWith('image/')) {
+          return callback(
+            new OrchestrationException({
+              statusCode: EnumStatusCode.ONLY_IMAGE_FILES_ALLOWED,
+              message: 'Only image files are allowed',
+              code: 400,
+            }),
+            false,
+          );
+        }
+        callback(null, true);
+      },
+      limits: {
+        fileSize: env.maxRestaurantImageSizeInMb * 1024 * 1024,
+      },
+    }),
+  )
+  uploadCoverImage(
+    @Param('id') id: string,
+    @UploadedFile() file: Express.Multer.File,
+    @CurrentUser() user: ILoggedInUserTokenData,
+  ) {
+    return this.restaurantsService.uploadRestaurantCoverImage(id, file, user);
+  }
+
   @Delete(':id/images')
   @UseGuards(AuthGuard, RoleGuard, RestaurantRoleGuard)
   @Roles(EnumUserRole.RESTAURANT_MEMBER)
@@ -156,6 +188,17 @@ export class RestaurantsController {
     @CurrentUser() user: ILoggedInUserTokenData,
   ) {
     return this.restaurantsService.deleteRestaurantImage(id, key, user);
+  }
+
+  @Delete(':id/cover-image')
+  @UseGuards(AuthGuard, RoleGuard, RestaurantRoleGuard)
+  @Roles(EnumUserRole.RESTAURANT_MEMBER)
+  @RestaurantRoles(EnumRestaurantMemberRole.MANAGER)
+  deleteCoverImage(
+    @Param('id') id: string,
+    @CurrentUser() user: ILoggedInUserTokenData,
+  ) {
+    return this.restaurantsService.deleteRestaurantCoverImage(id, user);
   }
 
   @Delete(':id')

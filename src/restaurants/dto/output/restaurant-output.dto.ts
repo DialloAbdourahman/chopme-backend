@@ -51,6 +51,9 @@ export class RestaurantPublicOutputDto {
   totalViews: number;
 
   @Expose()
+  coverImage?: string;
+
+  @Expose()
   pictures: string[];
 
   @Expose()

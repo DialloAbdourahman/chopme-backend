@@ -715,6 +715,62 @@ export class RestaurantsService {
     });
   }
 
+  async uploadRestaurantCoverImage(
+    restaurantId: string,
+    file: Express.Multer.File,
+    user: ILoggedInUserTokenData,
+  ) {
+    this.logger.log(
+      `[uploadRestaurantCoverImage] Uploading cover image for restaurant id=${restaurantId} by user id=${user.id}`,
+    );
+
+    this.ensureUserCanManageRestaurant(
+      restaurantId,
+      user,
+      'uploadRestaurantCoverImage',
+    );
+
+    const restaurant = await this.restaurantModel.findOne({
+      _id: new Types.ObjectId(restaurantId),
+      deleted: false,
+    });
+
+    if (!restaurant) {
+      this.logger.log(
+        `[uploadRestaurantCoverImage] Restaurant not found id=${restaurantId}`,
+      );
+      throw new OrchestrationException({
+        statusCode: EnumStatusCode.NOT_FOUND,
+        message: 'Restaurant not found',
+        code: 404,
+      });
+    }
+
+    const fileExtension = file.originalname.split('.').pop();
+    const key = `restaurants/${restaurantId}/cover/${Date.now()}.${fileExtension}`;
+
+    await this.s3Helper.uploadImage(key, file.mimetype, file.buffer);
+
+    restaurant.coverImage = key;
+    await restaurant.save();
+
+    const restaurantObject = restaurant.toObject();
+
+    const publicRestaurant = plainToInstance(
+      RestaurantPublicOutputDto,
+      restaurantObject,
+      {
+        excludeExtraneousValues: true,
+      },
+    );
+
+    return OrchestrationResult.Success<RestaurantPublicOutputDto>({
+      statusCode: EnumStatusCode.CREATED_SUCCESSFULLY,
+      data: publicRestaurant,
+      message: 'Cover image uploaded successfully',
+    });
+  }
+
   async deleteRestaurantImage(
     restaurantId: string,
     key: string,
@@ -776,6 +832,69 @@ export class RestaurantsService {
       statusCode: EnumStatusCode.DELETED_SUCCESSFULLY,
       data: publicRestaurant,
       message: 'Image deleted successfully',
+    });
+  }
+
+  async deleteRestaurantCoverImage(
+    restaurantId: string,
+    user: ILoggedInUserTokenData,
+  ) {
+    this.logger.log(
+      `[deleteRestaurantCoverImage] Deleting cover image for restaurant id=${restaurantId} by user id=${user.id}`,
+    );
+
+    this.ensureUserCanManageRestaurant(
+      restaurantId,
+      user,
+      'deleteRestaurantCoverImage',
+    );
+
+    const restaurant = await this.restaurantModel.findOne({
+      _id: new Types.ObjectId(restaurantId),
+      deleted: false,
+    });
+
+    if (!restaurant) {
+      this.logger.log(
+        `[deleteRestaurantCoverImage] Restaurant not found id=${restaurantId}`,
+      );
+      throw new OrchestrationException({
+        statusCode: EnumStatusCode.NOT_FOUND,
+        message: 'Restaurant not found',
+        code: 404,
+      });
+    }
+
+    if (!restaurant.coverImage) {
+      this.logger.log(
+        `[deleteRestaurantCoverImage] Restaurant id=${restaurantId} has no cover image`,
+      );
+      throw new OrchestrationException({
+        statusCode: EnumStatusCode.NOT_FOUND,
+        message: 'Cover image not found',
+        code: 404,
+      });
+    }
+
+    await this.s3Helper.deleteImageFromS3(restaurant.coverImage);
+
+    restaurant.coverImage = undefined;
+    await restaurant.save();
+
+    const restaurantObject = restaurant.toObject();
+
+    const publicRestaurant = plainToInstance(
+      RestaurantPublicOutputDto,
+      restaurantObject,
+      {
+        excludeExtraneousValues: true,
+      },
+    );
+
+    return OrchestrationResult.Success<RestaurantPublicOutputDto>({
+      statusCode: EnumStatusCode.DELETED_SUCCESSFULLY,
+      data: publicRestaurant,
+      message: 'Cover image deleted successfully',
     });
   }
 }

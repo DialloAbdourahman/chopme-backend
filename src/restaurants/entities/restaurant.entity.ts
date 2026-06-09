@@ -83,6 +83,9 @@ export class Restaurant extends BaseSchema {
   @Prop({ default: 0 })
   totalViews: number;
 
+  @Prop({ required: false })
+  coverImage?: string;
+
   @Prop({ type: [String], default: [] })
   pictures: string[];
 
