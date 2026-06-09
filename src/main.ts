@@ -19,6 +19,3 @@ async function bootstrap() {
   await app.listen(env.port);
 }
 bootstrap();
-
-// Add the coverImage on the restaurant and routes to define and remove it.
-// Add a category to the menu using an enum.
