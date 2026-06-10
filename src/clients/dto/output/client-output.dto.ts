@@ -1,13 +1,13 @@
 import { Expose, Type } from 'class-transformer';
-import { UserPublicOutputDto } from 'src/users/dto/output/user-output.dto';
+// import { UserPublicOutputDto } from 'src/users/dto/output/user-output.dto';
 
 export class ClientPublicOutputDto {
   @Expose()
   id: string;
 
-  @Expose()
-  @Type(() => UserPublicOutputDto)
-  user: UserPublicOutputDto;
+  // @Expose()
+  // @Type(() => UserPublicOutputDto)
+  // user: UserPublicOutputDto;
 
   @Expose()
   address: {

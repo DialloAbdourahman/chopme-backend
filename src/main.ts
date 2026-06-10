@@ -19,3 +19,7 @@ async function bootstrap() {
   await app.listen(env.port);
 }
 bootstrap();
+
+// Create a new route that will allow the restaurant manager to create a new restaurant member (user alongside restaurant member).
+
+// Try to look at the menu category as it is done in ubereats and see if we should not allow the restaurant to create their categories.

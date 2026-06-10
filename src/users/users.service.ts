@@ -9,7 +9,7 @@ import { Client, ClientDocument } from 'src/clients/entities/client.entity';
 import {
   RestaurantMember,
   RestaurantMemberDocument,
-} from 'src/restaurants/entities/restaurant-member.entity';
+} from 'src/restaurant-members/entities/restaurant-member.entity';
 import { OrchestrationResult } from 'src/common/utils/orchestration.result';
 import { EnumStatusCode } from 'src/common/enums/response-status-code';
 import { OrchestrationException } from 'src/common/exceptions/orchestration.exception';

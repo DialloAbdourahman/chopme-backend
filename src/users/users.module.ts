@@ -7,7 +7,7 @@ import { Client, ClientSchema } from 'src/clients/entities/client.entity';
 import {
   RestaurantMember,
   RestaurantMemberSchema,
-} from 'src/restaurants/entities/restaurant-member.entity';
+} from 'src/restaurant-members/entities/restaurant-member.entity';
 import { JwtModule } from '@nestjs/jwt';
 
 @Module({

@@ -2,8 +2,8 @@ import { Prop, Schema, SchemaFactory } from '@nestjs/mongoose';
 import { HydratedDocument, Types } from 'mongoose';
 import { BaseSchema } from 'src/common/schemas/base.schema';
 import { User } from 'src/users/entities/user.entity';
-import { Restaurant } from './restaurant.entity';
 import { EnumRestaurantMemberRole } from 'src/common/enums/restaurant-member-role';
+import { Restaurant } from 'src/restaurants/entities/restaurant.entity';
 
 export type RestaurantMemberDocument = HydratedDocument<RestaurantMember>;
 

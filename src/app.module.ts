@@ -11,6 +11,7 @@ import { env } from './config/env';
 import { RestaurantsModule } from './restaurants/restaurants.module';
 import { MenusModule } from './menus/menus.module';
 import { OrdersModule } from './orders/orders.module';
+import { RestaurantMembersModule } from './restaurant-members/restaurant-members.module';
 
 @Module({
   imports: [
@@ -38,6 +39,7 @@ import { OrdersModule } from './orders/orders.module';
     RestaurantsModule,
     MenusModule,
     OrdersModule,
+    RestaurantMembersModule,
   ],
   controllers: [AppController],
   providers: [

@@ -11,7 +11,7 @@ import { User, UserDocument } from 'src/users/entities/user.entity';
 import {
   RestaurantMember,
   RestaurantMemberDocument,
-} from './entities/restaurant-member.entity';
+} from 'src/restaurant-members/entities/restaurant-member.entity';
 import { EnumUserRole } from 'src/common/enums/user-roles';
 import { EnumAuthType } from 'src/common/enums/auth-types';
 import { OrchestrationResult } from 'src/common/utils/orchestration.result';
@@ -24,7 +24,6 @@ import { plainToInstance } from 'class-transformer';
 import { RestaurantPublicOutputDto } from './dto/output/restaurant-output.dto';
 import { AwsS3Helper } from 'src/common/aws/s3';
 import { env } from 'src/config/env';
-import { EnumRestaurantType } from 'src/common/enums/restaurant-types';
 import type { Pagination } from 'src/common/interfaces/pagination';
 import { FindRestaurantDto } from './dto/input/find-restaurant.dto';
 
