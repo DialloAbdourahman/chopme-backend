@@ -399,6 +399,51 @@ export class RestaurantsService {
     });
   }
 
+  async incrementTotalViews(idOrSlug: string) {
+    this.logger.log(
+      `[incrementTotalViews] Incrementing totalViews for restaurant idOrSlug=${idOrSlug}`,
+    );
+
+    const isObjectId = Types.ObjectId.isValid(idOrSlug);
+
+    const query = isObjectId
+      ? { _id: new Types.ObjectId(idOrSlug), deleted: false }
+      : { slug: idOrSlug, deleted: false };
+
+    const restaurant = await this.restaurantModel.findOneAndUpdate(
+      query,
+      { $inc: { totalViews: 1 } },
+      { new: true },
+    );
+
+    if (!restaurant) {
+      this.logger.log(
+        `[incrementTotalViews] Restaurant not found for idOrSlug=${idOrSlug}`,
+      );
+      throw new OrchestrationException({
+        statusCode: EnumStatusCode.NOT_FOUND,
+        message: 'Restaurant not found',
+        code: 404,
+      });
+    }
+
+    const restaurantObject = restaurant.toObject();
+
+    const publicRestaurant = plainToInstance(
+      RestaurantPublicOutputDto,
+      restaurantObject,
+      {
+        excludeExtraneousValues: true,
+      },
+    );
+
+    return OrchestrationResult.Success<RestaurantPublicOutputDto>({
+      statusCode: EnumStatusCode.UPDATED_SUCCESSFULLY,
+      data: publicRestaurant,
+      message: 'Restaurant views incremented successfully',
+    });
+  }
+
   async update(
     restaurantId: string,
     updateRestaurantDto: UpdateRestaurantDto,

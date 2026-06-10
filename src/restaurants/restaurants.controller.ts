@@ -65,6 +65,11 @@ export class RestaurantsController {
     return this.restaurantsService.findOne(id);
   }
 
+  @Patch(':id/increment-views')
+  incrementTotalViews(@Param('id') id: string) {
+    return this.restaurantsService.incrementTotalViews(id);
+  }
+
   @Patch(':id/toggle-closed')
   @UseGuards(AuthGuard, RoleGuard, RestaurantRoleGuard)
   @Roles(EnumUserRole.RESTAURANT_MEMBER)
