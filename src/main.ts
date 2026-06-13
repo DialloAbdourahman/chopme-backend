@@ -20,11 +20,12 @@ async function bootstrap() {
 }
 bootstrap();
 
-// Add isOwner bool attribute on restaurant member.
+// New route that will allow a restaurant manager to get all his restaurant members.
 
-// New restaurant member route that will allow the owner to delete a member (use the isOwner attribute, should not be able to delete owner.)
+// @restaurant-members.controller.ts another route that will allow the restaurant mangaer to search for the restaurant members and it should be pagingated just like the route @restaurants.controller.ts#L57-61 but ti will take the pgaingation from the request query.
+// It should also teak in a search attribute from the request query and it should search against the user.fullName, user.email.
 
-// Another route that will allow a manager to update the role of a restaurant member (not be able to update the isOwner.)
+// It should also take in a role in the request query to filer
 
 // New route in users module to allow the user to update their password.
 

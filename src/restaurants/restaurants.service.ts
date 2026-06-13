@@ -170,6 +170,7 @@ export class RestaurantsService {
         user: restaurantUserId,
         role: EnumRestaurantMemberRole.MANAGER,
         createdBy: createdById,
+        isOwner: true,
       });
       await member.save({ session });
 

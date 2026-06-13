@@ -24,6 +24,9 @@ export class RestaurantMemberPublicOutputDto {
 
   @Expose()
   updatedAt: Date;
+
+  @Expose()
+  isOwner: boolean;
 }
 
 export class RestaurantMemberPrivateOutputDto extends RestaurantMemberPublicOutputDto {

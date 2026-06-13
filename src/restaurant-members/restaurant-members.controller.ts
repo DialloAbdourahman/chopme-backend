@@ -6,6 +6,7 @@ import {
   Param,
   Patch,
   Post,
+  Query,
   UseGuards,
   ValidationPipe,
 } from '@nestjs/common';
@@ -56,6 +57,29 @@ export class RestaurantMembersController {
     return this.restaurantMembersService.findOne(user);
   }
 
+  @Patch(':id/role')
+  @UseGuards(AuthGuard, RoleGuard, RestaurantRoleGuard)
+  @Roles(EnumUserRole.RESTAURANT_MEMBER)
+  @RestaurantRoles(EnumRestaurantMemberRole.MANAGER)
+  updateRole(
+    @Param('id') id: string,
+    @Query('role') role: EnumRestaurantMemberRole,
+    @CurrentUser() user: ILoggedInUserTokenData,
+  ) {
+    return this.restaurantMembersService.updateRole(id, role, user);
+  }
+
+  @Patch(':id/restore')
+  @UseGuards(AuthGuard, RoleGuard, RestaurantRoleGuard)
+  @Roles(EnumUserRole.RESTAURANT_MEMBER)
+  @RestaurantRoles(EnumRestaurantMemberRole.MANAGER)
+  restore(
+    @Param('id') id: string,
+    @CurrentUser() user: ILoggedInUserTokenData,
+  ) {
+    return this.restaurantMembersService.restore(id, user);
+  }
+
   @Patch(':id')
   update(
     @Param('id') id: string,
@@ -65,7 +89,10 @@ export class RestaurantMembersController {
   }
 
   @Delete(':id')
-  remove(@Param('id') id: string) {
-    return this.restaurantMembersService.remove(+id);
+  @UseGuards(AuthGuard, RoleGuard, RestaurantRoleGuard)
+  @Roles(EnumUserRole.RESTAURANT_MEMBER)
+  @RestaurantRoles(EnumRestaurantMemberRole.MANAGER)
+  remove(@Param('id') id: string, @CurrentUser() user: ILoggedInUserTokenData) {
+    return this.restaurantMembersService.remove(id, user);
   }
 }

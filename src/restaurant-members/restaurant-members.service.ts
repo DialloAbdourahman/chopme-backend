@@ -40,14 +40,6 @@ export class RestaurantMembersService {
       `[create] Starting restaurant member creation by manager user id=${managerUser.id}, restaurantId=${managerUser.restaurantId}`,
     );
 
-    if (!managerUser.restaurantId) {
-      throw new OrchestrationException({
-        statusCode: EnumStatusCode.NOT_ALLOWED,
-        message: 'You are not associated with any restaurant',
-        code: 403,
-      });
-    }
-
     const normalizedEmail = createRestaurantMemberDto.email
       .toLowerCase()
       .trim();
@@ -150,14 +142,6 @@ export class RestaurantMembersService {
       `[findOne] Getting restaurant member profile for user id=${user.id}, restaurantMemberId=${user.restaurantMemberId}`,
     );
 
-    if (!user.restaurantId || !user.restaurantMemberId) {
-      throw new OrchestrationException({
-        statusCode: EnumStatusCode.NOT_ALLOWED,
-        message: 'You are not associated with any restaurant member',
-        code: 403,
-      });
-    }
-
     const restaurantMember = await this.restaurantMemberModel
       .findOne({
         _id: new Types.ObjectId(user.restaurantMemberId),
@@ -199,7 +183,278 @@ export class RestaurantMembersService {
     return `This action updates a #${id} restaurantMember`;
   }
 
-  remove(id: number) {
-    return `This action removes a #${id} restaurantMember`;
+  async restore(memberId: string, managerUser: ILoggedInUserTokenData) {
+    this.logger.log(
+      `[restore] Restoring restaurant member id=${memberId} by manager user id=${managerUser.id}, restaurantId=${managerUser.restaurantId}`,
+    );
+
+    const session = await this.connection.startSession();
+    session.startTransaction();
+
+    try {
+      const restaurantObjectId = new Types.ObjectId(managerUser.restaurantId);
+
+      const member = await this.restaurantMemberModel
+        .findOne({
+          _id: new Types.ObjectId(memberId),
+          restaurant: restaurantObjectId,
+          deleted: true,
+        })
+        .session(session);
+
+      if (!member) {
+        this.logger.log(
+          `[restore] Restaurant member not found id=${memberId} in restaurantId=${managerUser.restaurantId}`,
+        );
+        throw new OrchestrationException({
+          statusCode: EnumStatusCode.NOT_FOUND,
+          message: 'Restaurant member not found',
+          code: 404,
+        });
+      }
+
+      const user = await this.userModel
+        .findOne({
+          _id: member.user.toString(),
+          deleted: true,
+        })
+        .session(session);
+
+      if (!user) {
+        this.logger.error(
+          `[restore] No user found for restaurant member id=${memberId}, userId=${member.user}`,
+        );
+        throw new OrchestrationException({
+          statusCode: EnumStatusCode.INTERNAL_SERVER_ERROR,
+          message: 'User linked to restaurant member not found',
+          code: 500,
+        });
+      }
+
+      member.deleted = false;
+      member.deletedAt = null;
+      member.deletedBy = null;
+      await member.save({ session });
+
+      user.deleted = false;
+      user.active = true;
+      user.deletedAt = null;
+      user.deletedBy = null;
+      await user.save({ session });
+
+      await session.commitTransaction();
+      this.logger.log(
+        `[restore] Restaurant member id=${memberId} restored successfully`,
+      );
+
+      const memberObject = member.toObject();
+
+      const publicMember = plainToInstance(
+        RestaurantMemberPublicOutputDto,
+        memberObject,
+        {
+          excludeExtraneousValues: true,
+        },
+      );
+
+      return OrchestrationResult.Success<RestaurantMemberPublicOutputDto>({
+        statusCode: EnumStatusCode.UPDATED_SUCCESSFULLY,
+        data: publicMember,
+        message: 'Restaurant member restored successfully',
+      });
+    } catch (error) {
+      await session.abortTransaction();
+      this.logger.error(
+        `[restore] Error during restaurant member restore: ${error?.message}`,
+        error?.stack,
+      );
+
+      if (error instanceof OrchestrationException) {
+        throw error;
+      }
+
+      throw new OrchestrationException({
+        statusCode: EnumStatusCode.INTERNAL_SERVER_ERROR,
+        message: 'Unable to restore restaurant member',
+        code: 500,
+      });
+    } finally {
+      session.endSession();
+    }
+  }
+
+  async updateRole(
+    memberId: string,
+    role: EnumRestaurantMemberRole,
+    managerUser: ILoggedInUserTokenData,
+  ) {
+    this.logger.log(
+      `[updateRole] Updating role of restaurant member id=${memberId} to role=${role} by manager user id=${managerUser.id}, restaurantId=${managerUser.restaurantId}`,
+    );
+
+    const restaurantObjectId = new Types.ObjectId(managerUser.restaurantId);
+
+    const member = await this.restaurantMemberModel.findOne({
+      _id: new Types.ObjectId(memberId),
+      restaurant: restaurantObjectId,
+      deleted: false,
+    });
+
+    if (!member) {
+      this.logger.log(
+        `[updateRole] Restaurant member not found id=${memberId} in restaurantId=${managerUser.restaurantId}`,
+      );
+      throw new OrchestrationException({
+        statusCode: EnumStatusCode.NOT_FOUND,
+        message: 'Restaurant member not found',
+        code: 404,
+      });
+    }
+
+    if (member.isOwner) {
+      this.logger.log(
+        `[updateRole] Attempt to update role of owner restaurant member id=${memberId} in restaurantId=${managerUser.restaurantId}`,
+      );
+      throw new OrchestrationException({
+        statusCode: EnumStatusCode.CANNOT_DELETE_OWNER,
+        message: 'Cannot update role of restaurant owner',
+        code: 403,
+      });
+    }
+
+    member.role = role;
+    await member.save();
+
+    const memberObject = member.toObject();
+
+    const publicMember = plainToInstance(
+      RestaurantMemberPublicOutputDto,
+      memberObject,
+      {
+        excludeExtraneousValues: true,
+      },
+    );
+
+    return OrchestrationResult.Success<RestaurantMemberPublicOutputDto>({
+      statusCode: EnumStatusCode.UPDATED_SUCCESSFULLY,
+      data: publicMember,
+      message: 'Restaurant member role updated successfully',
+    });
+  }
+
+  async remove(memberId: string, managerUser: ILoggedInUserTokenData) {
+    this.logger.log(
+      `[remove] Soft deleting restaurant member id=${memberId} by manager user id=${managerUser.id}, restaurantId=${managerUser.restaurantId}`,
+    );
+
+    if (memberId === managerUser.restaurantMemberId) {
+      this.logger.log(
+        `[remove] Attempt to delete self restaurant member id=${memberId} in restaurantId=${managerUser.restaurantId}`,
+      );
+      throw new OrchestrationException({
+        statusCode: EnumStatusCode.CANNOT_DELETE_SELF,
+        message: 'Cannot delete yourself',
+        code: 400,
+      });
+    }
+
+    const session = await this.connection.startSession();
+    session.startTransaction();
+
+    try {
+      const restaurantObjectId = new Types.ObjectId(managerUser.restaurantId);
+
+      const member = await this.restaurantMemberModel
+        .findOne({
+          _id: new Types.ObjectId(memberId),
+          restaurant: restaurantObjectId,
+          deleted: false,
+        })
+        .session(session);
+
+      if (!member) {
+        this.logger.log(
+          `[remove] Restaurant member not found id=${memberId} in restaurantId=${managerUser.restaurantId}`,
+        );
+        throw new OrchestrationException({
+          statusCode: EnumStatusCode.NOT_FOUND,
+          message: 'Restaurant member not found',
+          code: 404,
+        });
+      }
+
+      if (member.isOwner) {
+        this.logger.log(
+          `[remove] Attempt to delete owner restaurant member id=${memberId} in restaurantId=${managerUser.restaurantId}`,
+        );
+        throw new OrchestrationException({
+          statusCode: EnumStatusCode.CANNOT_DELETE_OWNER,
+          message: 'Cannot delete restaurant owner',
+          code: 403,
+        });
+      }
+
+      const user = await this.userModel
+        .findOne({
+          _id: member.user.toString(),
+          deleted: false,
+        })
+        .session(session);
+
+      if (!user) {
+        this.logger.error(
+          `[remove] No user found for restaurant member id=${memberId}, userId=${member.user}`,
+        );
+        throw new OrchestrationException({
+          statusCode: EnumStatusCode.INTERNAL_SERVER_ERROR,
+          message: 'User linked to restaurant member not found',
+          code: 500,
+        });
+      }
+
+      const deletedAt = new Date();
+      const deletedById = new Types.ObjectId(managerUser.id);
+
+      member.deleted = true;
+      member.deletedAt = deletedAt;
+      member.deletedBy = deletedById;
+      await member.save({ session });
+
+      user.deleted = true;
+      user.active = false;
+      user.deletedAt = deletedAt;
+      user.deletedBy = deletedById;
+      user.token = '';
+      await user.save({ session });
+
+      await session.commitTransaction();
+      this.logger.log(
+        `[remove] Restaurant member id=${memberId} soft deleted successfully`,
+      );
+
+      return OrchestrationResult.Success<string>({
+        statusCode: EnumStatusCode.DELETED_SUCCESSFULLY,
+        data: 'Restaurant member deleted successfully',
+        message: 'Restaurant member deleted successfully',
+      });
+    } catch (error) {
+      await session.abortTransaction();
+      this.logger.error(
+        `[remove] Error during restaurant member deletion: ${error?.message}`,
+        error?.stack,
+      );
+
+      if (error instanceof OrchestrationException) {
+        throw error;
+      }
+
+      throw new OrchestrationException({
+        statusCode: EnumStatusCode.INTERNAL_SERVER_ERROR,
+        message: 'Unable to delete restaurant member',
+        code: 500,
+      });
+    } finally {
+      session.endSession();
+    }
   }
 }

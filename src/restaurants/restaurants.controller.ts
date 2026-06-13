@@ -33,7 +33,6 @@ import { EnumRestaurantMemberRole } from 'src/common/enums/restaurant-member-rol
 import { env } from 'src/config/env';
 import { OrchestrationException } from 'src/common/exceptions/orchestration.exception';
 import { EnumStatusCode } from 'src/common/enums/response-status-code';
-import { EnumRestaurantType } from 'src/common/enums/restaurant-types';
 import { FindRestaurantDto } from './dto/input/find-restaurant.dto';
 
 @Controller('restaurants')

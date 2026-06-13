@@ -47,6 +47,9 @@ export class Menu extends BaseSchema {
     average: number;
     total: number;
   };
+
+  @Prop({ default: 0 })
+  totalViews: number;
 }
 
 export const MenuSchema = SchemaFactory.createForClass(Menu);
