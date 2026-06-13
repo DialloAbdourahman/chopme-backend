@@ -7,6 +7,7 @@ import {
   RestaurantMemberSchema,
 } from './entities/restaurant-member.entity';
 import { JwtModule } from '@nestjs/jwt';
+import { User, UserSchema } from 'src/users/entities/user.entity';
 
 @Module({
   imports: [
@@ -15,6 +16,7 @@ import { JwtModule } from '@nestjs/jwt';
         name: RestaurantMember.name,
         schema: RestaurantMemberSchema,
       },
+      { name: User.name, schema: UserSchema },
     ]),
     JwtModule.register({}),
   ],

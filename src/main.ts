@@ -20,10 +20,16 @@ async function bootstrap() {
 }
 bootstrap();
 
-// Create a new route that will allow the restaurant manager to create a new restaurant member (user alongside restaurant member).
+// Add isOwner bool attribute on restaurant member.
+
+// New restaurant member route that will allow the owner to delete a member (use the isOwner attribute, should not be able to delete owner.)
+
+// Another route that will allow a manager to update the role of a restaurant member (not be able to update the isOwner.)
+
+// New route in users module to allow the user to update their password.
 
 // Try to look at the menu category as it is done in ubereats and see if we should not allow the restaurant to create their categories.
 
-// Continue on the delete, upload/delete cover and pictures,
+// Continue on the delete, upload/delete cover and pictures.
 
-// Add an order count on the menu and totalViews (plus the route to view)
+// Add an order count on the menu and totalViews (plus the route to view).

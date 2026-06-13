@@ -7,6 +7,7 @@ import {
   Patch,
   Post,
   UseGuards,
+  ValidationPipe,
 } from '@nestjs/common';
 import { RestaurantMembersService } from './restaurant-members.service';
 import { CreateRestaurantMemberDto } from './dto/input/create-restaurant-member.dto';
@@ -16,6 +17,11 @@ import { RoleGuard, Roles } from 'src/common/guards/role.guard';
 import { EnumUserRole } from 'src/common/enums/user-roles';
 import { CurrentUser } from 'src/common/decorators/current-user.decorator';
 import type { ILoggedInUserTokenData } from 'src/common/interfaces/loggedin-user-token-data';
+import {
+  RestaurantRoleGuard,
+  RestaurantRoles,
+} from 'src/common/guards/restaurant-role.guard';
+import { EnumRestaurantMemberRole } from 'src/common/enums/restaurant-member-role';
 
 @Controller('restaurant-members')
 export class RestaurantMembersController {
@@ -24,8 +30,18 @@ export class RestaurantMembersController {
   ) {}
 
   @Post()
-  create(@Body() createRestaurantMemberDto: CreateRestaurantMemberDto) {
-    return this.restaurantMembersService.create(createRestaurantMemberDto);
+  @UseGuards(AuthGuard, RoleGuard, RestaurantRoleGuard)
+  @Roles(EnumUserRole.RESTAURANT_MEMBER)
+  @RestaurantRoles(EnumRestaurantMemberRole.MANAGER)
+  create(
+    @CurrentUser() user: ILoggedInUserTokenData,
+    @Body(new ValidationPipe())
+    createRestaurantMemberDto: CreateRestaurantMemberDto,
+  ) {
+    return this.restaurantMembersService.create(
+      createRestaurantMemberDto,
+      user,
+    );
   }
 
   @Get()
@@ -33,7 +49,7 @@ export class RestaurantMembersController {
     return this.restaurantMembersService.findAll();
   }
 
-  @Get('profile')
+  @Get('me')
   @UseGuards(AuthGuard, RoleGuard)
   @Roles(EnumUserRole.RESTAURANT_MEMBER)
   findOne(@CurrentUser() user: ILoggedInUserTokenData) {

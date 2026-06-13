@@ -74,6 +74,7 @@ export class UsersService {
 
       const restaurantMember = await this.restaurantMemberModel.findOne({
         user: user._id,
+        deleted: false,
       });
 
       if (!restaurantMember) {
