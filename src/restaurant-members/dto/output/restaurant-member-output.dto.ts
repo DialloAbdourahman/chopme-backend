@@ -2,6 +2,7 @@ import { Expose, Transform, Type } from 'class-transformer';
 // import { RestaurantPublicOutputDto } from 'src/restaurants/dto/output/restaurant-output.dto';
 // import { UserPublicOutputDto } from 'src/users/dto/output/user-output.dto';
 import { EnumRestaurantMemberRole } from 'src/common/enums/restaurant-member-role';
+import { UserPublicOutputDto } from 'src/users/dto/output/user-output.dto';
 
 export class RestaurantMemberPublicOutputDto {
   @Expose()
@@ -11,10 +12,6 @@ export class RestaurantMemberPublicOutputDto {
   // @Expose()
   // @Type(() => RestaurantPublicOutputDto)
   // restaurant: RestaurantPublicOutputDto;
-
-  // @Expose()
-  // @Type(() => UserPublicOutputDto)
-  // user: UserPublicOutputDto;
 
   @Expose()
   role: EnumRestaurantMemberRole;
@@ -27,6 +24,10 @@ export class RestaurantMemberPublicOutputDto {
 }
 
 export class RestaurantMemberPrivateOutputDto extends RestaurantMemberPublicOutputDto {
+  @Expose()
+  @Type(() => UserPublicOutputDto)
+  user: UserPublicOutputDto;
+
   @Expose()
   deletedAt: Date | null;
 }

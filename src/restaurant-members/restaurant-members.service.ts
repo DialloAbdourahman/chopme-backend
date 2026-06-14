@@ -13,11 +13,15 @@ import { OrchestrationResult } from 'src/common/utils/orchestration.result';
 import { EnumStatusCode } from 'src/common/enums/response-status-code';
 import { OrchestrationException } from 'src/common/exceptions/orchestration.exception';
 import { plainToInstance } from 'class-transformer';
-import { RestaurantMemberPublicOutputDto } from './dto/output/restaurant-member-output.dto';
+import {
+  RestaurantMemberPrivateOutputDto,
+  RestaurantMemberPublicOutputDto,
+} from './dto/output/restaurant-member-output.dto';
 import { EnumUserRole } from 'src/common/enums/user-roles';
 import { EnumAuthType } from 'src/common/enums/auth-types';
 import * as bcrypt from 'bcrypt';
 import { EnumRestaurantMemberRole } from 'src/common/enums/restaurant-member-role';
+import { Pagination } from 'src/common/interfaces/pagination';
 
 @Injectable()
 export class RestaurantMembersService {
@@ -143,8 +147,113 @@ export class RestaurantMembersService {
     }
   }
 
-  findAll() {
-    return `This action returns all restaurantMembers`;
+  async search(
+    {
+      search,
+      page,
+      limit,
+      role,
+    }: {
+      search?: string;
+      page: number;
+      limit: number;
+      role?: EnumRestaurantMemberRole;
+    },
+    managerUser?: ILoggedInUserTokenData,
+  ) {
+    this.logger.log(
+      `[search] Searching restaurant members with filters: search=${search}, page=${page}, limit=${limit}, restaurantId=${managerUser?.restaurantId}`,
+    );
+
+    const pipeline: any[] = [];
+
+    // Initial restaurant and deleted filters
+    pipeline.push({
+      $match: {
+        restaurant: new Types.ObjectId(managerUser!.restaurantId!),
+        deleted: false,
+      },
+    });
+
+    // Join with users collection to enable search on user fields
+    pipeline.push({
+      $lookup: {
+        from: 'users',
+        localField: 'user',
+        foreignField: '_id',
+        as: 'user',
+      },
+    });
+
+    pipeline.push({
+      $unwind: '$user',
+    });
+
+    // Apply search filter if provided
+    if (search) {
+      pipeline.push({
+        $match: {
+          $or: [
+            { 'user.fullName': { $regex: search, $options: 'i' } },
+            { 'user.email': { $regex: search, $options: 'i' } },
+          ],
+        },
+      });
+    }
+
+    // Apply role filter
+    if (role) {
+      pipeline.push({
+        $match: {
+          role: role,
+        },
+      });
+    }
+
+    this.logger.log(
+      `[search] Searching restaurant members with pipeline`,
+      pipeline,
+    );
+
+    // Get total count
+    const countPipeline = [...pipeline, { $count: 'count' }];
+    const [countResult] =
+      await this.restaurantMemberModel.aggregate(countPipeline);
+    const totalItems = countResult?.count || 0;
+
+    // Get paginated items
+    const itemsPipeline = [
+      ...pipeline,
+      { $skip: (page - 1) * limit },
+      { $limit: limit },
+    ];
+    const members = await this.restaurantMemberModel.aggregate(itemsPipeline);
+
+    const totalPages = Math.ceil(totalItems / limit);
+
+    const publicMembers = plainToInstance(
+      RestaurantMemberPrivateOutputDto,
+      members,
+      {
+        excludeExtraneousValues: true,
+      },
+    );
+
+    const paginatedResult: Pagination<RestaurantMemberPrivateOutputDto> = {
+      items: publicMembers,
+      page,
+      totalPages,
+      totalItems,
+      itemsPerPage: limit,
+    };
+
+    return OrchestrationResult.Success<
+      Pagination<RestaurantMemberPrivateOutputDto>
+    >({
+      statusCode: EnumStatusCode.RECOVERED_SUCCESSFULLY,
+      data: paginatedResult,
+      message: 'Restaurant members retrieved successfully',
+    });
   }
 
   async findOne(user: ILoggedInUserTokenData) {

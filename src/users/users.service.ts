@@ -15,6 +15,7 @@ import { EnumStatusCode } from 'src/common/enums/response-status-code';
 import { OrchestrationException } from 'src/common/exceptions/orchestration.exception';
 import { EmailPasswordLoginDto } from './dto/input/email-password-login.dto';
 import { GoogleLoginDto } from './dto/input/google-login.dto';
+import { UpdatePasswordDto } from './dto/input/update-password.dto';
 import { EnumAuthType } from 'src/common/enums/auth-types';
 import { EnumUserRole } from 'src/common/enums/user-roles';
 import { env } from 'src/config/env';
@@ -528,6 +529,94 @@ export class UsersService {
       statusCode: EnumStatusCode.UPDATED_SUCCESSFULLY,
       data: publicUser,
       message: 'Profile updated successfully',
+    });
+  }
+
+  async updatePassword(
+    user: ILoggedInUserTokenData,
+    updatePasswordDto: UpdatePasswordDto,
+  ) {
+    this.logger.log(
+      `[updatePassword] Updating password for user id=${user.id}`,
+    );
+
+    const dbUser = await this.userModel.findOne({
+      _id: user.id,
+      deleted: false,
+      active: true,
+    });
+
+    if (updatePasswordDto.oldPassword === updatePasswordDto.newPassword) {
+      this.logger.log(
+        `[updatePassword] New password must be different from old password for user id=${user.id}`,
+      );
+      throw new OrchestrationException({
+        statusCode: EnumStatusCode.PASSWORD_DID_NOT_CHANGE,
+        message: 'New password must be different from old password',
+        code: 400,
+      });
+    }
+
+    if (!dbUser) {
+      this.logger.log(
+        `[updatePassword] User not found or inactive for id=${user.id}`,
+      );
+      throw new OrchestrationException({
+        statusCode: EnumStatusCode.NOT_FOUND,
+        message: 'User not found',
+        code: 404,
+      });
+    }
+
+    if (dbUser.authType !== EnumAuthType.EMAIL_PASSWORD) {
+      this.logger.log(
+        `[updatePassword] Cannot update password for user with authType=${dbUser.authType}`,
+      );
+      throw new OrchestrationException({
+        statusCode: EnumStatusCode.NOT_ALLOWED,
+        message: 'Cannot update password for this login method',
+        code: 403,
+      });
+    }
+
+    const isOldPasswordValid = await bcrypt.compare(
+      updatePasswordDto.oldPassword,
+      dbUser.password,
+    );
+
+    if (!isOldPasswordValid) {
+      this.logger.log(
+        `[updatePassword] Old password does not match for user id=${user.id}`,
+      );
+      throw new OrchestrationException({
+        statusCode: EnumStatusCode.OLD_PASSWORD_DOES_NOT_MATCH,
+        message: 'Old password is incorrect',
+        code: 401,
+      });
+    }
+
+    const hashedNewPassword = await bcrypt.hash(
+      updatePasswordDto.newPassword,
+      10,
+    );
+
+    dbUser.password = hashedNewPassword;
+
+    // Clear token for non-client users to force re-authentication
+    if (dbUser.role !== EnumUserRole.CLIENT) {
+      dbUser.token = '';
+    }
+
+    await dbUser.save();
+
+    const publicUser = plainToInstance(UserPublicOutputDto, dbUser, {
+      excludeExtraneousValues: true,
+    });
+
+    return OrchestrationResult.Success<UserPublicOutputDto>({
+      statusCode: EnumStatusCode.UPDATED_SUCCESSFULLY,
+      data: publicUser,
+      message: 'Password updated successfully',
     });
   }
 }

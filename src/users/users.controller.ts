@@ -12,6 +12,7 @@ import { UsersService } from './users.service';
 import { EmailPasswordLoginDto } from './dto/input/email-password-login.dto';
 import { GoogleLoginDto } from './dto/input/google-login.dto';
 import { UpdateUserDto } from './dto/input/update-user.dto';
+import { UpdatePasswordDto } from './dto/input/update-password.dto';
 import { AuthGuard } from 'src/common/guards/auth.guard';
 import { CurrentUser } from 'src/common/decorators/current-user.decorator';
 import type { ILoggedInUserTokenData } from 'src/common/interfaces/loggedin-user-token-data';
@@ -63,10 +64,12 @@ export class UsersController {
     return this.usersService.updateMyProfile(user, updateUserDto);
   }
 
-  // @Get('me')
-  // @UseGuards(AuthGuard, RoleGuard)
-  // @Roles(EnumUserRole.CLIENT, EnumUserRole.ADMIN)
-  // me(@CurrentUser() user: ILoggedInUserTokenData) {
-  //   return this.usersService.getMyProfile(user);
-  // }
+  @Patch('me/password')
+  @UseGuards(AuthGuard)
+  updatePassword(
+    @CurrentUser() user: ILoggedInUserTokenData,
+    @Body(new ValidationPipe()) updatePasswordDto: UpdatePasswordDto,
+  ) {
+    return this.usersService.updatePassword(user, updatePasswordDto);
+  }
 }

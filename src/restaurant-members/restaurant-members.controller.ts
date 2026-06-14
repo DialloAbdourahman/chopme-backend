@@ -9,6 +9,8 @@ import {
   Query,
   UseGuards,
   ValidationPipe,
+  ParseIntPipe,
+  DefaultValuePipe,
 } from '@nestjs/common';
 import { RestaurantMembersService } from './restaurant-members.service';
 import { CreateRestaurantMemberDto } from './dto/input/create-restaurant-member.dto';
@@ -48,9 +50,24 @@ export class RestaurantMembersController {
     );
   }
 
-  @Get()
-  findAll() {
-    return this.restaurantMembersService.findAll();
+  @Get('search')
+  @UseGuards(AuthGuard, RoleGuard, RestaurantRoleGuard)
+  @Roles(EnumUserRole.RESTAURANT_MEMBER)
+  @RestaurantRoles(
+    EnumRestaurantMemberRole.OWNER,
+    EnumRestaurantMemberRole.MANAGER,
+  )
+  search(
+    @CurrentUser() user: ILoggedInUserTokenData,
+    @Query('page', new DefaultValuePipe(1), ParseIntPipe) page: number,
+    @Query('limit', new DefaultValuePipe(10), ParseIntPipe) limit: number,
+    @Query('search') search?: string,
+    @Query('role') role?: EnumRestaurantMemberRole,
+  ) {
+    return this.restaurantMembersService.search(
+      { search, page, limit, role },
+      user,
+    );
   }
 
   @Get('me')
