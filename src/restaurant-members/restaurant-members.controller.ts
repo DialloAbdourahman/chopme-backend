@@ -33,7 +33,10 @@ export class RestaurantMembersController {
   @Post()
   @UseGuards(AuthGuard, RoleGuard, RestaurantRoleGuard)
   @Roles(EnumUserRole.RESTAURANT_MEMBER)
-  @RestaurantRoles(EnumRestaurantMemberRole.MANAGER)
+  @RestaurantRoles(
+    EnumRestaurantMemberRole.OWNER,
+    EnumRestaurantMemberRole.MANAGER,
+  )
   create(
     @CurrentUser() user: ILoggedInUserTokenData,
     @Body(new ValidationPipe())
@@ -60,7 +63,10 @@ export class RestaurantMembersController {
   @Patch(':id/role')
   @UseGuards(AuthGuard, RoleGuard, RestaurantRoleGuard)
   @Roles(EnumUserRole.RESTAURANT_MEMBER)
-  @RestaurantRoles(EnumRestaurantMemberRole.MANAGER)
+  @RestaurantRoles(
+    EnumRestaurantMemberRole.OWNER,
+    EnumRestaurantMemberRole.MANAGER,
+  )
   updateRole(
     @Param('id') id: string,
     @Query('role') role: EnumRestaurantMemberRole,
@@ -72,7 +78,10 @@ export class RestaurantMembersController {
   @Patch(':id/restore')
   @UseGuards(AuthGuard, RoleGuard, RestaurantRoleGuard)
   @Roles(EnumUserRole.RESTAURANT_MEMBER)
-  @RestaurantRoles(EnumRestaurantMemberRole.MANAGER)
+  @RestaurantRoles(
+    EnumRestaurantMemberRole.OWNER,
+    EnumRestaurantMemberRole.MANAGER,
+  )
   restore(
     @Param('id') id: string,
     @CurrentUser() user: ILoggedInUserTokenData,
@@ -91,7 +100,10 @@ export class RestaurantMembersController {
   @Delete(':id')
   @UseGuards(AuthGuard, RoleGuard, RestaurantRoleGuard)
   @Roles(EnumUserRole.RESTAURANT_MEMBER)
-  @RestaurantRoles(EnumRestaurantMemberRole.MANAGER)
+  @RestaurantRoles(
+    EnumRestaurantMemberRole.OWNER,
+    EnumRestaurantMemberRole.MANAGER,
+  )
   remove(@Param('id') id: string, @CurrentUser() user: ILoggedInUserTokenData) {
     return this.restaurantMembersService.remove(id, user);
   }

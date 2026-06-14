@@ -40,6 +40,16 @@ export class RestaurantMembersService {
       `[create] Starting restaurant member creation by manager user id=${managerUser.id}, restaurantId=${managerUser.restaurantId}`,
     );
 
+    if (createRestaurantMemberDto.role === EnumRestaurantMemberRole.OWNER) {
+      this.logger.log(
+        `[create] Cannot create owner role for user id=${managerUser.id}`,
+      );
+      throw new OrchestrationException({
+        statusCode: EnumStatusCode.CANNOT_CREATE_OWNER,
+        message: 'Cannot create owner role',
+      });
+    }
+
     const normalizedEmail = createRestaurantMemberDto.email
       .toLowerCase()
       .trim();
@@ -225,7 +235,7 @@ export class RestaurantMembersService {
           `[restore] No user found for restaurant member id=${memberId}, userId=${member.user}`,
         );
         throw new OrchestrationException({
-          statusCode: EnumStatusCode.INTERNAL_SERVER_ERROR,
+          statusCode: EnumStatusCode.LINKED_USER_NOT_FOUND,
           message: 'User linked to restaurant member not found',
           code: 500,
         });
@@ -274,7 +284,7 @@ export class RestaurantMembersService {
       }
 
       throw new OrchestrationException({
-        statusCode: EnumStatusCode.INTERNAL_SERVER_ERROR,
+        statusCode: EnumStatusCode.LINKED_USER_NOT_FOUND,
         message: 'Unable to restore restaurant member',
         code: 500,
       });
@@ -292,6 +302,16 @@ export class RestaurantMembersService {
       `[updateRole] Updating role of restaurant member id=${memberId} to role=${role} by manager user id=${managerUser.id}, restaurantId=${managerUser.restaurantId}`,
     );
 
+    if (role === EnumRestaurantMemberRole.OWNER) {
+      this.logger.log(
+        `[updateRole] Attempt to update role of owner restaurant member id=${memberId} in restaurantId=${managerUser.restaurantId}`,
+      );
+      throw new OrchestrationException({
+        statusCode: EnumStatusCode.CANNOT_CREATE_OWNER,
+        message: 'Cannot update role to owner',
+      });
+    }
+
     const restaurantObjectId = new Types.ObjectId(managerUser.restaurantId);
 
     const member = await this.restaurantMemberModel.findOne({
@@ -308,17 +328,6 @@ export class RestaurantMembersService {
         statusCode: EnumStatusCode.NOT_FOUND,
         message: 'Restaurant member not found',
         code: 404,
-      });
-    }
-
-    if (member.isOwner) {
-      this.logger.log(
-        `[updateRole] Attempt to update role of owner restaurant member id=${memberId} in restaurantId=${managerUser.restaurantId}`,
-      );
-      throw new OrchestrationException({
-        statusCode: EnumStatusCode.CANNOT_DELETE_OWNER,
-        message: 'Cannot update role of restaurant owner',
-        code: 403,
       });
     }
 
@@ -383,7 +392,7 @@ export class RestaurantMembersService {
         });
       }
 
-      if (member.isOwner) {
+      if (member.role === EnumRestaurantMemberRole.OWNER) {
         this.logger.log(
           `[remove] Attempt to delete owner restaurant member id=${memberId} in restaurantId=${managerUser.restaurantId}`,
         );

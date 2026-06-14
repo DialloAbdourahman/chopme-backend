@@ -17,9 +17,6 @@ export class RestaurantMember extends BaseSchema {
 
   @Prop({ enum: EnumRestaurantMemberRole, type: String, required: true })
   role: EnumRestaurantMemberRole;
-
-  @Prop({ type: Boolean, default: false })
-  isOwner: boolean;
 }
 
 export const RestaurantMemberSchema =

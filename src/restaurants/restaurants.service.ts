@@ -168,9 +168,8 @@ export class RestaurantsService {
       const member = new this.restaurantMemberModel({
         restaurant: restaurantId,
         user: restaurantUserId,
-        role: EnumRestaurantMemberRole.MANAGER,
+        role: EnumRestaurantMemberRole.OWNER,
         createdBy: createdById,
-        isOwner: true,
       });
       await member.save({ session });
 

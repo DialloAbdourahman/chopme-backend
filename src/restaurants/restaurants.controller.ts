@@ -72,7 +72,10 @@ export class RestaurantsController {
   @Patch(':id/toggle-closed')
   @UseGuards(AuthGuard, RoleGuard, RestaurantRoleGuard)
   @Roles(EnumUserRole.RESTAURANT_MEMBER)
-  @RestaurantRoles(EnumRestaurantMemberRole.MANAGER)
+  @RestaurantRoles(
+    EnumRestaurantMemberRole.OWNER,
+    EnumRestaurantMemberRole.MANAGER,
+  )
   toggleClosed(
     @Param('id') id: string,
     @CurrentUser() user: ILoggedInUserTokenData,
@@ -109,7 +112,10 @@ export class RestaurantsController {
   @Patch(':id')
   @UseGuards(AuthGuard, RoleGuard, RestaurantRoleGuard)
   @Roles(EnumUserRole.RESTAURANT_MEMBER)
-  @RestaurantRoles(EnumRestaurantMemberRole.MANAGER)
+  @RestaurantRoles(
+    EnumRestaurantMemberRole.OWNER,
+    EnumRestaurantMemberRole.MANAGER,
+  )
   update(
     @Param('id') id: string,
     @Body(new ValidationPipe()) updateRestaurantDto: UpdateRestaurantDto,
@@ -121,7 +127,10 @@ export class RestaurantsController {
   @Post(':id/upload-image')
   @UseGuards(AuthGuard, RoleGuard, RestaurantRoleGuard)
   @Roles(EnumUserRole.RESTAURANT_MEMBER)
-  @RestaurantRoles(EnumRestaurantMemberRole.MANAGER)
+  @RestaurantRoles(
+    EnumRestaurantMemberRole.OWNER,
+    EnumRestaurantMemberRole.MANAGER,
+  )
   @UseInterceptors(
     FileInterceptor('file', {
       fileFilter: (_, file, callback) => {
@@ -153,7 +162,10 @@ export class RestaurantsController {
   @Post(':id/upload-cover-image')
   @UseGuards(AuthGuard, RoleGuard, RestaurantRoleGuard)
   @Roles(EnumUserRole.RESTAURANT_MEMBER)
-  @RestaurantRoles(EnumRestaurantMemberRole.MANAGER)
+  @RestaurantRoles(
+    EnumRestaurantMemberRole.OWNER,
+    EnumRestaurantMemberRole.MANAGER,
+  )
   @UseInterceptors(
     FileInterceptor('file', {
       fileFilter: (_, file, callback) => {
@@ -185,7 +197,10 @@ export class RestaurantsController {
   @Delete(':id/images')
   @UseGuards(AuthGuard, RoleGuard, RestaurantRoleGuard)
   @Roles(EnumUserRole.RESTAURANT_MEMBER)
-  @RestaurantRoles(EnumRestaurantMemberRole.MANAGER)
+  @RestaurantRoles(
+    EnumRestaurantMemberRole.OWNER,
+    EnumRestaurantMemberRole.MANAGER,
+  )
   deleteImage(
     @Param('id') id: string,
     @Query('key') key: string,
@@ -197,7 +212,10 @@ export class RestaurantsController {
   @Delete(':id/cover-image')
   @UseGuards(AuthGuard, RoleGuard, RestaurantRoleGuard)
   @Roles(EnumUserRole.RESTAURANT_MEMBER)
-  @RestaurantRoles(EnumRestaurantMemberRole.MANAGER)
+  @RestaurantRoles(
+    EnumRestaurantMemberRole.OWNER,
+    EnumRestaurantMemberRole.MANAGER,
+  )
   deleteCoverImage(
     @Param('id') id: string,
     @CurrentUser() user: ILoggedInUserTokenData,

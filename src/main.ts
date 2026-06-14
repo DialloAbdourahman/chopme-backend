@@ -20,12 +20,12 @@ async function bootstrap() {
 }
 bootstrap();
 
-// New route that will allow a restaurant manager to get all his restaurant members.
+// New route that will allow a restaurant manager to get all his restaurant members (new output dto with user just for the admin and manager and join the user).
 
 // @restaurant-members.controller.ts another route that will allow the restaurant mangaer to search for the restaurant members and it should be pagingated just like the route @restaurants.controller.ts#L57-61 but ti will take the pgaingation from the request query.
 // It should also teak in a search attribute from the request query and it should search against the user.fullName, user.email.
-
-// It should also take in a role in the request query to filer
+('');
+// It should also take in a role in the request query to filter
 
 // New route in users module to allow the user to update their password.
 
