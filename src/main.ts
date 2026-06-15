@@ -20,6 +20,6 @@ async function bootstrap() {
 }
 bootstrap();
 
-// Try to look at the menu category as it is done in ubereats and see if we should not allow the restaurant to create their categories.
+// Add the new category on the menu
 
 // Continue on the delete, upload/delete cover and pictures and also the view menu route to increment the totalViews attribute.

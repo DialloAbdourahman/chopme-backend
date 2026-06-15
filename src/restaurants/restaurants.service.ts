@@ -299,7 +299,12 @@ export class RestaurantsService {
     if (!longitude && !latitude && city) {
       pipeline.push({
         $match: {
-          'address.city': { $regex: city, $options: 'i' },
+          $or: [
+            { 'address.city': { $regex: city, $options: 'i' } },
+            { 'address.country': { $regex: city, $options: 'i' } },
+            { 'address.countryCode': { $regex: city, $options: 'i' } },
+            { 'address.longName': { $regex: city, $options: 'i' } },
+          ],
         },
       });
     }
