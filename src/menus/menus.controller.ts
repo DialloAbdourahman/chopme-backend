@@ -30,7 +30,10 @@ export class MenusController {
   @Post()
   @UseGuards(AuthGuard, RoleGuard, RestaurantRoleGuard)
   @Roles(EnumUserRole.RESTAURANT_MEMBER)
-  @RestaurantRoles(EnumRestaurantMemberRole.MANAGER)
+  @RestaurantRoles(
+    EnumRestaurantMemberRole.OWNER,
+    EnumRestaurantMemberRole.MANAGER,
+  )
   create(
     @CurrentUser() user: ILoggedInUserTokenData,
     @Body(new ValidationPipe()) createMenuDto: CreateMenuDto,
@@ -51,7 +54,10 @@ export class MenusController {
   @Patch(':id/toggle-available')
   @UseGuards(AuthGuard, RoleGuard, RestaurantRoleGuard)
   @Roles(EnumUserRole.RESTAURANT_MEMBER)
-  @RestaurantRoles(EnumRestaurantMemberRole.MANAGER)
+  @RestaurantRoles(
+    EnumRestaurantMemberRole.OWNER,
+    EnumRestaurantMemberRole.MANAGER,
+  )
   toggleAvailable(
     @Param('id') id: string,
     @CurrentUser() user: ILoggedInUserTokenData,
@@ -62,7 +68,10 @@ export class MenusController {
   @Patch(':id')
   @UseGuards(AuthGuard, RoleGuard, RestaurantRoleGuard)
   @Roles(EnumUserRole.RESTAURANT_MEMBER)
-  @RestaurantRoles(EnumRestaurantMemberRole.MANAGER)
+  @RestaurantRoles(
+    EnumRestaurantMemberRole.OWNER,
+    EnumRestaurantMemberRole.MANAGER,
+  )
   update(
     @Param('id') id: string,
     @CurrentUser() user: ILoggedInUserTokenData,

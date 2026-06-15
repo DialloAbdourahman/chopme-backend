@@ -20,6 +20,4 @@ async function bootstrap() {
 }
 bootstrap();
 
-// Add the new category on the menu
-
-// Continue on the delete, upload/delete cover and pictures and also the view menu route to increment the totalViews attribute.
+// Continue on the delete, restore, upload/delete cover and pictures and also the view menu route to increment the totalViews attribute.

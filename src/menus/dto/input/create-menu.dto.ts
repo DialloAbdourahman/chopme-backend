@@ -1,6 +1,7 @@
 import {
   IsBoolean,
   IsEnum,
+  IsMongoId,
   IsNotEmpty,
   IsNumber,
   IsOptional,
@@ -8,15 +9,15 @@ import {
   Min,
 } from 'class-validator';
 import { Type } from 'class-transformer';
-import { EnumMenuCategory } from 'src/common/enums/menu-category';
 
 export class CreateMenuDto {
   @IsString()
   @IsNotEmpty()
   name: string;
 
-  @IsEnum(EnumMenuCategory)
-  category: EnumMenuCategory;
+  @IsMongoId()
+  @IsNotEmpty()
+  category: string;
 
   @IsString()
   @IsOptional()

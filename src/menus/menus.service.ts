@@ -10,6 +10,10 @@ import { EnumStatusCode } from 'src/common/enums/response-status-code';
 import { OrchestrationException } from 'src/common/exceptions/orchestration.exception';
 import { plainToInstance } from 'class-transformer';
 import { MenuPublicOutputDto } from './dto/output/menu-outpus.dto';
+import {
+  Category,
+  CategoryDocument,
+} from 'src/categories/entities/category.entity';
 
 @Injectable()
 export class MenusService {
@@ -18,6 +22,8 @@ export class MenusService {
   constructor(
     @InjectModel(Menu.name)
     private readonly menuModel: Model<MenuDocument>,
+    @InjectModel(Category.name)
+    private readonly categoryModel: Model<CategoryDocument>,
   ) {}
 
   async create(createMenuDto: CreateMenuDto, user: ILoggedInUserTokenData) {
@@ -33,11 +39,26 @@ export class MenusService {
     }
 
     const restaurantObjectId = new Types.ObjectId(user.restaurantId);
+    const category = await this.categoryModel.findOne({
+      _id: createMenuDto.category,
+      deleted: false,
+      restaurant: new Types.ObjectId(user.restaurantId),
+    });
+
+    if (!category) {
+      this.logger.log(
+        `[create] Category wit id categoryId=${createMenuDto.category} does not exist`,
+      );
+      return OrchestrationResult.Failure<string>({
+        statusCode: EnumStatusCode.CATEGORY_DOES_NOT_EXIST,
+        message: 'You are not associated with any restaurant',
+      });
+    }
 
     const menu = await this.menuModel.create({
       restaurant: restaurantObjectId,
       name: createMenuDto.name,
-      category: createMenuDto.category,
+      category,
       description: createMenuDto.description,
       price: createMenuDto.price,
       available:
@@ -45,7 +66,7 @@ export class MenusService {
           ? createMenuDto.available
           : true,
     });
-    await menu.populate('restaurant');
+    await menu.populate(['restaurant', 'category']);
 
     const menuObject = menu.toObject();
 
@@ -97,7 +118,22 @@ export class MenusService {
     }
 
     if (updateMenuDto.category !== undefined) {
-      menu.category = updateMenuDto.category;
+      const category = await this.categoryModel.findOne({
+        _id: updateMenuDto.category,
+        deleted: false,
+        restaurant: new Types.ObjectId(user.restaurantId),
+      });
+
+      if (!category) {
+        this.logger.log(
+          `[create] Category wit id categoryId=${updateMenuDto.category} does not exist`,
+        );
+        return OrchestrationResult.Failure<string>({
+          statusCode: EnumStatusCode.CATEGORY_DOES_NOT_EXIST,
+          message: 'You are not associated with any restaurant',
+        });
+      }
+      menu.category = category;
     }
 
     if (updateMenuDto.description !== undefined) {
@@ -109,7 +145,7 @@ export class MenusService {
     }
 
     await menu.save();
-    await menu.populate('restaurant');
+    await menu.populate(['restaurant', 'category']);
 
     const menuObject = menu.toObject();
 
@@ -152,7 +188,7 @@ export class MenusService {
 
     menu.available = !menu.available;
     await menu.save();
-    await menu.populate('restaurant');
+    await menu.populate(['restaurant', 'category']);
 
     const menuObject = menu.toObject();
 

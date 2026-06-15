@@ -1,6 +1,6 @@
 import { Prop, Schema, SchemaFactory } from '@nestjs/mongoose';
 import { HydratedDocument, Types } from 'mongoose';
-import { EnumMenuCategory } from 'src/common/enums/menu-category';
+import { Category } from 'src/categories/entities/category.entity';
 import { BaseSchema } from 'src/common/schemas/base.schema';
 import { Restaurant } from 'src/restaurants/entities/restaurant.entity';
 
@@ -14,8 +14,8 @@ export class Menu extends BaseSchema {
   @Prop({ required: true })
   name: string;
 
-  @Prop({ enum: EnumMenuCategory, type: String })
-  category: EnumMenuCategory;
+  @Prop({ type: Types.ObjectId, ref: Category.name, required: true })
+  category: Types.ObjectId | Category;
 
   @Prop({ required: false })
   description?: string;

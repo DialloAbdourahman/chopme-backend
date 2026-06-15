@@ -1,4 +1,5 @@
 import { Expose, Transform, Type } from 'class-transformer';
+import { CategoryPublicOutputDto } from 'src/categories/dto/output/category-output.dto';
 import { RestaurantPublicOutputDto } from 'src/restaurants/dto/output/restaurant-output.dto';
 
 export class MenuPublicOutputDto {
@@ -14,7 +15,8 @@ export class MenuPublicOutputDto {
   restaurant: RestaurantPublicOutputDto;
 
   @Expose()
-  category: string;
+  @Type(() => CategoryPublicOutputDto)
+  category: CategoryPublicOutputDto;
 
   @Expose()
   description?: string;
