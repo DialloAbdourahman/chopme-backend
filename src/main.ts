@@ -19,5 +19,3 @@ async function bootstrap() {
   await app.listen(env.port);
 }
 bootstrap();
-
-// Continue on the delete, restore, upload/delete cover and pictures and also the view menu route to increment the totalViews attribute.

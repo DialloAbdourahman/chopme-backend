@@ -31,6 +31,9 @@ export class MenuPublicOutputDto {
   price: number;
 
   @Expose()
+  totalViews: number;
+
+  @Expose()
   available: boolean;
 
   @Expose()
