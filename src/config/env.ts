@@ -20,6 +20,9 @@ export interface EnvConfig {
 
   maxRestaurantImages: number;
   maxRestaurantImageSizeInMb: number;
+
+  platformPercentage: number;
+  roundToNearestFCFA: number;
 }
 
 export const env: EnvConfig = {
@@ -46,4 +49,7 @@ export const env: EnvConfig = {
   maxRestaurantImageSizeInMb: Number(
     process.env.MAX_RESTAURANT_IMAGE_SIZE_IN_MB ?? 5,
   ),
+
+  platformPercentage: Number(process.env.PLATFORM_PERCENTAGE ?? 10),
+  roundToNearestFCFA: Number(process.env.ROUND_TO_NEAREST_FCFA ?? 25),
 };

@@ -1,5 +1,7 @@
 import { Expose, Transform, Type } from 'class-transformer';
 import { CategoryPublicOutputDto } from 'src/categories/dto/output/category-output.dto';
+import { computePriceWithPlatformPercentage } from 'src/common/utils/compute-price-with-platform-percentage';
+import { env } from 'src/config/env';
 import { RestaurantPublicOutputDto } from 'src/restaurants/dto/output/restaurant-output.dto';
 
 export class MenuPublicOutputDto {
@@ -29,6 +31,17 @@ export class MenuPublicOutputDto {
 
   @Expose()
   price: number;
+
+  @Expose()
+  @Transform(({ obj }) => {
+    const { price } = obj;
+    return computePriceWithPlatformPercentage({
+      platformPercentage: env.platformPercentage,
+      price,
+      rountToNearestFCFA: env.roundToNearestFCFA,
+    });
+  })
+  priceWithPlatformPercentage: number;
 
   @Expose()
   totalViews: number;
