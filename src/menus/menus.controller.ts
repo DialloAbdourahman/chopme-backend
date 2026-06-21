@@ -72,11 +72,6 @@ export class MenusController {
     return this.menusService.findOne(id);
   }
 
-  @Patch(':id/increment-views')
-  incrementTotalViews(@Param('id') id: string) {
-    return this.menusService.incrementTotalViews(id);
-  }
-
   @Patch(':id/toggle-available')
   @UseGuards(AuthGuard, RoleGuard, RestaurantRoleGuard)
   @Roles(EnumUserRole.RESTAURANT_MEMBER)

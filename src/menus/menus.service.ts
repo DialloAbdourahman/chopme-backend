@@ -252,47 +252,6 @@ export class MenusService {
     });
   }
 
-  async incrementTotalViews(id: string) {
-    this.logger.log(
-      `[incrementTotalViews] Incrementing totalViews for menu id=${id}`,
-    );
-
-    if (!Types.ObjectId.isValid(id)) {
-      throw new OrchestrationException({
-        statusCode: EnumStatusCode.NOT_FOUND,
-        message: 'Menu not found',
-        code: 404,
-      });
-    }
-
-    const menu = await this.menuModel.findOneAndUpdate(
-      { _id: new Types.ObjectId(id), deleted: false },
-      { $inc: { totalViews: 1 } },
-      { new: true },
-    );
-
-    if (!menu) {
-      this.logger.log(`[incrementTotalViews] Menu not found for id=${id}`);
-      throw new OrchestrationException({
-        statusCode: EnumStatusCode.NOT_FOUND,
-        message: 'Menu not found',
-        code: 404,
-      });
-    }
-
-    const menuObject = menu.toObject();
-
-    const publicMenu = plainToInstance(MenuPublicOutputDto, menuObject, {
-      excludeExtraneousValues: true,
-    });
-
-    return OrchestrationResult.Success<MenuPublicOutputDto>({
-      statusCode: EnumStatusCode.RECOVERED_SUCCESSFULLY,
-      data: publicMenu,
-      message: 'Menu view incremented successfully',
-    });
-  }
-
   async update(
     id: string,
     updateMenuDto: UpdateMenuDto,

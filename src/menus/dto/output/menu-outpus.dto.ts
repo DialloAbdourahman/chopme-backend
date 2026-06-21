@@ -44,9 +44,6 @@ export class MenuPublicOutputDto {
   priceWithPlatformPercentage: number;
 
   @Expose()
-  totalViews: number;
-
-  @Expose()
   available: boolean;
 
   @Expose()
