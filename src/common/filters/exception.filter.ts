@@ -9,6 +9,7 @@ import { Request, Response } from 'express';
 import { OrchestrationException } from '../exceptions/orchestration.exception';
 import { EnumStatusResponse } from '../enums/status-response';
 import { EnumStatusCode } from '../enums/response-status-code';
+import { extractHttpExceptionDetails } from '../utils/http-exception.utils';
 
 @Catch()
 export class OrchestrationExceptionFilter implements ExceptionFilter {
@@ -19,7 +20,7 @@ export class OrchestrationExceptionFilter implements ExceptionFilter {
     const response = ctx.getResponse<Response>();
     const request = ctx.getRequest<Request>();
 
-    console.log(exception);
+    // console.log(exception);
 
     // 🎯 Case 1 — Our custom OrchestrationException
     if (exception instanceof OrchestrationException) {
@@ -36,16 +37,19 @@ export class OrchestrationExceptionFilter implements ExceptionFilter {
 
     // 🎯 Case 2 — NestJS built-in HttpException (NotFoundException etc.)
     if (exception instanceof HttpException) {
-      const status = exception.getStatus();
+      const { status, message, validationErrors } =
+        extractHttpExceptionDetails(exception);
       this.logger.warn(
-        `[HttpException] ${request.method} ${request.url} — ${exception.message}`,
+        `[HttpException] ${request.method} ${request.url} — ${message}`,
       );
 
       return response.status(status).json({
         code: EnumStatusResponse.FAILURE,
-        statusCode: EnumStatusCode.INTERNAL_SERVER_ERROR,
-        message: exception.message,
-        data: null,
+        statusCode: validationErrors
+          ? EnumStatusCode.VALIDATION_ERROR
+          : EnumStatusCode.INTERNAL_SERVER_ERROR,
+        message,
+        data: validationErrors,
       });
     }
 

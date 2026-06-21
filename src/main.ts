@@ -19,3 +19,6 @@ async function bootstrap() {
   await app.listen(env.port);
 }
 bootstrap();
+
+// Add the platform percentage, the payment collection and disbursement percentage and use the plaform percentage when displaying the menus prices. Create a utils in the config folder to calculate the price to display with plaform percentage.
+// Then start looking at the orders.
