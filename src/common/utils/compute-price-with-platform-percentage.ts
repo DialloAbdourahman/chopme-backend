@@ -1,14 +1,16 @@
 export const computePriceWithPlatformPercentage = ({
   price,
   platformPercentage,
-  rountToNearestFCFA,
+  roundToNearestFCFA,
+  deliveryPrice,
 }: {
   price: number;
   platformPercentage: number;
-  rountToNearestFCFA: number;
+  roundToNearestFCFA: number;
+  deliveryPrice?: number;
 }): number => {
-  const total = price * (1 + platformPercentage / 100);
+  const total = (price + (deliveryPrice || 0)) * (1 + platformPercentage / 100);
 
-  // Round up to the next rountToNearestFCFA FCFA
-  return Math.ceil(total / rountToNearestFCFA) * rountToNearestFCFA;
+  // Round up to the next roundToNearestFCFA FCFA
+  return Math.ceil(total / roundToNearestFCFA) * roundToNearestFCFA;
 };

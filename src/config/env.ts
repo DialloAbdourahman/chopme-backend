@@ -22,6 +22,8 @@ export interface EnvConfig {
   maxRestaurantImageSizeInMb: number;
 
   platformPercentage: number;
+  collectionPercentage: number;
+  disbursementPercentage: number;
   roundToNearestFCFA: number;
 }
 
@@ -33,10 +35,8 @@ export const env: EnvConfig = {
   accessTokenSecret: process.env.ACCESS_TOKEN_SECRET!,
   refreshTokenSecret: process.env.REFRESH_TOKEN_SECRET!,
 
-  accessTokenDurationMins: Number(process.env.ACCESS_TOKEN_DURATION_MINS ?? 15),
-  refreshTokenDurationMins: Number(
-    process.env.REFRESH_TOKEN_DURATION_MINS ?? 60,
-  ),
+  accessTokenDurationMins: Number(process.env.ACCESS_TOKEN_DURATION_MINS),
+  refreshTokenDurationMins: Number(process.env.REFRESH_TOKEN_DURATION_MINS),
 
   googleClientId: process.env.GOOGLE_CLIENT_ID!,
   googleClientSecret: process.env.GOOGLE_CLIENT_SECRET!,
@@ -45,11 +45,13 @@ export const env: EnvConfig = {
   s3BucketName: process.env.S3_BUCKET_NAME!,
   s3BucketRegion: process.env.S3_BUCKET_REGION!,
 
-  maxRestaurantImages: Number(process.env.MAX_RESTAURANT_IMAGES ?? 10),
+  maxRestaurantImages: Number(process.env.MAX_RESTAURANT_IMAGES),
   maxRestaurantImageSizeInMb: Number(
-    process.env.MAX_RESTAURANT_IMAGE_SIZE_IN_MB ?? 5,
+    process.env.MAX_RESTAURANT_IMAGE_SIZE_IN_MB,
   ),
 
-  platformPercentage: Number(process.env.PLATFORM_PERCENTAGE ?? 10),
-  roundToNearestFCFA: Number(process.env.ROUND_TO_NEAREST_FCFA ?? 25),
+  platformPercentage: Number(process.env.PLATFORM_PERCENTAGE),
+  collectionPercentage: Number(process.env.COLLECTION_PERCENTAGE),
+  disbursementPercentage: Number(process.env.DISBURSEMENT_PERCENTAGE),
+  roundToNearestFCFA: Number(process.env.ROUND_TO_NEAREST_FCFA),
 };

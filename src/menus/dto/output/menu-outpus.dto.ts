@@ -38,7 +38,7 @@ export class MenuPublicOutputDto {
     return computePriceWithPlatformPercentage({
       platformPercentage: env.platformPercentage,
       price,
-      rountToNearestFCFA: env.roundToNearestFCFA,
+      roundToNearestFCFA: env.roundToNearestFCFA,
     });
   })
   priceWithPlatformPercentage: number;

@@ -20,5 +20,5 @@ async function bootstrap() {
 }
 bootstrap();
 
-// Add the platform percentage, the payment collection and disbursement percentage and use the plaform percentage when displaying the menus prices. Create a utils in the config folder to calculate the price to display with plaform percentage.
-// Then start looking at the orders.
+// Test the ensure can order function well
+// Add a route on the client module that will allow them to update their information like phone number and maybe add more. Also check if the added attributes should be used as a required check on the ensureCanOrder.

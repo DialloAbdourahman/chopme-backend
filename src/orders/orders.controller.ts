@@ -1,34 +1,23 @@
-import { Controller, Get, Post, Body, Patch, Param, Delete } from '@nestjs/common';
+import { Controller, Post, Body, UseGuards } from '@nestjs/common';
 import { OrdersService } from './orders.service';
-import { CreateOrderDto } from './dto/create-order.dto';
-import { UpdateOrderDto } from './dto/update-order.dto';
+import { CreateOrderDto } from './dto/input/create-order.dto';
+import { AuthGuard } from 'src/common/guards/auth.guard';
+import { RoleGuard, Roles } from 'src/common/guards/role.guard';
+import { EnumUserRole } from 'src/common/enums/user-roles';
+import { CurrentUser } from 'src/common/decorators/current-user.decorator';
+import type { ILoggedInUserTokenData } from 'src/common/interfaces/loggedin-user-token-data';
 
 @Controller('orders')
 export class OrdersController {
   constructor(private readonly ordersService: OrdersService) {}
 
   @Post()
-  create(@Body() createOrderDto: CreateOrderDto) {
-    return this.ordersService.create(createOrderDto);
-  }
-
-  @Get()
-  findAll() {
-    return this.ordersService.findAll();
-  }
-
-  @Get(':id')
-  findOne(@Param('id') id: string) {
-    return this.ordersService.findOne(+id);
-  }
-
-  @Patch(':id')
-  update(@Param('id') id: string, @Body() updateOrderDto: UpdateOrderDto) {
-    return this.ordersService.update(+id, updateOrderDto);
-  }
-
-  @Delete(':id')
-  remove(@Param('id') id: string) {
-    return this.ordersService.remove(+id);
+  @UseGuards(AuthGuard, RoleGuard)
+  @Roles(EnumUserRole.CLIENT)
+  create(
+    @CurrentUser() user: ILoggedInUserTokenData,
+    @Body() createOrderDto: CreateOrderDto,
+  ) {
+    return this.ordersService.create(createOrderDto, user);
   }
 }

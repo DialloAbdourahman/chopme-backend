@@ -10,6 +10,9 @@ export class Client extends BaseSchema {
   @Prop({ required: false })
   customer_id: string;
 
+  @Prop({ required: false })
+  phone_number: string;
+
   @Prop({ type: Types.ObjectId, ref: User.name, required: true })
   user: Types.ObjectId | User;
 
