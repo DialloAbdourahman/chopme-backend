@@ -21,4 +21,5 @@ async function bootstrap() {
 bootstrap();
 
 // Test the ensure can order function well
+// When saving the total price of an item to be collected, save the calculatedRoundedToTheNearest50FCFA multiplied by the amount. Not the real price multiplied by the amount then the the nesrest machin truc. Also think of maybe storing the delivery price and nearest machin truc percentage based on just the collection and disburement percentage this time around. Maybe also store the absorbed rounded price for the proucts and the delivery price.
 // Add a route on the client module that will allow them to update their information like phone number and maybe add more. Also check if the added attributes should be used as a required check on the ensureCanOrder.

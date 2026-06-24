@@ -4,6 +4,7 @@ import { AppController } from './app.controller';
 import { AppService } from './app.service';
 import { UsersModule } from './users/users.module';
 import { LoggerModule } from './common/logger/logger.module';
+import { GlobalJwtModule } from './common/modules/jwt.module';
 import { ThrottlerGuard, ThrottlerModule } from '@nestjs/throttler';
 import { APP_GUARD } from '@nestjs/core';
 import { ClientsModule } from './clients/clients.module';
@@ -13,10 +14,13 @@ import { MenusModule } from './menus/menus.module';
 import { OrdersModule } from './orders/orders.module';
 import { RestaurantMembersModule } from './restaurant-members/restaurant-members.module';
 import { CategoriesModule } from './categories/categories.module';
+import { WebSocketModule } from './web-socket/web-socket.module';
+import { WebSocketService } from './web-socket/web-socket-service';
 
 @Module({
   imports: [
     LoggerModule,
+    GlobalJwtModule,
     UsersModule,
     MongooseModule.forRoot(env.mongodbUri),
     ThrottlerModule.forRoot([
@@ -42,6 +46,7 @@ import { CategoriesModule } from './categories/categories.module';
     OrdersModule,
     RestaurantMembersModule,
     CategoriesModule,
+    WebSocketModule,
   ],
   controllers: [AppController],
   providers: [
@@ -50,6 +55,7 @@ import { CategoriesModule } from './categories/categories.module';
       provide: APP_GUARD,
       useClass: ThrottlerGuard,
     },
+    WebSocketService,
   ],
 })
 export class AppModule {}

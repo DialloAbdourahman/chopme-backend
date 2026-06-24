@@ -8,7 +8,6 @@ import {
   RestaurantMemberSchema,
 } from 'src/restaurant-members/entities/restaurant-member.entity';
 import { User, UserSchema } from 'src/users/entities/user.entity';
-import { JwtModule } from '@nestjs/jwt';
 
 @Module({
   imports: [
@@ -17,7 +16,6 @@ import { JwtModule } from '@nestjs/jwt';
       { name: RestaurantMember.name, schema: RestaurantMemberSchema },
       { name: User.name, schema: UserSchema },
     ]),
-    JwtModule.register({}),
   ],
   controllers: [RestaurantsController],
   providers: [RestaurantsService],

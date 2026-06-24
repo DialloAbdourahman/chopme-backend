@@ -2,7 +2,6 @@ import { Module } from '@nestjs/common';
 import { OrdersService } from './orders.service';
 import { OrdersController } from './orders.controller';
 import { MongooseModule } from '@nestjs/mongoose';
-import { JwtModule } from '@nestjs/jwt';
 import { Order, OrderSchema } from './entities/order.entity';
 import { Menu, MenuSchema } from 'src/menus/entities/menu.entity';
 import { Client } from 'src/clients/entities/client.entity';
@@ -19,7 +18,6 @@ import {
       { name: Client.name, schema: MenuSchema },
       { name: Restaurant.name, schema: RestaurantSchema },
     ]),
-    JwtModule.register({}),
   ],
   controllers: [OrdersController],
   providers: [OrdersService],

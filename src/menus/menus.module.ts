@@ -3,7 +3,6 @@ import { MongooseModule } from '@nestjs/mongoose';
 import { MenusService } from './menus.service';
 import { MenusController } from './menus.controller';
 import { Menu, MenuSchema } from './entities/menu.entity';
-import { JwtModule } from '@nestjs/jwt';
 import {
   Category,
   CategorySchema,
@@ -15,7 +14,6 @@ import {
       { name: Menu.name, schema: MenuSchema },
       { name: Category.name, schema: CategorySchema },
     ]),
-    JwtModule.register({}),
   ],
   controllers: [MenusController],
   providers: [MenusService],
