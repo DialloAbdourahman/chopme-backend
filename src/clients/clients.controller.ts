@@ -21,7 +21,7 @@ export class ClientsController {
   constructor(private readonly clientsService: ClientsService) {}
 
   @Post()
-  create(@Body(new ValidationPipe()) createClientDto: CreateClientDto) {
+  create(@Body() createClientDto: CreateClientDto) {
     return this.clientsService.create(createClientDto);
   }
 
@@ -37,7 +37,7 @@ export class ClientsController {
   @Roles(EnumUserRole.CLIENT)
   updateMe(
     @CurrentUser() user: ILoggedInUserTokenData,
-    @Body(new ValidationPipe()) updateClientDto: UpdateAddressDto,
+    @Body() updateClientDto: UpdateAddressDto,
   ) {
     return this.clientsService.updateMyClientLocation(user, updateClientDto);
   }

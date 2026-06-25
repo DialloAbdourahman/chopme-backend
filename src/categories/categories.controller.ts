@@ -36,7 +36,7 @@ export class CategoriesController {
   )
   create(
     @CurrentUser() user: ILoggedInUserTokenData,
-    @Body(new ValidationPipe()) createCategoryDto: CreateCategoryDto,
+    @Body() createCategoryDto: CreateCategoryDto,
   ) {
     return this.categoriesService.create(createCategoryDto, user);
   }
@@ -75,7 +75,7 @@ export class CategoriesController {
   update(
     @Param('id') id: string,
     @CurrentUser() user: ILoggedInUserTokenData,
-    @Body(new ValidationPipe()) updateCategoryDto: UpdateCategoryDto,
+    @Body() updateCategoryDto: UpdateCategoryDto,
   ) {
     return this.categoriesService.update(id, updateCategoryDto, user);
   }

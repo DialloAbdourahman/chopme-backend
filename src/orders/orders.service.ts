@@ -12,6 +12,7 @@ import {
   RestaurantDocument,
 } from 'src/restaurants/entities/restaurant.entity';
 import { computeDistanceBetweenTwoPoints } from 'src/common/utils/compute-distance-between-two-points';
+import { env } from 'src/config/env';
 
 @Injectable()
 export class OrdersService {
@@ -46,6 +47,7 @@ export class OrdersService {
       price: number;
     };
     orders: { menu: MenuDocument; quantity: number }[];
+    maxTimeToPayOrder: Date;
   }> {
     const productIds = createOrderDto.items.map((item) => item.productId);
     this.logger.log(
@@ -86,6 +88,9 @@ export class OrdersService {
 
     // Make sure that restaurant is opened currently
     const now = new Date();
+    const maxTimeToPayOrder = new Date(
+      now.getTime() + env.maxTimeToPayOrderInMins * 60 * 1000,
+    );
     const cameroonLocale = { timeZone: 'Africa/Douala' };
     const dayName = now.toLocaleDateString('en-US', {
       weekday: 'long',
@@ -149,8 +154,8 @@ export class OrdersService {
       );
       throw new OrchestrationException({
         statusCode: EnumStatusCode.CLIENT_INFORMATION_INCOMPLETE,
-        message: 'Client address not found',
-        code: 404,
+        message: 'Client information incomplete',
+        code: 400,
       });
     }
 
@@ -247,6 +252,7 @@ export class OrdersService {
         quantity: item.quantity,
       })),
       deliveryTier,
+      maxTimeToPayOrder,
     };
   }
 }

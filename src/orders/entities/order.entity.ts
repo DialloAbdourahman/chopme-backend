@@ -53,6 +53,12 @@ export class Order extends BaseSchema {
 
   @Prop({ enum: EnumOrderCancelledReason, type: String, required: false })
   orderCancelReason: EnumOrderCancelledReason;
+
+  @Prop({ type: Date, default: null })
+  maxTimeToPayOrder: Date | null;
+
+  @Prop({ type: Date, default: null })
+  paidAt: Date | null;
 }
 
 export const OrderSchema = SchemaFactory.createForClass(Order);

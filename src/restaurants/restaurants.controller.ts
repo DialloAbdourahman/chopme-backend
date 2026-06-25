@@ -44,7 +44,7 @@ export class RestaurantsController {
   @Roles(EnumUserRole.ADMIN)
   create(
     @CurrentUser() user: ILoggedInUserTokenData,
-    @Body(new ValidationPipe()) createRestaurantDto: CreateRestaurantDto,
+    @Body() createRestaurantDto: CreateRestaurantDto,
   ) {
     return this.restaurantsService.create(createRestaurantDto, user);
   }
@@ -55,7 +55,7 @@ export class RestaurantsController {
   }
 
   @Post('search')
-  findAll(@Body(new ValidationPipe()) filters: FindRestaurantDto) {
+  findAll(@Body() filters: FindRestaurantDto) {
     return this.restaurantsService.findAll(filters);
   }
 
@@ -98,7 +98,7 @@ export class RestaurantsController {
   @Roles(EnumUserRole.ADMIN)
   adminUpdate(
     @Param('id') id: string,
-    @Body(new ValidationPipe())
+    @Body()
     adminUpdateRestaurantDto: AdminUpdateRestaurantDto,
     @CurrentUser() user: ILoggedInUserTokenData,
   ) {
@@ -118,7 +118,7 @@ export class RestaurantsController {
   )
   update(
     @Param('id') id: string,
-    @Body(new ValidationPipe()) updateRestaurantDto: UpdateRestaurantDto,
+    @Body() updateRestaurantDto: UpdateRestaurantDto,
     @CurrentUser() user: ILoggedInUserTokenData,
   ) {
     return this.restaurantsService.update(id, updateRestaurantDto, user);

@@ -25,6 +25,8 @@ export interface EnvConfig {
   collectionPercentage: number;
   disbursementPercentage: number;
   roundToNearestFCFA: number;
+
+  maxTimeToPayOrderInMins: number;
 }
 
 export const env: EnvConfig = {
@@ -54,4 +56,6 @@ export const env: EnvConfig = {
   collectionPercentage: Number(process.env.COLLECTION_PERCENTAGE),
   disbursementPercentage: Number(process.env.DISBURSEMENT_PERCENTAGE),
   roundToNearestFCFA: Number(process.env.ROUND_TO_NEAREST_FCFA),
+
+  maxTimeToPayOrderInMins: Number(process.env.MAX_TIME_TO_PAY_ORDER_IN_MINS),
 };

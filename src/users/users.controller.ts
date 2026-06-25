@@ -23,7 +23,7 @@ export class UsersController {
 
   @Post('email-password-login')
   emailPasswordLogin(
-    @Body(new ValidationPipe())
+    @Body()
     emailPasswordLoginDto: EmailPasswordLoginDto,
   ) {
     return this.usersService.emailPasswordLogin(emailPasswordLoginDto);
@@ -31,7 +31,7 @@ export class UsersController {
 
   @Post('google-login')
   googleLogin(
-    @Body(new ValidationPipe())
+    @Body()
     googleLoginDto: GoogleLoginDto,
   ) {
     return this.usersService.googleLogin(googleLoginDto);
@@ -59,7 +59,7 @@ export class UsersController {
   @UseGuards(AuthGuard)
   updateMe(
     @CurrentUser() user: ILoggedInUserTokenData,
-    @Body(new ValidationPipe()) updateUserDto: UpdateUserDto,
+    @Body() updateUserDto: UpdateUserDto,
   ) {
     return this.usersService.updateMyProfile(user, updateUserDto);
   }
@@ -68,7 +68,7 @@ export class UsersController {
   @UseGuards(AuthGuard)
   updatePassword(
     @CurrentUser() user: ILoggedInUserTokenData,
-    @Body(new ValidationPipe()) updatePasswordDto: UpdatePasswordDto,
+    @Body() updatePasswordDto: UpdatePasswordDto,
   ) {
     return this.usersService.updatePassword(user, updatePasswordDto);
   }

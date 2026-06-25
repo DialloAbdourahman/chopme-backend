@@ -45,7 +45,7 @@ export class MenusController {
   )
   create(
     @CurrentUser() user: ILoggedInUserTokenData,
-    @Body(new ValidationPipe()) createMenuDto: CreateMenuDto,
+    @Body() createMenuDto: CreateMenuDto,
   ) {
     return this.menusService.create(createMenuDto, user);
   }
@@ -110,7 +110,7 @@ export class MenusController {
   update(
     @Param('id') id: string,
     @CurrentUser() user: ILoggedInUserTokenData,
-    @Body(new ValidationPipe()) updateMenuDto: UpdateMenuDto,
+    @Body() updateMenuDto: UpdateMenuDto,
   ) {
     return this.menusService.update(id, updateMenuDto, user);
   }

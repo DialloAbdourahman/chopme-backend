@@ -41,7 +41,7 @@ export class RestaurantMembersController {
   )
   create(
     @CurrentUser() user: ILoggedInUserTokenData,
-    @Body(new ValidationPipe())
+    @Body()
     createRestaurantMemberDto: CreateRestaurantMemberDto,
   ) {
     return this.restaurantMembersService.create(
