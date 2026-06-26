@@ -13,6 +13,11 @@ import {
 } from 'src/restaurants/entities/restaurant.entity';
 import { computeDistanceBetweenTwoPoints } from 'src/common/utils/compute-distance-between-two-points';
 import { env } from 'src/config/env';
+import { Order, OrderDocument, OrderItem } from './entities/order.entity';
+import { computePriceWithPlatformPercentage } from 'src/common/utils/compute-price-with-platform-percentage';
+import { plainToInstance } from 'class-transformer';
+import { OrderClientOutputDto } from './dto/output/order-output.dto';
+import { OrchestrationResult } from 'src/common/utils/orchestration.result';
 
 @Injectable()
 export class OrdersService {
@@ -24,14 +29,107 @@ export class OrdersService {
     private readonly clientModel: Model<ClientDocument>,
     @InjectModel(Restaurant.name)
     private readonly restaurantModel: Model<RestaurantDocument>,
+    @InjectModel(Order.name)
+    private readonly orderModel: Model<OrderDocument>,
   ) {}
 
   async create(createOrderDto: CreateOrderDto, user: ILoggedInUserTokenData) {
     this.logger.log(
-      `[create] Order request by clientId=${user.clientId} for restaurantId=${createOrderDto.restaurantId}`,
+      `[create] Order request by clientId=${user.clientId} for restaurantId=${createOrderDto.restaurantId} with ${createOrderDto.items.length} items`,
     );
-    await this.ensureCanOrder({ user, createOrderDto });
-    return 'This action adds a new order';
+
+    const validatedOrder = await this.ensureCanOrder({
+      user,
+      createOrderDto,
+    });
+    this.logger.log(
+      `[create] Order validation successful for clientId=${user.clientId}, deliveryPrice=${validatedOrder.deliveryTier.price}`,
+    );
+
+    const deliveryPrice = validatedOrder.deliveryTier.price;
+    const deliveryPriceWithPlatformPercentage =
+      computePriceWithPlatformPercentage({
+        price: deliveryPrice,
+        platformPercentage:
+          env.collectionPercentage + env.disbursementPercentage,
+        roundToNearestFCFA: env.roundToNearestFCFA,
+      });
+
+    const orderItems: OrderItem[] = validatedOrder.orders.map((order) => ({
+      product: order.menu,
+      quantity: order.quantity,
+      originalPrice: order.menu.price,
+      priceWithPlatformPercentage: computePriceWithPlatformPercentage({
+        price: order.menu.price,
+        platformPercentage: env.platformPercentage,
+        roundToNearestFCFA: env.roundToNearestFCFA,
+      }),
+    }));
+
+    const totalPrice = orderItems.reduce(
+      (acc, item) => acc + item.originalPrice * item.quantity,
+      0,
+    );
+    const totalPriceWithPlatformPercentage = orderItems.reduce(
+      (acc, item) => acc + item.priceWithPlatformPercentage * item.quantity,
+      0,
+    );
+
+    // Calculate platform earnings: platform percentage (20%) - collection percentage (2%) - disbursement percentage (1%)
+    // So platform actually earns: 20% - 3% - 1% = 16%
+    const platformEarningsPercentage =
+      env.platformPercentage -
+      env.collectionPercentage -
+      env.disbursementPercentage;
+    const amountPlatformWillEarn = Math.floor(
+      (totalPrice * platformEarningsPercentage) / 100,
+    );
+
+    this.logger.log(
+      `[create] Order pricing calculated - Items: ${orderItems.length}, TotalPrice: ${totalPrice}, TotalWithPlatform: ${totalPriceWithPlatformPercentage}, DeliveryPrice: ${deliveryPriceWithPlatformPercentage}, PlatformEarnings: ${amountPlatformWillEarn}`,
+    );
+
+    const order = new this.orderModel({
+      client: new Types.ObjectId(user.clientId),
+      restaurant: new Types.ObjectId(createOrderDto.restaurantId),
+      items: orderItems,
+      maxTimeToPayOrder: validatedOrder.maxTimeToPayOrder,
+      pricing: {
+        totalAmountCollected: totalPriceWithPlatformPercentage,
+        totalAmountCollectedWithDelivery:
+          totalPriceWithPlatformPercentage +
+          deliveryPriceWithPlatformPercentage,
+        restaurantAmount: totalPrice,
+        restaurantAmountWithDelivery: totalPrice + deliveryPrice,
+        deliveryFeeAmount: deliveryPrice,
+        deliveryFeeAmountWithCollectionAndDisbursementPercentage:
+          deliveryPriceWithPlatformPercentage,
+        platformEarningsAmount: amountPlatformWillEarn,
+      },
+      metaData: {
+        platformPercentage: env.platformPercentage,
+        collectionPercentage: env.collectionPercentage,
+        disbursementPercentage: env.disbursementPercentage,
+      },
+    });
+
+    await order.save();
+
+    this.logger.log(
+      `[create] Order created successfully - orderId=${order._id}, clientId=${user.clientId}, restaurantId=${createOrderDto.restaurantId}, finalAmount=${order.pricing.totalAmountCollectedWithDelivery}`,
+    );
+
+    const orderObject = order.toObject();
+
+    const publicOrder = plainToInstance(OrderClientOutputDto, orderObject, {
+      excludeExtraneousValues: true,
+    });
+
+    return OrchestrationResult.Success<OrderClientOutputDto>({
+      statusCode: EnumStatusCode.CREATED_SUCCESSFULLY,
+      data: publicOrder,
+      message: 'Menu updated successfully',
+    });
   }
 
   private async ensureCanOrder({
