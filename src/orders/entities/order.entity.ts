@@ -58,6 +58,29 @@ export class Order extends BaseSchema {
   @Prop({
     type: [
       {
+        status: {
+          enum: EnumOrderStatus,
+          type: String,
+          required: true,
+        },
+        timestamp: {
+          type: Date,
+          required: true,
+          default: Date.now,
+        },
+        _id: false,
+      },
+    ],
+    default: [],
+  })
+  statusTransitions: {
+    status: EnumOrderStatus;
+    timestamp: Date;
+  }[];
+
+  @Prop({
+    type: [
+      {
         product: { type: Types.ObjectId, ref: Menu.name, required: true },
         quantity: { type: Number, required: true, min: 1 },
         originalPrice: { type: Number, required: true },

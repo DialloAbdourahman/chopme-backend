@@ -2,6 +2,7 @@ import { Expose, Transform, Type } from 'class-transformer';
 import { ClientPublicOutputDto } from 'src/clients/dto/output/client-output.dto';
 import { RestaurantPublicOutputDto } from 'src/restaurants/dto/output/restaurant-output.dto';
 import { MenuPublicOutputDto } from 'src/menus/dto/output/menu-outpus.dto';
+import { EnumOrderStatus } from 'src/common/enums/order-status';
 
 class OrderItemPublicOutputDto {
   @Expose()
@@ -20,6 +21,14 @@ class OrderItemPublicOutputDto {
 class OrderItemPrivateOutputDto extends OrderItemPublicOutputDto {
   @Expose()
   priceWithPlatformPercentage: number;
+}
+
+class StatusTransitionOutputDto {
+  @Expose()
+  status: EnumOrderStatus;
+
+  @Expose()
+  timestamp: Date;
 }
 
 class PricingRestaurantOutputDto {
@@ -95,6 +104,10 @@ abstract class OrderOutputDto {
 
   @Expose()
   status: string;
+
+  @Expose()
+  @Type(() => StatusTransitionOutputDto)
+  statusTransitions: StatusTransitionOutputDto;
 
   @Expose()
   @Type(() => OrderItemPublicOutputDto)
