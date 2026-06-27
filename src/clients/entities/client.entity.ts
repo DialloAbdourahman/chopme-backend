@@ -28,6 +28,33 @@ export class Client extends BaseSchema {
     longitude: number;
     latitude: number;
   };
+
+  @Prop({
+    type: [
+      {
+        paymentMethodId: {
+          type: String,
+          required: true,
+        },
+        prefix: {
+          type: String,
+          default: '237',
+          required: true,
+        },
+        accountNumber: {
+          type: String,
+          required: true,
+        },
+        _id: false,
+      },
+    ],
+    default: [],
+  })
+  paymentMethods: {
+    paymentMethodId: String;
+    prefix: string;
+    accountNumber: Date;
+  }[];
 }
 
 export const ClientSchema = SchemaFactory.createForClass(Client);

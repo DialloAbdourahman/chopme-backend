@@ -27,6 +27,12 @@ export interface EnvConfig {
   roundToNearestFCFA: number;
 
   maxTimeToPayOrderInMins: number;
+
+  flutterWaveUrl: string;
+  flutterWaveAuthUrl: string;
+  flutterWaveClientId: string;
+  flutterWaveClientSecret: string;
+  flutterWaveGrantType: string;
 }
 
 export const env: EnvConfig = {
@@ -58,4 +64,10 @@ export const env: EnvConfig = {
   roundToNearestFCFA: Number(process.env.ROUND_TO_NEAREST_FCFA),
 
   maxTimeToPayOrderInMins: Number(process.env.MAX_TIME_TO_PAY_ORDER_IN_MINS),
+
+  flutterWaveUrl: process.env.FLUTTER_WAVE_URL!,
+  flutterWaveAuthUrl: process.env.FLUTTER_WAVE_AUTH_URL!,
+  flutterWaveClientId: process.env.FLUTTER_WAVE_CLIENT_ID!,
+  flutterWaveClientSecret: process.env.FLUTTER_WAVE_CLIENT_SECRET!,
+  flutterWaveGrantType: process.env.FLUTTER_WAVE_GRANT_TYPE!,
 };
