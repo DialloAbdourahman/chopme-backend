@@ -16,6 +16,7 @@ import { RestaurantMembersModule } from './restaurant-members/restaurant-members
 import { CategoriesModule } from './categories/categories.module';
 import { WebSocketModule } from './web-socket/web-socket.module';
 import { WebSocketService } from './web-socket/web-socket-service';
+import { FlutterwaveModule } from './common/flutterwave/flutterwave.module';
 
 @Module({
   imports: [
@@ -47,6 +48,7 @@ import { WebSocketService } from './web-socket/web-socket-service';
     RestaurantMembersModule,
     CategoriesModule,
     WebSocketModule,
+    FlutterwaveModule,
   ],
   controllers: [AppController],
   providers: [

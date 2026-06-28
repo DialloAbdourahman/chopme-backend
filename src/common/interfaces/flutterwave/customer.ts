@@ -1,7 +1,7 @@
 export interface CustomerName {
-  first: string;
+  first?: string;
   middle?: string;
-  last: string;
+  last?: string;
 }
 
 export interface CustomerPhone {

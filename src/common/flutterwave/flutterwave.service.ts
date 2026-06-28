@@ -1,5 +1,5 @@
 import { HttpService } from '@nestjs/axios';
-import { Injectable, Logger } from '@nestjs/common';
+import { Injectable, Logger, OnModuleInit } from '@nestjs/common';
 import { AxiosResponse } from 'axios';
 import { Observable, firstValueFrom } from 'rxjs';
 import { FlutterWaveAuthResponse } from '../interfaces/flutterwave/auth';
@@ -16,13 +16,18 @@ import { Charge, CreateChargeRequest } from '../interfaces/flutterwave/charge';
 import { env } from 'src/config/env';
 
 @Injectable()
-export class FlutterwaveService {
+export class FlutterwaveService implements OnModuleInit {
   private readonly logger = new Logger(FlutterwaveService.name);
   constructor(private readonly httpService: HttpService) {}
 
   private readonly baseUrl = process.env.FLUTTER_WAVE_URL;
   private token: string | null = null;
   private expiresAt: Date | null = null;
+
+  onModuleInit() {
+    this.logger.log('Flutterwave initialized');
+    this.refreshToken();
+  }
 
   private async refreshToken(): Promise<void> {
     try {
@@ -170,7 +175,7 @@ export class FlutterwaveService {
       }
 
       this.logger.log(
-        `[Flutterwave] Successfully created Flutterwave payment method with ID: ${data.id}`,
+        `[Flutterwave] Successfully created Flutterwave payment method with ID: ${data}`,
       );
       return data;
     } catch (error) {

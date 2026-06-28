@@ -32,6 +32,7 @@ export interface EnvConfig {
   flutterWaveAuthUrl: string;
   flutterWaveClientId: string;
   flutterWaveClientSecret: string;
+  flutterWaveEncryptionKey: string;
   flutterWaveGrantType: string;
 }
 
@@ -69,5 +70,6 @@ export const env: EnvConfig = {
   flutterWaveAuthUrl: process.env.FLUTTER_WAVE_AUTH_URL!,
   flutterWaveClientId: process.env.FLUTTER_WAVE_CLIENT_ID!,
   flutterWaveClientSecret: process.env.FLUTTER_WAVE_CLIENT_SECRET!,
+  flutterWaveEncryptionKey: process.env.FLUTTER_WAVE_ENCRYPTION_KEY!,
   flutterWaveGrantType: process.env.FLUTTER_WAVE_GRANT_TYPE!,
 };

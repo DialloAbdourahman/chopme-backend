@@ -56,6 +56,12 @@ export class Order extends BaseSchema {
   status: EnumOrderStatus;
 
   @Prop({
+    type: String,
+    required: false,
+  })
+  chargeId?: string;
+
+  @Prop({
     type: [
       {
         status: {

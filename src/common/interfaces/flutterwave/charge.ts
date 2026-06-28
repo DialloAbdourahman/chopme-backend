@@ -30,6 +30,10 @@ export interface ChargeProcessorResponse {
   code: string;
 }
 
+export interface ChargeMetaData {
+  orderId: string;
+}
+
 export interface Charge {
   id: string;
   amount: number;
@@ -53,4 +57,5 @@ export interface CreateChargeRequest {
   payment_method_id: string;
   amount: number;
   reference: string;
+  meta: ChargeMetaData;
 }

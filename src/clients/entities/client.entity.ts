@@ -2,8 +2,16 @@ import { Prop, Schema, SchemaFactory } from '@nestjs/mongoose';
 import { HydratedDocument, Types } from 'mongoose';
 import { BaseSchema } from '../../common/schemas/base.schema';
 import { User } from '../../users/entities/user.entity';
+import { EnumNetwork } from 'src/common/enums/networks';
 
 export type ClientDocument = HydratedDocument<Client>;
+
+export type MobilePaymentMethod = {
+  paymentMethodId: string;
+  prefix: string;
+  accountNumber: string;
+  network: EnumNetwork;
+};
 
 @Schema({ timestamps: true })
 export class Client extends BaseSchema {
@@ -45,16 +53,17 @@ export class Client extends BaseSchema {
           type: String,
           required: true,
         },
+        network: {
+          enum: EnumNetwork,
+          type: String,
+          required: true,
+        },
         _id: false,
       },
     ],
     default: [],
   })
-  paymentMethods: {
-    paymentMethodId: String;
-    prefix: string;
-    accountNumber: Date;
-  }[];
+  mobilePaymentMethods: MobilePaymentMethod[];
 }
 
 export const ClientSchema = SchemaFactory.createForClass(Client);

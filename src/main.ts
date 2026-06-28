@@ -22,33 +22,10 @@ async function bootstrap() {
 }
 bootstrap();
 
-// Add order utils routes to reduce the amount of joins: Get client from order and then on the frontend use the route to get restaurant and menu to display the additional information.
-// A client can cancel an order that is in created state.
-// Add a route on the client module that will allow them to update their information like phone number and maybe add more. Also check if the added attributes should be used as a required check on the ensureCanOrder.
+// Test everything and add a webhook. Also add a webhook field on the order so we can save some data.
 
-// {
-//     "code": "SUCCESS",
-//     "statusCode": "CREATED_SUCCESSFULLY",
-//     "message": "Menu updated successfully",
-//     "data": {
-//         "id": "6a3ed130e73d960c968d4ac1",
-//         "clientId": "6a3842e3bc503575612ad7c9",
-//         "restaurantId": "6a2f156b4ae3760d440ef51a",
-//         "status": "CREATED",
-//         "items": [
-//             {
-//                 "productId": "6a3133a81eeffe9c07c5a072",
-//                 "quantity": 3,
-//                 "originalPrice": 4500
-//             }
-//         ],
-//         "maxTimeToPayOrder": "2026-06-26T19:51:20.565Z",
-//         "paidAt": null,
-//         "createdAt": "2026-06-26T19:21:20.591Z",
-//         "pricing": {
-//             "totalAmountCollected": 16200,
-//             "totalAmountCollectedWithDelivery": 18300,
-//             "deliveryFeeAmountWithCollectionAndDisbursementPercentage": 2100
-//         }
-//     }
-// }
+// Round up on basic routes like get public client info from order (by restaurant), get orders (client, restaurant and admin), client cancel created order.
+
+// Add a route on the client module to update thier information e.g phone number for now with the exact same dto validation as the payOrder.
+
+// Add route that will allow the restaurant to cancel an order and work on the webhook.

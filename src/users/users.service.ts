@@ -24,6 +24,8 @@ import { ILoggedInUserTokenData } from 'src/common/interfaces/loggedin-user-toke
 import { JwtService } from '@nestjs/jwt';
 import { getUserFromGoogle } from 'src/common/utils/get-user-from-google';
 import type { IUserFromGoogle } from 'src/common/interfaces/user-from-google';
+import { CreateClientDto } from 'src/clients/dto/input/create-client.dto';
+import { FlutterwaveService } from 'src/common/flutterwave/flutterwave.service';
 
 @Injectable()
 export class UsersService {
@@ -39,6 +41,7 @@ export class UsersService {
     @InjectConnection()
     private readonly connection: Connection,
     private readonly jwtService: JwtService,
+    private readonly flutterwaveService: FlutterwaveService,
   ) {}
 
   private async buildTokenPayload(
@@ -95,6 +98,119 @@ export class UsersService {
     }
 
     return payload;
+  }
+
+  async create(createClientDto: CreateClientDto) {
+    this.logger.log('[create] Starting client signup transaction');
+
+    const normalizedEmail = createClientDto.email.toLocaleLowerCase().trim();
+
+    const existingUser = await this.userModel.findOne({
+      email: normalizedEmail,
+    });
+
+    if (existingUser) {
+      this.logger.log(
+        `[create] User with email=${normalizedEmail} exists already`,
+      );
+      throw new OrchestrationException({
+        statusCode: EnumStatusCode.EXISTS_ALREADY,
+        message: 'User with this email already exists',
+      });
+    }
+
+    let user: UserDocument;
+    let client: ClientDocument;
+
+    const session = await this.connection.startSession();
+    session.startTransaction();
+
+    try {
+      const { fullName, password } = createClientDto;
+
+      this.logger.log(
+        `[create] Checking if user with email=${normalizedEmail} exists already`,
+      );
+
+      const hashedPassword = await bcrypt.hash(password, 10);
+
+      this.logger.log(`[create] Creating user with email=${normalizedEmail}`);
+
+      // Create the User document
+      user = new this.userModel({
+        fullName,
+        email: normalizedEmail,
+        password: hashedPassword,
+        role: EnumUserRole.CLIENT,
+        authType: EnumAuthType.EMAIL_PASSWORD,
+        active: true,
+      });
+      await user.save({ session });
+      this.logger.log(`[create] Created user id=${user._id}`);
+
+      // Create the Client document linked to the user
+      client = new this.clientModel({
+        user: user._id,
+      });
+      await client.save({ session });
+
+      this.logger.log(
+        `[create] Created client id=${client._id} for user id=${user._id}`,
+      );
+
+      await session.commitTransaction();
+      this.logger.log(
+        '[create] Client signup transaction committed successfully',
+      );
+    } catch (error) {
+      await session.abortTransaction();
+      this.logger.error(
+        `[create] Error during client signup: ${error?.message}`,
+        error?.stack,
+      );
+
+      throw new OrchestrationException({
+        statusCode: EnumStatusCode.UNABLE_TO_CREATE_ACCOUNT,
+        message: 'Unable to create client account',
+        code: 500,
+      });
+    } finally {
+      session.endSession();
+    }
+
+    try {
+      this.logger.log(
+        `[create] Creating flutterwave customer_id for client id=${client._id} for user id=${user._id}`,
+      );
+
+      const flutterwaveCustomer = await this.flutterwaveService.createCustomer({
+        customerData: {
+          name: {
+            first: user.fullName,
+          },
+          email: user.email,
+        },
+        uniqueIdentifier: client.id.toString(),
+      });
+
+      client.customer_id = flutterwaveCustomer.id;
+      await client.save();
+
+      this.logger.log(
+        `[create] Successfully created flutterwave customer_id for client id=${client._id}`,
+      );
+    } catch (error) {
+      this.logger.error(
+        `[create] Failed to create Flutterwave customer for client id=${client._id}: ${error?.message}`,
+        error?.stack,
+      );
+    }
+
+    return OrchestrationResult.Success<string>({
+      statusCode: EnumStatusCode.CLIENT_CREATED_SUCCESSFULLY,
+      data: 'Client account created successfully',
+      message: 'Client account created successfully',
+    });
   }
 
   async emailPasswordLogin(emailPasswordLoginDto: EmailPasswordLoginDto) {
@@ -273,6 +389,8 @@ export class UsersService {
         `[googleLogin] No existing user for email=${normalizedEmail}, creating new CLIENT user`,
       );
 
+      let client: ClientDocument;
+
       const session = await this.connection.startSession();
       session.startTransaction();
 
@@ -288,7 +406,7 @@ export class UsersService {
         await user.save({ session });
         this.logger.log(`[googleLogin] Created user id=${user._id}`);
 
-        const client = new this.clientModel({
+        client = new this.clientModel({
           user: user._id,
         });
         await client.save({ session });
@@ -312,6 +430,35 @@ export class UsersService {
         });
       } finally {
         session.endSession();
+      }
+
+      try {
+        this.logger.log(
+          `[create] Creating flutterwave customer_id for client id=${client._id} for user id=${user._id}`,
+        );
+
+        const flutterwaveCustomer =
+          await this.flutterwaveService.createCustomer({
+            customerData: {
+              name: {
+                first: user.fullName,
+              },
+              email: user.email,
+            },
+            uniqueIdentifier: client.id.toString(),
+          });
+
+        client.customer_id = flutterwaveCustomer.id;
+        await client.save();
+
+        this.logger.log(
+          `[create] Successfully created flutterwave customer_id for client id=${client._id}`,
+        );
+      } catch (error) {
+        this.logger.error(
+          `[create] Failed to create Flutterwave customer for client id=${client._id}: ${error?.message}`,
+          error?.stack,
+        );
       }
     }
 

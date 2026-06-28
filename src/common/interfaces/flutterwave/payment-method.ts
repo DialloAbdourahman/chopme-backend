@@ -1,6 +1,8 @@
+import { EnumNetwork } from '../../enums/networks';
+
 export interface MobileMoneyDetails {
   country_code: string;
-  network: string;
+  network: EnumNetwork;
   phone_number: string;
 }
 
