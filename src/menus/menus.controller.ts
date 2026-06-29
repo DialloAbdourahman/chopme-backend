@@ -3,12 +3,13 @@ import {
   Controller,
   Delete,
   Get,
+  HttpCode,
+  HttpStatus,
   Param,
   Patch,
   Post,
   Query,
   UseGuards,
-  ValidationPipe,
   UseInterceptors,
   UploadedFile,
   ParseIntPipe,
@@ -37,6 +38,7 @@ export class MenusController {
   constructor(private readonly menusService: MenusService) {}
 
   @Post()
+  @HttpCode(HttpStatus.CREATED)
   @UseGuards(AuthGuard, RoleGuard, RestaurantRoleGuard)
   @Roles(EnumUserRole.RESTAURANT_MEMBER)
   @RestaurantRoles(
@@ -51,6 +53,7 @@ export class MenusController {
   }
 
   @Get('search')
+  @HttpCode(HttpStatus.OK)
   search(
     @Query('page', new DefaultValuePipe(1), ParseIntPipe) page: number,
     @Query('limit', new DefaultValuePipe(10), ParseIntPipe) limit: number,
@@ -68,11 +71,13 @@ export class MenusController {
   }
 
   @Get(':id')
+  @HttpCode(HttpStatus.OK)
   findOne(@Param('id') id: string) {
     return this.menusService.findOne(id);
   }
 
   @Patch(':id/toggle-available')
+  @HttpCode(HttpStatus.OK)
   @UseGuards(AuthGuard, RoleGuard, RestaurantRoleGuard)
   @Roles(EnumUserRole.RESTAURANT_MEMBER)
   @RestaurantRoles(
@@ -87,6 +92,7 @@ export class MenusController {
   }
 
   @Patch(':id/restore')
+  @HttpCode(HttpStatus.OK)
   @UseGuards(AuthGuard, RoleGuard, RestaurantRoleGuard)
   @Roles(EnumUserRole.RESTAURANT_MEMBER)
   @RestaurantRoles(
@@ -101,6 +107,7 @@ export class MenusController {
   }
 
   @Patch(':id')
+  @HttpCode(HttpStatus.OK)
   @UseGuards(AuthGuard, RoleGuard, RestaurantRoleGuard)
   @Roles(EnumUserRole.RESTAURANT_MEMBER)
   @RestaurantRoles(
@@ -116,6 +123,7 @@ export class MenusController {
   }
 
   @Post(':id/upload-image')
+  @HttpCode(HttpStatus.CREATED)
   @UseGuards(AuthGuard, RoleGuard, RestaurantRoleGuard)
   @Roles(EnumUserRole.RESTAURANT_MEMBER)
   @RestaurantRoles(
@@ -151,6 +159,7 @@ export class MenusController {
   }
 
   @Post(':id/upload-cover-image')
+  @HttpCode(HttpStatus.CREATED)
   @UseGuards(AuthGuard, RoleGuard, RestaurantRoleGuard)
   @Roles(EnumUserRole.RESTAURANT_MEMBER)
   @RestaurantRoles(
@@ -186,6 +195,7 @@ export class MenusController {
   }
 
   @Delete(':id/images')
+  @HttpCode(HttpStatus.OK)
   @UseGuards(AuthGuard, RoleGuard, RestaurantRoleGuard)
   @Roles(EnumUserRole.RESTAURANT_MEMBER)
   @RestaurantRoles(
@@ -201,6 +211,7 @@ export class MenusController {
   }
 
   @Delete(':id/cover-image')
+  @HttpCode(HttpStatus.OK)
   @UseGuards(AuthGuard, RoleGuard, RestaurantRoleGuard)
   @Roles(EnumUserRole.RESTAURANT_MEMBER)
   @RestaurantRoles(
@@ -215,6 +226,7 @@ export class MenusController {
   }
 
   @Delete(':id')
+  @HttpCode(HttpStatus.OK)
   @UseGuards(AuthGuard, RoleGuard, RestaurantRoleGuard)
   @Roles(EnumUserRole.RESTAURANT_MEMBER)
   @RestaurantRoles(

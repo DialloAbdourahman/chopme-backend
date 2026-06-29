@@ -17,6 +17,7 @@ import { CategoriesModule } from './categories/categories.module';
 import { WebSocketModule } from './web-socket/web-socket.module';
 import { WebSocketService } from './web-socket/web-socket-service';
 import { FlutterwaveModule } from './common/flutterwave/flutterwave.module';
+import { FlwWebhookModule } from './flw-webhook/flw-webhook.module';
 
 @Module({
   imports: [
@@ -48,7 +49,11 @@ import { FlutterwaveModule } from './common/flutterwave/flutterwave.module';
     RestaurantMembersModule,
     CategoriesModule,
     WebSocketModule,
-    FlutterwaveModule,
+    FlutterwaveModule.forRoot({
+      baseUrl: env.flutterWaveUrl,
+      secretKey: env.flutterWaveClientSecretKey,
+    }),
+    FlwWebhookModule,
   ],
   controllers: [AppController],
   providers: [

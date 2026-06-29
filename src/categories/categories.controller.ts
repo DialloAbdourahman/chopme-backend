@@ -3,6 +3,8 @@ import {
   Controller,
   Delete,
   Get,
+  HttpCode,
+  HttpStatus,
   Param,
   Patch,
   Post,
@@ -28,6 +30,7 @@ export class CategoriesController {
   constructor(private readonly categoriesService: CategoriesService) {}
 
   @Post()
+  @HttpCode(HttpStatus.CREATED)
   @UseGuards(AuthGuard, RoleGuard, RestaurantRoleGuard)
   @Roles(EnumUserRole.RESTAURANT_MEMBER)
   @RestaurantRoles(
@@ -42,16 +45,19 @@ export class CategoriesController {
   }
 
   @Get('restaurant/:restaurantId')
+  @HttpCode(HttpStatus.OK)
   findAll(@Param('restaurantId') restaurantId: string) {
     return this.categoriesService.findAll(restaurantId);
   }
 
   @Get(':id')
+  @HttpCode(HttpStatus.OK)
   findOne(@Param('id') id: string) {
     return this.categoriesService.findOne(id);
   }
 
   @Patch(':id/restore')
+  @HttpCode(HttpStatus.OK)
   @UseGuards(AuthGuard, RoleGuard, RestaurantRoleGuard)
   @Roles(EnumUserRole.RESTAURANT_MEMBER)
   @RestaurantRoles(
@@ -66,6 +72,7 @@ export class CategoriesController {
   }
 
   @Patch(':id')
+  @HttpCode(HttpStatus.OK)
   @UseGuards(AuthGuard, RoleGuard, RestaurantRoleGuard)
   @Roles(EnumUserRole.RESTAURANT_MEMBER)
   @RestaurantRoles(
@@ -81,6 +88,7 @@ export class CategoriesController {
   }
 
   @Delete(':id')
+  @HttpCode(HttpStatus.OK)
   @UseGuards(AuthGuard, RoleGuard, RestaurantRoleGuard)
   @Roles(EnumUserRole.RESTAURANT_MEMBER)
   @RestaurantRoles(

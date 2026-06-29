@@ -25,7 +25,6 @@ import { JwtService } from '@nestjs/jwt';
 import { getUserFromGoogle } from 'src/common/utils/get-user-from-google';
 import type { IUserFromGoogle } from 'src/common/interfaces/user-from-google';
 import { CreateClientDto } from 'src/clients/dto/input/create-client.dto';
-import { FlutterwaveService } from 'src/common/flutterwave/flutterwave.service';
 
 @Injectable()
 export class UsersService {
@@ -41,7 +40,6 @@ export class UsersService {
     @InjectConnection()
     private readonly connection: Connection,
     private readonly jwtService: JwtService,
-    private readonly flutterwaveService: FlutterwaveService,
   ) {}
 
   private async buildTokenPayload(
@@ -119,9 +117,6 @@ export class UsersService {
       });
     }
 
-    let user: UserDocument;
-    let client: ClientDocument;
-
     const session = await this.connection.startSession();
     session.startTransaction();
 
@@ -137,7 +132,7 @@ export class UsersService {
       this.logger.log(`[create] Creating user with email=${normalizedEmail}`);
 
       // Create the User document
-      user = new this.userModel({
+      const user = new this.userModel({
         fullName,
         email: normalizedEmail,
         password: hashedPassword,
@@ -149,7 +144,7 @@ export class UsersService {
       this.logger.log(`[create] Created user id=${user._id}`);
 
       // Create the Client document linked to the user
-      client = new this.clientModel({
+      const client = new this.clientModel({
         user: user._id,
       });
       await client.save({ session });
@@ -176,34 +171,6 @@ export class UsersService {
       });
     } finally {
       session.endSession();
-    }
-
-    try {
-      this.logger.log(
-        `[create] Creating flutterwave customer_id for client id=${client._id} for user id=${user._id}`,
-      );
-
-      const flutterwaveCustomer = await this.flutterwaveService.createCustomer({
-        customerData: {
-          name: {
-            first: user.fullName,
-          },
-          email: user.email,
-        },
-        uniqueIdentifier: client.id.toString(),
-      });
-
-      client.customer_id = flutterwaveCustomer.id;
-      await client.save();
-
-      this.logger.log(
-        `[create] Successfully created flutterwave customer_id for client id=${client._id}`,
-      );
-    } catch (error) {
-      this.logger.error(
-        `[create] Failed to create Flutterwave customer for client id=${client._id}: ${error?.message}`,
-        error?.stack,
-      );
     }
 
     return OrchestrationResult.Success<string>({
@@ -389,8 +356,6 @@ export class UsersService {
         `[googleLogin] No existing user for email=${normalizedEmail}, creating new CLIENT user`,
       );
 
-      let client: ClientDocument;
-
       const session = await this.connection.startSession();
       session.startTransaction();
 
@@ -406,7 +371,7 @@ export class UsersService {
         await user.save({ session });
         this.logger.log(`[googleLogin] Created user id=${user._id}`);
 
-        client = new this.clientModel({
+        const client = new this.clientModel({
           user: user._id,
         });
         await client.save({ session });
@@ -430,35 +395,6 @@ export class UsersService {
         });
       } finally {
         session.endSession();
-      }
-
-      try {
-        this.logger.log(
-          `[create] Creating flutterwave customer_id for client id=${client._id} for user id=${user._id}`,
-        );
-
-        const flutterwaveCustomer =
-          await this.flutterwaveService.createCustomer({
-            customerData: {
-              name: {
-                first: user.fullName,
-              },
-              email: user.email,
-            },
-            uniqueIdentifier: client.id.toString(),
-          });
-
-        client.customer_id = flutterwaveCustomer.id;
-        await client.save();
-
-        this.logger.log(
-          `[create] Successfully created flutterwave customer_id for client id=${client._id}`,
-        );
-      } catch (error) {
-        this.logger.error(
-          `[create] Failed to create Flutterwave customer for client id=${client._id}: ${error?.message}`,
-          error?.stack,
-        );
       }
     }
 

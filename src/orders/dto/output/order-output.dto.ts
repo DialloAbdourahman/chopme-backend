@@ -31,6 +31,14 @@ class StatusTransitionOutputDto {
   timestamp: Date;
 }
 
+class PaymentDetails {
+  @Expose()
+  link: string;
+
+  @Expose()
+  validUntil: Date;
+}
+
 class PricingRestaurantOutputDto {
   @Expose()
   restaurantAmount: number;
@@ -136,6 +144,10 @@ export class OrderClientOutputDto extends OrderOutputDto {
   @Expose()
   @Type(() => PricingClientOutputDto)
   pricing: PricingClientOutputDto;
+
+  @Expose()
+  @Type(() => PaymentDetails)
+  paymentDetails: PaymentDetails;
 }
 
 export class OrderAdminOutputDto extends OrderOutputDto {

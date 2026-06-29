@@ -3,15 +3,15 @@ import {
   Controller,
   Delete,
   Get,
+  HttpCode,
+  HttpStatus,
   Param,
   Patch,
   Post,
   Query,
   UseGuards,
-  ValidationPipe,
   UseInterceptors,
   UploadedFile,
-  ParseIntPipe,
 } from '@nestjs/common';
 import { FileInterceptor } from '@nestjs/platform-express';
 import { RestaurantsService } from './restaurants.service';
@@ -40,6 +40,7 @@ export class RestaurantsController {
   constructor(private readonly restaurantsService: RestaurantsService) {}
 
   @Post()
+  @HttpCode(HttpStatus.CREATED)
   @UseGuards(AuthGuard, RoleGuard)
   @Roles(EnumUserRole.ADMIN)
   create(
@@ -50,26 +51,31 @@ export class RestaurantsController {
   }
 
   @Get('check-name')
+  @HttpCode(HttpStatus.OK)
   checkName(@Query('name') name: string) {
     return this.restaurantsService.checkName(name);
   }
 
   @Post('search')
+  @HttpCode(HttpStatus.OK)
   findAll(@Body() filters: FindRestaurantDto) {
     return this.restaurantsService.findAll(filters);
   }
 
   @Get(':id')
+  @HttpCode(HttpStatus.OK)
   findOne(@Param('id') id: string) {
     return this.restaurantsService.findOne(id);
   }
 
   @Patch(':id/increment-views')
+  @HttpCode(HttpStatus.OK)
   incrementTotalViews(@Param('id') id: string) {
     return this.restaurantsService.incrementTotalViews(id);
   }
 
   @Patch(':id/toggle-closed')
+  @HttpCode(HttpStatus.OK)
   @UseGuards(AuthGuard, RoleGuard, RestaurantRoleGuard)
   @Roles(EnumUserRole.RESTAURANT_MEMBER)
   @RestaurantRoles(
@@ -84,6 +90,7 @@ export class RestaurantsController {
   }
 
   @Patch(':id/restore')
+  @HttpCode(HttpStatus.OK)
   @UseGuards(AuthGuard, RoleGuard)
   @Roles(EnumUserRole.ADMIN)
   restore(
@@ -94,6 +101,7 @@ export class RestaurantsController {
   }
 
   @Patch(':id/admin')
+  @HttpCode(HttpStatus.OK)
   @UseGuards(AuthGuard, RoleGuard)
   @Roles(EnumUserRole.ADMIN)
   adminUpdate(
@@ -110,6 +118,7 @@ export class RestaurantsController {
   }
 
   @Patch(':id')
+  @HttpCode(HttpStatus.OK)
   @UseGuards(AuthGuard, RoleGuard, RestaurantRoleGuard)
   @Roles(EnumUserRole.RESTAURANT_MEMBER)
   @RestaurantRoles(
@@ -125,6 +134,7 @@ export class RestaurantsController {
   }
 
   @Post(':id/upload-image')
+  @HttpCode(HttpStatus.CREATED)
   @UseGuards(AuthGuard, RoleGuard, RestaurantRoleGuard)
   @Roles(EnumUserRole.RESTAURANT_MEMBER)
   @RestaurantRoles(
@@ -160,6 +170,7 @@ export class RestaurantsController {
   }
 
   @Post(':id/upload-cover-image')
+  @HttpCode(HttpStatus.CREATED)
   @UseGuards(AuthGuard, RoleGuard, RestaurantRoleGuard)
   @Roles(EnumUserRole.RESTAURANT_MEMBER)
   @RestaurantRoles(
@@ -195,6 +206,7 @@ export class RestaurantsController {
   }
 
   @Delete(':id/images')
+  @HttpCode(HttpStatus.OK)
   @UseGuards(AuthGuard, RoleGuard, RestaurantRoleGuard)
   @Roles(EnumUserRole.RESTAURANT_MEMBER)
   @RestaurantRoles(
@@ -210,6 +222,7 @@ export class RestaurantsController {
   }
 
   @Delete(':id/cover-image')
+  @HttpCode(HttpStatus.OK)
   @UseGuards(AuthGuard, RoleGuard, RestaurantRoleGuard)
   @Roles(EnumUserRole.RESTAURANT_MEMBER)
   @RestaurantRoles(
@@ -224,6 +237,7 @@ export class RestaurantsController {
   }
 
   @Delete(':id')
+  @HttpCode(HttpStatus.OK)
   @UseGuards(AuthGuard, RoleGuard)
   @Roles(EnumUserRole.ADMIN)
   remove(@Param('id') id: string, @CurrentUser() user: ILoggedInUserTokenData) {

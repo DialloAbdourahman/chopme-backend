@@ -6,18 +6,8 @@ import { EnumNetwork } from 'src/common/enums/networks';
 
 export type ClientDocument = HydratedDocument<Client>;
 
-export type MobilePaymentMethod = {
-  paymentMethodId: string;
-  prefix: string;
-  accountNumber: string;
-  network: EnumNetwork;
-};
-
 @Schema({ timestamps: true })
 export class Client extends BaseSchema {
-  @Prop({ required: false })
-  customer_id: string;
-
   @Prop({ required: false })
   phone_number: string;
 
@@ -36,34 +26,6 @@ export class Client extends BaseSchema {
     longitude: number;
     latitude: number;
   };
-
-  @Prop({
-    type: [
-      {
-        paymentMethodId: {
-          type: String,
-          required: true,
-        },
-        prefix: {
-          type: String,
-          default: '237',
-          required: true,
-        },
-        accountNumber: {
-          type: String,
-          required: true,
-        },
-        network: {
-          enum: EnumNetwork,
-          type: String,
-          required: true,
-        },
-        _id: false,
-      },
-    ],
-    default: [],
-  })
-  mobilePaymentMethods: MobilePaymentMethod[];
 }
 
 export const ClientSchema = SchemaFactory.createForClass(Client);

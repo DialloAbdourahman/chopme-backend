@@ -4,9 +4,10 @@ import {
   Get,
   Post,
   Patch,
-  ValidationPipe,
   Headers,
   UseGuards,
+  HttpCode,
+  HttpStatus,
 } from '@nestjs/common';
 import { UsersService } from './users.service';
 import { EmailPasswordLoginDto } from './dto/input/email-password-login.dto';
@@ -23,11 +24,13 @@ export class UsersController {
   constructor(private usersService: UsersService) {}
 
   @Post()
+  @HttpCode(HttpStatus.CREATED)
   create(@Body() createClientDto: CreateClientDto) {
     return this.usersService.create(createClientDto);
   }
 
   @Post('email-password-login')
+  @HttpCode(HttpStatus.OK)
   emailPasswordLogin(
     @Body()
     emailPasswordLoginDto: EmailPasswordLoginDto,
@@ -36,6 +39,7 @@ export class UsersController {
   }
 
   @Post('google-login')
+  @HttpCode(HttpStatus.OK)
   googleLogin(
     @Body()
     googleLoginDto: GoogleLoginDto,
@@ -44,24 +48,28 @@ export class UsersController {
   }
 
   @Post('token')
+  @HttpCode(HttpStatus.OK)
   refreshToken(@Headers('authorization') authorization: string) {
     const token = authorization?.split(' ')[1] || '';
     return this.usersService.refreshToken(token);
   }
 
   @Post('logout')
+  @HttpCode(HttpStatus.OK)
   @UseGuards(AuthGuard)
   logout(@CurrentUser() user: ILoggedInUserTokenData) {
     return this.usersService.logout(user);
   }
 
   @Get('me')
+  @HttpCode(HttpStatus.OK)
   @UseGuards(AuthGuard)
   me(@CurrentUser() user: ILoggedInUserTokenData) {
     return this.usersService.getMyProfile(user);
   }
 
   @Patch('me')
+  @HttpCode(HttpStatus.OK)
   @UseGuards(AuthGuard)
   updateMe(
     @CurrentUser() user: ILoggedInUserTokenData,
@@ -71,6 +79,7 @@ export class UsersController {
   }
 
   @Patch('me/password')
+  @HttpCode(HttpStatus.OK)
   @UseGuards(AuthGuard)
   updatePassword(
     @CurrentUser() user: ILoggedInUserTokenData,

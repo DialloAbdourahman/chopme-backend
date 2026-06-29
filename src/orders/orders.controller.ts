@@ -1,7 +1,15 @@
-import { Controller, Post, Put, Param, Body, UseGuards } from '@nestjs/common';
+import {
+  Controller,
+  Post,
+  Put,
+  Param,
+  Body,
+  UseGuards,
+  HttpCode,
+  HttpStatus,
+} from '@nestjs/common';
 import { OrdersService } from './orders.service';
 import { CreateOrderDto } from './dto/input/create-order.dto';
-import { PayOrderDto } from './dto/input/pay-order.dto';
 import { AuthGuard } from 'src/common/guards/auth.guard';
 import { RoleGuard, Roles } from 'src/common/guards/role.guard';
 import { EnumUserRole } from 'src/common/enums/user-roles';
@@ -13,6 +21,7 @@ export class OrdersController {
   constructor(private readonly ordersService: OrdersService) {}
 
   @Post()
+  @HttpCode(HttpStatus.CREATED)
   @UseGuards(AuthGuard, RoleGuard)
   @Roles(EnumUserRole.CLIENT)
   create(
@@ -23,6 +32,7 @@ export class OrdersController {
   }
 
   @Put(':orderId')
+  @HttpCode(HttpStatus.OK)
   @UseGuards(AuthGuard, RoleGuard)
   @Roles(EnumUserRole.CLIENT)
   update(
@@ -34,13 +44,13 @@ export class OrdersController {
   }
 
   @Post(':orderId/pay')
+  @HttpCode(HttpStatus.OK)
   @UseGuards(AuthGuard, RoleGuard)
   @Roles(EnumUserRole.CLIENT)
   pay(
     @Param('orderId') orderId: string,
     @CurrentUser() user: ILoggedInUserTokenData,
-    @Body() payOrderDto: PayOrderDto,
   ) {
-    return this.ordersService.pay(orderId, user, payOrderDto);
+    return this.ordersService.pay(orderId, user);
   }
 }

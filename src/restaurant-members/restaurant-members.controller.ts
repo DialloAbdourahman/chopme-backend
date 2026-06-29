@@ -3,12 +3,13 @@ import {
   Controller,
   Delete,
   Get,
+  HttpCode,
+  HttpStatus,
   Param,
   Patch,
   Post,
   Query,
   UseGuards,
-  ValidationPipe,
   ParseIntPipe,
   DefaultValuePipe,
 } from '@nestjs/common';
@@ -33,6 +34,7 @@ export class RestaurantMembersController {
   ) {}
 
   @Post()
+  @HttpCode(HttpStatus.CREATED)
   @UseGuards(AuthGuard, RoleGuard, RestaurantRoleGuard)
   @Roles(EnumUserRole.RESTAURANT_MEMBER)
   @RestaurantRoles(
@@ -51,6 +53,7 @@ export class RestaurantMembersController {
   }
 
   @Get('search')
+  @HttpCode(HttpStatus.OK)
   @UseGuards(AuthGuard, RoleGuard, RestaurantRoleGuard)
   @Roles(EnumUserRole.RESTAURANT_MEMBER)
   @RestaurantRoles(
@@ -71,6 +74,7 @@ export class RestaurantMembersController {
   }
 
   @Get('me')
+  @HttpCode(HttpStatus.OK)
   @UseGuards(AuthGuard, RoleGuard)
   @Roles(EnumUserRole.RESTAURANT_MEMBER)
   findOne(@CurrentUser() user: ILoggedInUserTokenData) {
@@ -78,6 +82,7 @@ export class RestaurantMembersController {
   }
 
   @Patch(':id/role')
+  @HttpCode(HttpStatus.OK)
   @UseGuards(AuthGuard, RoleGuard, RestaurantRoleGuard)
   @Roles(EnumUserRole.RESTAURANT_MEMBER)
   @RestaurantRoles(
@@ -93,6 +98,7 @@ export class RestaurantMembersController {
   }
 
   @Patch(':id/restore')
+  @HttpCode(HttpStatus.OK)
   @UseGuards(AuthGuard, RoleGuard, RestaurantRoleGuard)
   @Roles(EnumUserRole.RESTAURANT_MEMBER)
   @RestaurantRoles(
@@ -107,6 +113,7 @@ export class RestaurantMembersController {
   }
 
   @Patch(':id')
+  @HttpCode(HttpStatus.OK)
   update(
     @Param('id') id: string,
     @Body() updateRestaurantMemberDto: UpdateRestaurantMemberDto,
@@ -115,6 +122,7 @@ export class RestaurantMembersController {
   }
 
   @Delete(':id')
+  @HttpCode(HttpStatus.OK)
   @UseGuards(AuthGuard, RoleGuard, RestaurantRoleGuard)
   @Roles(EnumUserRole.RESTAURANT_MEMBER)
   @RestaurantRoles(

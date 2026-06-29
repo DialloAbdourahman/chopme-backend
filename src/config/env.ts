@@ -29,11 +29,10 @@ export interface EnvConfig {
   maxTimeToPayOrderInMins: number;
 
   flutterWaveUrl: string;
-  flutterWaveAuthUrl: string;
-  flutterWaveClientId: string;
-  flutterWaveClientSecret: string;
-  flutterWaveEncryptionKey: string;
-  flutterWaveGrantType: string;
+  flutterWaveClientSecretKey: string;
+  flutterWaveRedirectUrl: string;
+  flutterWaveMaxPaymentLinkValidityInHr: number;
+  flutterWaveWebhookSecretHash: string;
 }
 
 export const env: EnvConfig = {
@@ -67,9 +66,10 @@ export const env: EnvConfig = {
   maxTimeToPayOrderInMins: Number(process.env.MAX_TIME_TO_PAY_ORDER_IN_MINS),
 
   flutterWaveUrl: process.env.FLUTTER_WAVE_URL!,
-  flutterWaveAuthUrl: process.env.FLUTTER_WAVE_AUTH_URL!,
-  flutterWaveClientId: process.env.FLUTTER_WAVE_CLIENT_ID!,
-  flutterWaveClientSecret: process.env.FLUTTER_WAVE_CLIENT_SECRET!,
-  flutterWaveEncryptionKey: process.env.FLUTTER_WAVE_ENCRYPTION_KEY!,
-  flutterWaveGrantType: process.env.FLUTTER_WAVE_GRANT_TYPE!,
+  flutterWaveClientSecretKey: process.env.FLUTTER_WAVE_CLIENT_SECRET!,
+  flutterWaveRedirectUrl: process.env.FLUTTER_WAVE_REDIRECT_URL!,
+  flutterWaveMaxPaymentLinkValidityInHr: Number(
+    process.env.FLUTTER_WAVE_MAX_PAYMENT_LINK_VALIDITY_IN_HR!,
+  ),
+  flutterWaveWebhookSecretHash: process.env.FLUTTER_WAVE_WEBHOOK_SECRET_HASH!,
 };

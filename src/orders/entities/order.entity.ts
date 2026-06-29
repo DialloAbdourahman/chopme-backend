@@ -39,6 +39,11 @@ export class MetaData {
   disbursementPercentage: number;
 }
 
+export class PaymentDetails {
+  link: string;
+  validUntil: Date;
+}
+
 @Schema({ timestamps: true })
 export class Order extends BaseSchema {
   @Prop({ type: Types.ObjectId, ref: Client.name, required: true })
@@ -54,12 +59,6 @@ export class Order extends BaseSchema {
     default: EnumOrderStatus.CREATED,
   })
   status: EnumOrderStatus;
-
-  @Prop({
-    type: String,
-    required: false,
-  })
-  chargeId?: string;
 
   @Prop({
     type: [
@@ -135,6 +134,23 @@ export class Order extends BaseSchema {
 
   @Prop({ type: Date, default: null })
   paidAt: Date | null;
+
+  @Prop({
+    type: {
+      link: {
+        type: String,
+        required: true,
+      },
+      validUntil: {
+        type: Date,
+        required: true,
+        default: Date.now,
+      },
+    },
+    _id: false,
+    required: false,
+  })
+  paymentDetails: PaymentDetails;
 }
 
 export const OrderSchema = SchemaFactory.createForClass(Order);

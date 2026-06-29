@@ -2,16 +2,11 @@ import { Injectable, Logger } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 import { Model, Types } from 'mongoose';
 import { CreateOrderDto } from './dto/input/create-order.dto';
-import { PayOrderDto } from './dto/input/pay-order.dto';
 import { ILoggedInUserTokenData } from 'src/common/interfaces/loggedin-user-token-data';
 import { Menu, MenuDocument } from 'src/menus/entities/menu.entity';
 import { OrchestrationException } from 'src/common/exceptions/orchestration.exception';
 import { EnumStatusCode } from 'src/common/enums/response-status-code';
-import {
-  Client,
-  ClientDocument,
-  MobilePaymentMethod,
-} from 'src/clients/entities/client.entity';
+import { Client, ClientDocument } from 'src/clients/entities/client.entity';
 import {
   Restaurant,
   RestaurantDocument,
@@ -485,11 +480,7 @@ export class OrdersService {
     });
   }
 
-  async pay(
-    orderId: string,
-    user: ILoggedInUserTokenData,
-    payOrderDto: PayOrderDto,
-  ) {
+  async pay(orderId: string, user: ILoggedInUserTokenData) {
     this.logger.log(
       `[pay] Payment request by clientId=${user.clientId} for orderId=${orderId}`,
     );
@@ -533,9 +524,6 @@ export class OrdersService {
       });
     }
 
-    let customerId: string;
-    let mobilePaymentMethodId: string;
-
     const client = await this.clientModel
       .findById(order.client)
       .populate('user');
@@ -551,147 +539,33 @@ export class OrdersService {
       });
     }
 
-    if (!client.customer_id) {
-      const user = client.user as UserDocument;
+    this.logger.log(`[pay] Proceeding to create charge for order ${orderId}`);
 
-      this.logger.log(
-        `[create] Creating flutterwave customer_id for client id=${client._id} for user id=${user._id}`,
-      );
-
-      const flutterwaveCustomer = await this.flutterwaveService.createCustomer({
-        customerData: {
-          name: {
-            first: user.fullName,
-          },
-          email: user.email,
-        },
-        uniqueIdentifier: client.id.toString(),
-      });
-
-      client.customer_id = flutterwaveCustomer.id;
-      await client.save();
-
-      customerId = flutterwaveCustomer.id;
-
-      this.logger.log(
-        `[create] Successfully created flutterwave customer_id for client id=${client._id}`,
-      );
-    } else {
-      customerId = client.customer_id;
-    }
-
-    if (payOrderDto.mobileMoneyPhoneNumber) {
-      this.logger.log(
-        `[pay] Creating new mobile payment method for client id=${client._id} with phone number ${payOrderDto.mobileMoneyPhoneNumber}`,
-      );
-
-      const network = CameroonPhoneUtils.getOperator(
-        payOrderDto.mobileMoneyPhoneNumber,
-      );
-
-      if (network === EnumNetwork.UNKNOWN) {
-        this.logger.warn(
-          `[pay] Mobile phone number ${payOrderDto.mobileMoneyPhoneNumber} is not valid for client ${client._id}`,
-        );
-        throw new OrchestrationException({
-          statusCode: EnumStatusCode.INVALID_PHONE_NUMBER,
-          message: 'Mobile phone number is invalid',
-          code: 400,
-        });
-      }
-      this.logger.log(
-        `[pay] Detected network ${network} for phone number ${payOrderDto.mobileMoneyPhoneNumber}`,
-      );
-
-      const numberWithoutPrefix = CameroonPhoneUtils.normalize(
-        payOrderDto.mobileMoneyPhoneNumber,
-      );
-      this.logger.log(
-        `[pay] Phone number without prefix for client ${client._id}: ${numberWithoutPrefix}`,
-      );
-
-      this.logger.log(
-        `[pay] Calling Flutterwave to create payment method for client ${client._id}, phone number ${numberWithoutPrefix}, network ${network}`,
-      );
-      const flutterwavePaymentMethod =
-        await this.flutterwaveService.createPaymentMethod({
-          paymentMethodData: {
-            type: 'mobile_money',
-            mobile_money: {
-              country_code: '237',
-              network,
-              phone_number: numberWithoutPrefix,
-            },
-          },
-          uniqueIdentifier: client.id.toString(),
-          idempotencyKey: `${client.id.toString()}-${numberWithoutPrefix}`,
-        });
-
-      this.logger.log(
-        `[pay] Flutterwave payment method created with id=${flutterwavePaymentMethod.id} for client ${client._id}`,
-      );
-
-      client.mobilePaymentMethods = [
-        ...client.mobilePaymentMethods,
-        {
-          accountNumber: numberWithoutPrefix,
-          network,
-          paymentMethodId: flutterwavePaymentMethod.id,
-          prefix: '237',
-        },
-      ];
-      await client.save();
-      mobilePaymentMethodId = flutterwavePaymentMethod.id;
-
-      this.logger.log(
-        `[pay] Saved new mobile payment method for client ${client._id}, paymentMethodId=${mobilePaymentMethodId}`,
-      );
-    } else {
-      this.logger.log(
-        `[pay] Using existing mobile payment method ${payOrderDto.paymentMethodId} for client ${client._id}`,
-      );
-
-      const existingMobilePaymentMethod = client.mobilePaymentMethods.find(
-        (item) => item.paymentMethodId === payOrderDto.paymentMethodId,
-      );
-      if (existingMobilePaymentMethod) {
-        mobilePaymentMethodId = existingMobilePaymentMethod.paymentMethodId;
-        this.logger.log(
-          `[pay] Found existing mobile payment method id=${mobilePaymentMethodId} for client ${client._id}`,
-        );
-      } else {
-        this.logger.warn(
-          `[pay] Mobile payment method with id ${payOrderDto.paymentMethodId} does not exist for client ${client._id}`,
-        );
-        throw new OrchestrationException({
-          statusCode: EnumStatusCode.MOBILE_PAYMENT_METHOD_NOT_FOUND,
-          message: 'Mobile payment method does not exist.',
-          code: 404,
-        });
-      }
-    }
-
-    this.logger.log(
-      `[pay] Payment method resolved for client ${client._id}, paymentMethodId=${mobilePaymentMethodId}. Proceeding to create charge for order ${orderId}`,
-    );
-
-    const flutterwaveCharge = await this.flutterwaveService.createCharge({
-      idempotencyKey: order.id.toString(),
-      uniqueIdentifier: order.id.toString(),
-      chargeData: {
-        amount: order.pricing.totalAmountCollectedWithDelivery,
-        currency: EnumCurrency.XAF,
-        customer_id: customerId,
-        payment_method_id: mobilePaymentMethodId,
-        reference: `Order-${order.id.toString()}`,
-        meta: {
-          orderId: order.id.toString(),
-        },
+    const flutterwavePayment = await this.flutterwaveService.createPayment({
+      tx_ref: order.id.toString(),
+      session_duration: env.flutterWaveMaxPaymentLinkValidityInHr * 60,
+      amount: order.pricing.totalAmountCollectedWithDelivery.toString(),
+      currency: EnumCurrency.XAF,
+      customer: {
+        email: (client.user as UserDocument).email,
+        name: (client.user as UserDocument).fullName,
+      },
+      customizations: {
+        title: 'Chopme',
+      },
+      redirect_url: `${env.flutterWaveRedirectUrl}?orderId=${order.id}`,
+      meta: {
+        orderId: order.id.toString(),
       },
     });
 
-    order.chargeId = flutterwaveCharge.id;
     order.status = EnumOrderStatus.PAYMENT_INITIATED;
+    order.paymentDetails = {
+      link: flutterwavePayment.link,
+      validUntil: new Date(
+        Date.now() + env.flutterWaveMaxPaymentLinkValidityInHr * 60 * 60 * 1000,
+      ),
+    };
     order.statusTransitions = [
       ...order.statusTransitions,
       { status: EnumOrderStatus.PAYMENT_INITIATED, timestamp: new Date() },
@@ -699,14 +573,13 @@ export class OrdersService {
 
     await order.save();
 
-    const orderObject = order.toObject();
-    const publicOrder = plainToInstance(OrderClientOutputDto, orderObject, {
-      excludeExtraneousValues: true,
-    });
-
-    return OrchestrationResult.Success<OrderClientOutputDto>({
+    return OrchestrationResult.Success<{
+      url: string;
+    }>({
       statusCode: EnumStatusCode.PAYMENT_INITIATED,
-      data: publicOrder,
+      data: {
+        url: flutterwavePayment.link,
+      },
       message: 'Payment flow initialized',
     });
   }

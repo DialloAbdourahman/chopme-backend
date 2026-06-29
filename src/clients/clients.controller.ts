@@ -1,4 +1,12 @@
-import { Body, Controller, Get, Patch, UseGuards } from '@nestjs/common';
+import {
+  Body,
+  Controller,
+  Get,
+  HttpCode,
+  HttpStatus,
+  Patch,
+  UseGuards,
+} from '@nestjs/common';
 import { ClientsService } from './clients.service';
 import { UpdateAddressDto } from './dto/input/update-address.dto';
 import { AuthGuard } from 'src/common/guards/auth.guard';
@@ -12,6 +20,7 @@ export class ClientsController {
   constructor(private readonly clientsService: ClientsService) {}
 
   @Get('me')
+  @HttpCode(HttpStatus.OK)
   @UseGuards(AuthGuard, RoleGuard)
   @Roles(EnumUserRole.CLIENT)
   me(@CurrentUser() user: ILoggedInUserTokenData) {
@@ -19,6 +28,7 @@ export class ClientsController {
   }
 
   @Patch('me/location')
+  @HttpCode(HttpStatus.OK)
   @UseGuards(AuthGuard, RoleGuard)
   @Roles(EnumUserRole.CLIENT)
   updateMe(
