@@ -54,6 +54,8 @@ export class WebhookDetails {
   merchantFee?: number;
   paymentType?: string;
   status?: string;
+  txRef?: string;
+  flwRef?: string;
 }
 
 @Schema({ timestamps: true })
@@ -181,6 +183,8 @@ export class Order extends BaseSchema {
       merchantFee: { type: Number, required: false },
       paymentType: { type: String, required: false },
       status: { type: String, required: false },
+      txRef: { type: String, required: false },
+      flwRef: { type: String, required: false },
     },
     _id: false,
     required: false,

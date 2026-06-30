@@ -8,7 +8,11 @@ import { EnumWebhookStatus } from 'src/common/enums/webhook-statuses';
 import { Model, Types } from 'mongoose';
 import { Menu, MenuDocument } from 'src/menus/entities/menu.entity';
 import { InjectModel } from '@nestjs/mongoose';
-import { Order, OrderDocument } from 'src/orders/entities/order.entity';
+import {
+  Order,
+  OrderDocument,
+  WebhookDetails,
+} from 'src/orders/entities/order.entity';
 import { EnumOrderStatus } from 'src/common/enums/order-status';
 
 @Injectable()
@@ -90,16 +94,7 @@ export class FlwWebhookService {
       },
     ];
     order.paidAt = new Date();
-    order.webhookDetails = {
-      amount: webhookData.amount,
-      appFee: webhookData.app_fee,
-      chargedAmount: webhookData.charged_amount,
-      currency: webhookData.currency,
-      ip: webhookData.ip,
-      merchantFee: webhookData.merchant_fee,
-      paymentType: webhookData.payment_type,
-      status: webhookData.status,
-    };
+    order.webhookDetails = this.buildPaymentWebhookDetails(webhookData);
 
     this.logger.log(
       `[FlwWebhookService] Saving order after successful payment: id=${order._id}`,
@@ -155,16 +150,7 @@ export class FlwWebhookService {
       },
     ];
     order.failedPaymentAt = new Date();
-    order.webhookDetails = {
-      amount: webhookData.amount,
-      appFee: webhookData.app_fee,
-      chargedAmount: webhookData.charged_amount,
-      currency: webhookData.currency,
-      ip: webhookData.ip,
-      merchantFee: webhookData.merchant_fee,
-      paymentType: webhookData.payment_type,
-      status: webhookData.status,
-    };
+    order.webhookDetails = this.buildPaymentWebhookDetails(webhookData);
 
     this.logger.log(
       `[FlwWebhookService] Saving order after failed payment: id=${order._id}`,
@@ -173,6 +159,22 @@ export class FlwWebhookService {
     this.logger.log(
       `[FlwWebhookService] Order saved successfully: id=${order._id}, status=${order.status}`,
     );
+  }
+
+  private buildPaymentWebhookDetails(webhookData: WebhookData): WebhookDetails {
+    return {
+      amount: webhookData.amount,
+      appFee: webhookData.app_fee,
+      chargedAmount: webhookData.charged_amount,
+      currency: webhookData.currency,
+      ip: webhookData.ip,
+      merchantFee: webhookData.merchant_fee,
+      paymentType: webhookData.payment_type,
+      status: webhookData.status,
+      flwRef: webhookData.flw_ref,
+      txRef: webhookData.tx_ref,
+      id: webhookData.id,
+    };
   }
 
   private async incrementMenuOrdersCount(order: OrderDocument) {
