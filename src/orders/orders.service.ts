@@ -16,14 +16,17 @@ import { env } from 'src/config/env';
 import { Order, OrderDocument, OrderItem } from './entities/order.entity';
 import { computePriceWithPlatformPercentage } from 'src/common/utils/compute-price-with-platform-percentage';
 import { plainToInstance } from 'class-transformer';
-import { OrderClientOutputDto } from './dto/output/order-output.dto';
+import {
+  OrderClientOutputDto,
+  OrderRestaurantOutputDto,
+} from './dto/output/order-output.dto';
 import { OrchestrationResult } from 'src/common/utils/orchestration.result';
 import { EnumOrderStatus } from 'src/common/enums/order-status';
 import { FlutterwaveService } from 'src/common/flutterwave/flutterwave.service';
 import { UserDocument } from 'src/users/entities/user.entity';
-import { CameroonPhoneUtils } from 'src/common/utils/cameroon-phone-utils';
-import { EnumNetwork } from 'src/common/enums/networks';
 import { EnumCurrency } from 'src/common/enums/currencies';
+import { Pagination } from 'src/common/interfaces/pagination';
+import { ClientPublicWithUserOutputDto } from 'src/clients/dto/output/client-output.dto';
 
 @Injectable()
 export class OrdersService {
@@ -477,6 +480,221 @@ export class OrdersService {
       statusCode: EnumStatusCode.UPDATED_SUCCESSFULLY,
       data: publicOrder,
       message: 'Order updated successfully',
+    });
+  }
+
+  async getMyOrders(user: ILoggedInUserTokenData, page: number, limit: number) {
+    this.logger.log(
+      `[getMyOrders] Fetching orders for clientId=${user.clientId}, page=${page}, limit=${limit}`,
+    );
+
+    const clientId = new Types.ObjectId(user.clientId);
+    const totalItems = await this.orderModel.countDocuments({
+      client: clientId,
+    });
+    const orders = await this.orderModel
+      .find({ client: clientId })
+      .sort({ createdAt: -1 })
+      .skip((page - 1) * limit)
+      .limit(limit)
+      .exec();
+
+    const totalPages = Math.ceil(totalItems / limit) || 1;
+    const publicOrders = plainToInstance(OrderClientOutputDto, orders, {
+      excludeExtraneousValues: true,
+    });
+
+    const paginatedResult: Pagination<OrderClientOutputDto> = {
+      items: publicOrders,
+      page,
+      totalPages,
+      totalItems,
+      itemsPerPage: limit,
+    };
+
+    return OrchestrationResult.Success<Pagination<OrderClientOutputDto>>({
+      statusCode: EnumStatusCode.RECOVERED_SUCCESSFULLY,
+      data: paginatedResult,
+      message: 'Orders fetched successfully',
+    });
+  }
+
+  async getRestaurantOrders(
+    user: ILoggedInUserTokenData,
+    page: number,
+    limit: number,
+  ) {
+    this.logger.log(
+      `[getRestaurantOrders] Fetching orders for restaurantId=${user.restaurantId}, page=${page}, limit=${limit}`,
+    );
+
+    const restaurantId = new Types.ObjectId(user.restaurantId);
+    const activeStatuses = [
+      EnumOrderStatus.PAID,
+      EnumOrderStatus.PREPARING_ORDER,
+      EnumOrderStatus.CANCELLED_BY_RESTAURANT,
+      EnumOrderStatus.DELIVERED,
+      EnumOrderStatus.DISBURSED,
+    ];
+
+    this.logger.log(
+      `[getRestaurantOrders] Filtering orders by statuses: ${activeStatuses.join(', ')}`,
+    );
+
+    const totalItems = await this.orderModel.countDocuments({
+      restaurant: restaurantId,
+      status: { $in: activeStatuses },
+    });
+    const orders = await this.orderModel
+      .find({
+        restaurant: restaurantId,
+        status: { $in: activeStatuses },
+      })
+      .sort({ createdAt: -1 })
+      .skip((page - 1) * limit)
+      .limit(limit)
+      .exec();
+
+    const totalPages = Math.ceil(totalItems / limit) || 1;
+    const publicOrders = plainToInstance(OrderRestaurantOutputDto, orders, {
+      excludeExtraneousValues: true,
+    });
+
+    const paginatedResult: Pagination<OrderRestaurantOutputDto> = {
+      items: publicOrders,
+      page,
+      totalPages,
+      totalItems,
+      itemsPerPage: limit,
+    };
+
+    return OrchestrationResult.Success<Pagination<OrderRestaurantOutputDto>>({
+      statusCode: EnumStatusCode.RECOVERED_SUCCESSFULLY,
+      data: paginatedResult,
+      message: 'Restaurant orders fetched successfully',
+    });
+  }
+
+  async cancelOrder(orderId: string, user: ILoggedInUserTokenData) {
+    this.logger.log(
+      `[cancelOrder] Order cancel request by clientId=${user.clientId} for orderId=${orderId}`,
+    );
+
+    const order = await this.orderModel.findOne({
+      _id: new Types.ObjectId(orderId),
+      client: new Types.ObjectId(user.clientId),
+    });
+
+    if (!order) {
+      this.logger.warn(
+        `[cancelOrder] Order not found or access denied: orderId=${orderId}, clientId=${user.clientId}`,
+      );
+      throw new OrchestrationException({
+        statusCode: EnumStatusCode.ORDER_NOT_FOUND,
+        message: 'Order not found',
+        code: 404,
+      });
+    }
+
+    if (order.status !== EnumOrderStatus.CREATED) {
+      this.logger.warn(
+        `[cancelOrder] Order cannot be cancelled - invalid status: orderId=${orderId}, currentStatus=${order.status}`,
+      );
+      throw new OrchestrationException({
+        statusCode: EnumStatusCode.ORDER_CANNOT_BE_UPDATED,
+        message: 'Order can only be cancelled when in CREATED status',
+        code: 400,
+      });
+    }
+
+    this.logger.log(
+      `[cancelOrder] Cancelling order: id=${order._id}, clientId=${user.clientId}`,
+    );
+
+    order.status = EnumOrderStatus.CANCELLED_BY_CUSTOMER;
+    order.statusTransitions = [
+      ...order.statusTransitions,
+      {
+        status: EnumOrderStatus.CANCELLED_BY_CUSTOMER,
+        timestamp: new Date(),
+      },
+    ];
+
+    await order.save();
+
+    this.logger.log(
+      `[cancelOrder] Order cancelled successfully: id=${order._id}, status=${order.status}`,
+    );
+
+    const orderObject = order.toObject();
+    const publicOrder = plainToInstance(OrderClientOutputDto, orderObject, {
+      excludeExtraneousValues: true,
+    });
+
+    return OrchestrationResult.Success<OrderClientOutputDto>({
+      statusCode: EnumStatusCode.UPDATED_SUCCESSFULLY,
+      data: publicOrder,
+      message: 'Order cancelled successfully',
+    });
+  }
+
+  async getOrderClient(orderId: string, user: ILoggedInUserTokenData) {
+    this.logger.log(
+      `[getOrderClient] Fetching client for orderId=${orderId}, restaurantId=${user.restaurantId}`,
+    );
+
+    const order = await this.orderModel
+      .findOne({
+        _id: new Types.ObjectId(orderId),
+        restaurant: new Types.ObjectId(user.restaurantId),
+      })
+      .populate({
+        path: 'client',
+        populate: {
+          path: 'user',
+        },
+      });
+
+    if (!order) {
+      this.logger.warn(
+        `[getOrderClient] Order not found or access denied: orderId=${orderId}, restaurantId=${user.restaurantId}`,
+      );
+      throw new OrchestrationException({
+        statusCode: EnumStatusCode.ORDER_NOT_FOUND,
+        message: 'Order not found',
+        code: 404,
+      });
+    }
+
+    const client = order.client as ClientDocument;
+    if (!client) {
+      this.logger.warn(
+        `[getOrderClient] Client not found for order: orderId=${orderId}`,
+      );
+      throw new OrchestrationException({
+        statusCode: EnumStatusCode.CLIENT_NOT_FOUND,
+        message: 'Client not found',
+        code: 404,
+      });
+    }
+
+    this.logger.log(
+      `[getOrderClient] Client found for order: orderId=${orderId}, clientId=${client._id}`,
+    );
+
+    const clientObject = client.toObject();
+    const publicClient = plainToInstance(
+      ClientPublicWithUserOutputDto,
+      clientObject,
+      {
+        excludeExtraneousValues: true,
+      },
+    );
+
+    return OrchestrationResult.Success<ClientPublicWithUserOutputDto>({
+      statusCode: EnumStatusCode.RECOVERED_SUCCESSFULLY,
+      data: publicClient,
+      message: 'Order client fetched successfully',
     });
   }
 

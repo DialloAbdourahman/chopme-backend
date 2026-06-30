@@ -44,6 +44,18 @@ export class PaymentDetails {
   validUntil: Date;
 }
 
+export class WebhookDetails {
+  id?: number;
+  amount?: number;
+  appFee?: number;
+  chargedAmount?: number;
+  currency?: string;
+  ip?: string;
+  merchantFee?: number;
+  paymentType?: string;
+  status?: string;
+}
+
 @Schema({ timestamps: true })
 export class Order extends BaseSchema {
   @Prop({ type: Types.ObjectId, ref: Client.name, required: true })
@@ -135,6 +147,12 @@ export class Order extends BaseSchema {
   @Prop({ type: Date, default: null })
   paidAt: Date | null;
 
+  @Prop({ type: Date, default: null })
+  failedPaymentAt: Date | null;
+
+  @Prop({ type: Date, default: null })
+  cancelledAt: Date | null;
+
   @Prop({
     type: {
       link: {
@@ -151,6 +169,23 @@ export class Order extends BaseSchema {
     required: false,
   })
   paymentDetails: PaymentDetails;
+
+  @Prop({
+    type: {
+      id: { type: Number, required: false },
+      amount: { type: Number, required: false },
+      appFee: { type: Number, required: false },
+      chargedAmount: { type: Number, required: false },
+      currency: { type: String, required: false },
+      ip: { type: String, required: false },
+      merchantFee: { type: Number, required: false },
+      paymentType: { type: String, required: false },
+      status: { type: String, required: false },
+    },
+    _id: false,
+    required: false,
+  })
+  webhookDetails: WebhookDetails;
 }
 
 export const OrderSchema = SchemaFactory.createForClass(Order);

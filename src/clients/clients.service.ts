@@ -1,16 +1,10 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
-import { Connection, Model, Types } from 'mongoose';
-import { CreateClientDto } from './dto/input/create-client.dto';
+import { Model, Types } from 'mongoose';
 import { Client, ClientDocument } from './entities/client.entity';
-import { User, UserDocument } from 'src/users/entities/user.entity';
-import { EnumUserRole } from 'src/common/enums/user-roles';
-import { EnumAuthType } from 'src/common/enums/auth-types';
-import { InjectConnection } from '@nestjs/mongoose';
 import { OrchestrationResult } from 'src/common/utils/orchestration.result';
 import { EnumStatusCode } from 'src/common/enums/response-status-code';
 import { OrchestrationException } from 'src/common/exceptions/orchestration.exception';
-import * as bcrypt from 'bcrypt';
 import { ILoggedInUserTokenData } from 'src/common/interfaces/loggedin-user-token-data';
 import { ClientPublicOutputDto } from './dto/output/client-output.dto';
 import { plainToInstance } from 'class-transformer';
@@ -23,10 +17,6 @@ export class ClientsService {
   constructor(
     @InjectModel(Client.name)
     private readonly clientModel: Model<ClientDocument>,
-    @InjectModel(User.name)
-    private readonly userModel: Model<UserDocument>,
-    @InjectConnection()
-    private readonly connection: Connection,
   ) {}
 
   async getMyClientProfile(user: ILoggedInUserTokenData) {

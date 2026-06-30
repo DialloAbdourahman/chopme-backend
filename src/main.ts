@@ -22,10 +22,6 @@ async function bootstrap() {
 }
 bootstrap();
 
-// Test everything and add a webhook. Also add a webhook field on the order so we can save some data.
-
-// Round up on basic routes like get public client info from order (by restaurant), get orders (client, restaurant and admin), client cancel created order.
-
 // Add a route on the client module to update thier information e.g phone number for now with the exact same dto validation as the payOrder.
 
 // Add route that will allow the restaurant to cancel an order and work on the webhook.

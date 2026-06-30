@@ -1,9 +1,11 @@
 import {
   Controller,
+  Get,
   Post,
   Put,
   Param,
   Body,
+  Query,
   UseGuards,
   HttpCode,
   HttpStatus,
@@ -52,5 +54,59 @@ export class OrdersController {
     @CurrentUser() user: ILoggedInUserTokenData,
   ) {
     return this.ordersService.pay(orderId, user);
+  }
+
+  @Post(':orderId/cancel')
+  @HttpCode(HttpStatus.OK)
+  @UseGuards(AuthGuard, RoleGuard)
+  @Roles(EnumUserRole.CLIENT)
+  cancelOrder(
+    @Param('orderId') orderId: string,
+    @CurrentUser() user: ILoggedInUserTokenData,
+  ) {
+    return this.ordersService.cancelOrder(orderId, user);
+  }
+
+  @Get('my-orders')
+  @HttpCode(HttpStatus.OK)
+  @UseGuards(AuthGuard, RoleGuard)
+  @Roles(EnumUserRole.CLIENT)
+  getMyOrders(
+    @CurrentUser() user: ILoggedInUserTokenData,
+    @Query('page') page: string,
+    @Query('limit') limit: string,
+  ) {
+    const parsedPage = page ? parseInt(page, 10) : 1;
+    const parsedLimit = limit ? parseInt(limit, 10) : 10;
+    return this.ordersService.getMyOrders(user, parsedPage, parsedLimit);
+  }
+
+  @Get('restaurant-orders')
+  @HttpCode(HttpStatus.OK)
+  @UseGuards(AuthGuard, RoleGuard)
+  @Roles(EnumUserRole.RESTAURANT_MEMBER)
+  getRestaurantOrders(
+    @CurrentUser() user: ILoggedInUserTokenData,
+    @Query('page') page: string,
+    @Query('limit') limit: string,
+  ) {
+    const parsedPage = page ? parseInt(page, 10) : 1;
+    const parsedLimit = limit ? parseInt(limit, 10) : 10;
+    return this.ordersService.getRestaurantOrders(
+      user,
+      parsedPage,
+      parsedLimit,
+    );
+  }
+
+  @Get(':orderId/client')
+  @HttpCode(HttpStatus.OK)
+  @UseGuards(AuthGuard, RoleGuard)
+  @Roles(EnumUserRole.RESTAURANT_MEMBER)
+  getOrderClient(
+    @Param('orderId') orderId: string,
+    @CurrentUser() user: ILoggedInUserTokenData,
+  ) {
+    return this.ordersService.getOrderClient(orderId, user);
   }
 }
