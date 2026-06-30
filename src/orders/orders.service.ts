@@ -157,10 +157,10 @@ export class OrdersService {
     if (
       !client.address?.longitude ||
       !client.address?.latitude ||
-      !client.phone_number
+      !client.phoneNumber
     ) {
       this.logger.warn(
-        `[ensureCanOrder] Client information incomplete: clientId=${client._id}, hasAddress=${!!client.address}, hasPhone=${!!client.phone_number}`,
+        `[ensureCanOrder] Client information incomplete: clientId=${client._id}, hasAddress=${!!client.address}, hasPhone=${!!client.phoneNumber}`,
       );
       throw new OrchestrationException({
         statusCode: EnumStatusCode.CLIENT_INFORMATION_INCOMPLETE,

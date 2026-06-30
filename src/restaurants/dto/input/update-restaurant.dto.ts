@@ -3,6 +3,7 @@ import {
   IsEnum,
   IsOptional,
   IsString,
+  Matches,
   ValidateNested,
 } from 'class-validator';
 import { Type } from 'class-transformer';
@@ -24,7 +25,10 @@ export class UpdateRestaurantDto {
   description?: string;
 
   @IsOptional()
-  @IsString()
+  @Matches(/^\+2376\d{8}$/, {
+    message:
+      'Phone number must be a valid Cameroonian number in the format +237620487789',
+  })
   phone?: string;
 
   @IsOptional()

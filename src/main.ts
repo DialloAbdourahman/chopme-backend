@@ -22,6 +22,4 @@ async function bootstrap() {
 }
 bootstrap();
 
-// Add a route on the client module to update thier information e.g phone number for now with the exact same dto validation as the payOrder.
-
 // Add route that will allow the restaurant to cancel an order and work on the webhook.

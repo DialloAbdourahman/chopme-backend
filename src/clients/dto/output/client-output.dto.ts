@@ -1,9 +1,9 @@
-import { Expose, Type } from 'class-transformer';
+import { Expose, Transform, Type } from 'class-transformer';
 import { UserPublicOutputDto } from 'src/users/dto/output/user-output.dto';
-// import { UserPublicOutputDto } from 'src/users/dto/output/user-output.dto';
 
 export class ClientPublicOutputDto {
   @Expose()
+  @Transform(({ obj }) => obj._id?.toString())
   id: string;
 
   @Expose()
@@ -13,6 +13,9 @@ export class ClientPublicOutputDto {
     longitude: number;
     latitude: number;
   };
+
+  @Expose()
+  phoneNumber: string;
 
   @Expose()
   createdAt: Date;

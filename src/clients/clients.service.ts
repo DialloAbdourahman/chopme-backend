@@ -9,6 +9,7 @@ import { ILoggedInUserTokenData } from 'src/common/interfaces/loggedin-user-toke
 import { ClientPublicOutputDto } from './dto/output/client-output.dto';
 import { plainToInstance } from 'class-transformer';
 import { UpdateAddressDto } from './dto/input/update-address.dto';
+import { UpdateClientInformationDto } from './dto/input/update-client-information.dto';
 
 @Injectable()
 export class ClientsService {
@@ -24,11 +25,9 @@ export class ClientsService {
       `[getMyClientProfile] Fetching client for user id=${user.id}`,
     );
 
-    const client = await this.clientModel
-      .findOne({
-        user: new Types.ObjectId(user.id),
-      })
-      .populate('user');
+    const client = await this.clientModel.findOne({
+      user: new Types.ObjectId(user.id),
+    });
 
     if (!client) {
       this.logger.log(
@@ -47,10 +46,6 @@ export class ClientsService {
       excludeExtraneousValues: true,
     });
 
-    console.log('yoo');
-
-    console.log(publicClient);
-
     return OrchestrationResult.Success<ClientPublicOutputDto>({
       statusCode: EnumStatusCode.RECOVERED_SUCCESSFULLY,
       data: publicClient,
@@ -66,11 +61,9 @@ export class ClientsService {
       `[updateMyClientLocation] Updating client location for user id=${user.id}`,
     );
 
-    const client = await this.clientModel
-      .findOne({
-        user: new Types.ObjectId(user.id),
-      })
-      .populate('user');
+    const client = await this.clientModel.findOne({
+      user: new Types.ObjectId(user.id),
+    });
 
     if (!client) {
       this.logger.log(
@@ -101,6 +94,49 @@ export class ClientsService {
       statusCode: EnumStatusCode.UPDATED_SUCCESSFULLY,
       data: publicClient,
       message: 'Client profile updated successfully',
+    });
+  }
+
+  async updateMyInformation(
+    user: ILoggedInUserTokenData,
+    updateClientInformationDto: UpdateClientInformationDto,
+  ) {
+    this.logger.log(
+      `[updateMyInformation] Updating client information for user id=${user.id}`,
+    );
+
+    const client = await this.clientModel.findOne({
+      user: new Types.ObjectId(user.id),
+    });
+
+    if (!client) {
+      this.logger.warn(
+        `[updateMyInformation] Client not found for user id=${user.id}`,
+      );
+      throw new OrchestrationException({
+        statusCode: EnumStatusCode.NOT_FOUND,
+        message: 'Client not found',
+        code: 404,
+      });
+    }
+
+    if (updateClientInformationDto.phoneNumber) {
+      client.phoneNumber = updateClientInformationDto.phoneNumber;
+      await client.save();
+      this.logger.log(
+        `[updateMyInformation] Phone number updated for clientId=${client._id}`,
+      );
+    }
+
+    const clientObject = client.toObject();
+    const publicClient = plainToInstance(ClientPublicOutputDto, clientObject, {
+      excludeExtraneousValues: true,
+    });
+
+    return OrchestrationResult.Success<ClientPublicOutputDto>({
+      statusCode: EnumStatusCode.UPDATED_SUCCESSFULLY,
+      data: publicClient,
+      message: 'Client information updated successfully',
     });
   }
 }

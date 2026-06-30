@@ -6,6 +6,7 @@ import { Restaurant } from 'src/restaurants/entities/restaurant.entity';
 import { Menu } from 'src/menus/entities/menu.entity';
 import { EnumOrderStatus } from 'src/common/enums/order-status';
 import { EnumOrderCancelledReason } from 'src/common/enums/order-cancelled-reason';
+import { EnumRefundStatus } from 'src/common/enums/refund-statuses';
 
 export type OrderDocument = HydratedDocument<Order>;
 
@@ -44,7 +45,7 @@ export class PaymentDetails {
   validUntil: Date;
 }
 
-export class WebhookDetails {
+export class PaymentWebhookDetails {
   id?: number;
   amount?: number;
   appFee?: number;
@@ -56,6 +57,10 @@ export class WebhookDetails {
   status?: string;
   txRef?: string;
   flwRef?: string;
+}
+
+export class RefundWebhookDetails {
+  id?: number;
 }
 
 @Schema({ timestamps: true })
@@ -73,6 +78,13 @@ export class Order extends BaseSchema {
     default: EnumOrderStatus.CREATED,
   })
   status: EnumOrderStatus;
+
+  @Prop({
+    enum: EnumRefundStatus,
+    type: String,
+    required: false,
+  })
+  refundStatus?: EnumRefundStatus;
 
   @Prop({
     type: [
@@ -189,7 +201,16 @@ export class Order extends BaseSchema {
     _id: false,
     required: false,
   })
-  webhookDetails: WebhookDetails;
+  paymentWebhookDetails: PaymentWebhookDetails;
+
+  @Prop({
+    type: {
+      id: { type: Number, required: false },
+    },
+    _id: false,
+    required: false,
+  })
+  refundWebhookDetails: RefundWebhookDetails;
 }
 
 export const OrderSchema = SchemaFactory.createForClass(Order);

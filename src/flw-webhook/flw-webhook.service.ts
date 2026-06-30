@@ -11,7 +11,7 @@ import { InjectModel } from '@nestjs/mongoose';
 import {
   Order,
   OrderDocument,
-  WebhookDetails,
+  PaymentWebhookDetails,
 } from 'src/orders/entities/order.entity';
 import { EnumOrderStatus } from 'src/common/enums/order-status';
 
@@ -94,7 +94,7 @@ export class FlwWebhookService {
       },
     ];
     order.paidAt = new Date();
-    order.webhookDetails = this.buildPaymentWebhookDetails(webhookData);
+    order.paymentWebhookDetails = this.buildPaymentWebhookDetails(webhookData);
 
     this.logger.log(
       `[FlwWebhookService] Saving order after successful payment: id=${order._id}`,
@@ -150,7 +150,7 @@ export class FlwWebhookService {
       },
     ];
     order.failedPaymentAt = new Date();
-    order.webhookDetails = this.buildPaymentWebhookDetails(webhookData);
+    order.paymentWebhookDetails = this.buildPaymentWebhookDetails(webhookData);
 
     this.logger.log(
       `[FlwWebhookService] Saving order after failed payment: id=${order._id}`,
@@ -161,7 +161,9 @@ export class FlwWebhookService {
     );
   }
 
-  private buildPaymentWebhookDetails(webhookData: WebhookData): WebhookDetails {
+  private buildPaymentWebhookDetails(
+    webhookData: WebhookData,
+  ): PaymentWebhookDetails {
     return {
       amount: webhookData.amount,
       appFee: webhookData.app_fee,

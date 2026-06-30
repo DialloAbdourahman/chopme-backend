@@ -2,14 +2,13 @@ import { Prop, Schema, SchemaFactory } from '@nestjs/mongoose';
 import { HydratedDocument, Types } from 'mongoose';
 import { BaseSchema } from '../../common/schemas/base.schema';
 import { User } from '../../users/entities/user.entity';
-import { EnumNetwork } from 'src/common/enums/networks';
 
 export type ClientDocument = HydratedDocument<Client>;
 
 @Schema({ timestamps: true })
 export class Client extends BaseSchema {
   @Prop({ required: false })
-  phone_number: string;
+  phoneNumber: string;
 
   @Prop({ type: Types.ObjectId, ref: User.name, required: true })
   user: Types.ObjectId | User;
