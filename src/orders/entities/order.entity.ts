@@ -7,6 +7,7 @@ import { Menu } from 'src/menus/entities/menu.entity';
 import { EnumOrderStatus } from 'src/common/enums/order-status';
 import { EnumOrderCancelledReason } from 'src/common/enums/order-cancelled-reason';
 import { EnumRefundStatus } from 'src/common/enums/refund-statuses';
+import { RestaurantMember } from 'src/restaurant-members/entities/restaurant-member.entity';
 
 export type OrderDocument = HydratedDocument<Order>;
 
@@ -46,7 +47,7 @@ export class PaymentDetails {
 }
 
 export class PaymentWebhookDetails {
-  id?: number;
+  transactionId?: number;
   amount?: number;
   appFee?: number;
   chargedAmount?: number;
@@ -70,6 +71,9 @@ export class Order extends BaseSchema {
 
   @Prop({ type: Types.ObjectId, ref: Restaurant.name, required: true })
   restaurant: Types.ObjectId | Restaurant;
+
+  @Prop({ type: Types.ObjectId, ref: RestaurantMember.name, required: false })
+  cancelledByRestaurantMember?: Types.ObjectId | RestaurantMember;
 
   @Prop({
     enum: EnumOrderStatus,
@@ -186,7 +190,7 @@ export class Order extends BaseSchema {
 
   @Prop({
     type: {
-      id: { type: Number, required: false },
+      transactionId: { type: Number, required: false },
       amount: { type: Number, required: false },
       appFee: { type: Number, required: false },
       chargedAmount: { type: Number, required: false },

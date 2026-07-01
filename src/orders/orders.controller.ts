@@ -17,6 +17,7 @@ import { RoleGuard, Roles } from 'src/common/guards/role.guard';
 import { EnumUserRole } from 'src/common/enums/user-roles';
 import { CurrentUser } from 'src/common/decorators/current-user.decorator';
 import type { ILoggedInUserTokenData } from 'src/common/interfaces/loggedin-user-token-data';
+import { CancelOrderDto } from './dto/input/cancel-order.dto';
 
 @Controller('orders')
 export class OrdersController {
@@ -65,6 +66,22 @@ export class OrdersController {
     @CurrentUser() user: ILoggedInUserTokenData,
   ) {
     return this.ordersService.cancelOrder(orderId, user);
+  }
+
+  @Post(':orderId/restaurant-cancel')
+  @HttpCode(HttpStatus.OK)
+  @UseGuards(AuthGuard, RoleGuard)
+  @Roles(EnumUserRole.RESTAURANT_MEMBER)
+  cancelOrderRestaurant(
+    @Param('orderId') orderId: string,
+    @CurrentUser() user: ILoggedInUserTokenData,
+    @Body() cancelOrderDto: CancelOrderDto,
+  ) {
+    return this.ordersService.cancelOrderRestaurant({
+      orderId,
+      user,
+      reason: cancelOrderDto.reason,
+    });
   }
 
   @Get('my-orders')

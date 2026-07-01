@@ -175,7 +175,7 @@ export class FlwWebhookService {
       status: webhookData.status,
       flwRef: webhookData.flw_ref,
       txRef: webhookData.tx_ref,
-      id: webhookData.id,
+      transactionId: webhookData.id,
     };
   }
 

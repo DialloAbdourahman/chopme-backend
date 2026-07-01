@@ -27,10 +27,19 @@ import { UserDocument } from 'src/users/entities/user.entity';
 import { EnumCurrency } from 'src/common/enums/currencies';
 import { Pagination } from 'src/common/interfaces/pagination';
 import { ClientPublicWithUserOutputDto } from 'src/clients/dto/output/client-output.dto';
+import Flutterwave from 'flutterwave-node-v3';
+import { EnumOrderCancelledReason } from 'src/common/enums/order-cancelled-reason';
+import { FlutterWaveResponse } from 'src/common/interfaces/flutterwave/response';
+import { FlutterwaveRefund } from 'src/common/interfaces/flutterwave/refund';
+import { EnumRefundStatus } from 'src/common/enums/refund-statuses';
 
 @Injectable()
 export class OrdersService {
   private readonly logger = new Logger(OrdersService.name);
+  private readonly flw = new Flutterwave(
+    env.flutterWaveClientPublicKey,
+    env.flutterWaveClientSecretKey,
+  ) as Flutterwave;
 
   constructor(
     @InjectModel(Menu.name) private readonly menuModel: Model<MenuDocument>,
@@ -612,6 +621,7 @@ export class OrdersService {
     );
 
     order.status = EnumOrderStatus.CANCELLED_BY_CUSTOMER;
+    order.cancelledAt = new Date();
     order.statusTransitions = [
       ...order.statusTransitions,
       {
@@ -632,7 +642,103 @@ export class OrdersService {
     });
 
     return OrchestrationResult.Success<OrderClientOutputDto>({
-      statusCode: EnumStatusCode.UPDATED_SUCCESSFULLY,
+      statusCode: EnumStatusCode.CANCELLED_SUCCESSFULLY,
+      data: publicOrder,
+      message: 'Order cancelled successfully',
+    });
+  }
+
+  async cancelOrderRestaurant({
+    orderId,
+    user,
+    reason,
+  }: {
+    orderId: string;
+    user: ILoggedInUserTokenData;
+    reason: EnumOrderCancelledReason;
+  }) {
+    this.logger.log(
+      `[cancelOrderRestaurant] Order cancel request by restaurantId=${user.restaurantId} for orderId=${orderId}`,
+    );
+
+    const order = await this.orderModel.findOne({
+      _id: new Types.ObjectId(orderId),
+      restaurant: new Types.ObjectId(user.restaurantId),
+    });
+
+    if (!order) {
+      this.logger.warn(
+        `[cancelOrderRestaurant] Order not found or access denied: orderId=${orderId}, restaurantId=${user.restaurantId}`,
+      );
+      throw new OrchestrationException({
+        statusCode: EnumStatusCode.ORDER_NOT_FOUND,
+        message: 'Order not found',
+        code: 404,
+      });
+    }
+
+    if (order.status !== EnumOrderStatus.PAID) {
+      this.logger.warn(
+        `[cancelOrderRestaurant] Order cannot be cancelled - invalid status: orderId=${orderId}, currentStatus=${order.status}`,
+      );
+      throw new OrchestrationException({
+        statusCode: EnumStatusCode.ORDER_CANNOT_BE_UPDATED,
+        message: 'Order can only be cancelled when in .PAID status',
+        code: 400,
+      });
+    }
+
+    this.logger.log(
+      `[cancelOrderRestaurant] Cancelling order: id=${order._id}, restaurantId=${user.restaurantId}`,
+    );
+
+    order.status = EnumOrderStatus.CANCELLED_BY_RESTAURANT;
+    order.cancelledAt = new Date();
+    order.cancelledByRestaurantMember = new Types.ObjectId(
+      user.restaurantMemberId,
+    );
+    order.orderCancelReason = reason;
+    order.statusTransitions = [
+      ...order.statusTransitions,
+      {
+        status: EnumOrderStatus.CANCELLED_BY_RESTAURANT,
+        timestamp: new Date(),
+      },
+    ];
+
+    await order.save();
+
+    this.logger.log(
+      `[cancelOrderRestaurant] Order cancelled successfully: id=${order._id}, status=${order.status} and initiating refund.`,
+    );
+
+    // Initate refund logic here and update order
+    const response = (await this.flw.Transaction.refund({
+      id: order.paymentWebhookDetails.transactionId?.toString(),
+      amount: order.pricing.totalAmountCollectedWithDelivery,
+    })) as FlutterWaveResponse<FlutterwaveRefund>;
+
+    if (response.status === 'success' && response.data.status === 'completed') {
+      this.logger.log(
+        `[cancelOrderRestaurant] Refund initiated successfully: id=${order._id}, refundId=${response.data.id}`,
+      );
+      order.refundStatus = EnumRefundStatus.INITIATED;
+      await order.save();
+    } else {
+      this.logger.warn(
+        `[cancelOrderRestaurant] Refund initiation failed: id=${order._id}, status=${response.status}, message: '${response.message}', data=${JSON.stringify(response.data)}`,
+      );
+      order.refundStatus = EnumRefundStatus.FAILED_TO_INITIATE;
+      await order.save();
+    }
+
+    const orderObject = order.toObject();
+    const publicOrder = plainToInstance(OrderClientOutputDto, orderObject, {
+      excludeExtraneousValues: true,
+    });
+
+    return OrchestrationResult.Success<OrderClientOutputDto>({
+      statusCode: EnumStatusCode.CANCELLED_SUCCESSFULLY,
       data: publicOrder,
       message: 'Order cancelled successfully',
     });

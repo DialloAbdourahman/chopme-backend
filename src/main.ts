@@ -21,5 +21,3 @@ async function bootstrap() {
   await app.listen(env.port);
 }
 bootstrap();
-
-// Add route that will allow the restaurant to cancel an order and work on the webhook.
