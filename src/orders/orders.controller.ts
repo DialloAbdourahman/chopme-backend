@@ -2,13 +2,13 @@ import {
   Controller,
   Get,
   Post,
-  Put,
   Param,
   Body,
   Query,
   UseGuards,
   HttpCode,
   HttpStatus,
+  Patch,
 } from '@nestjs/common';
 import { OrdersService } from './orders.service';
 import { CreateOrderDto } from './dto/input/create-order.dto';
@@ -18,6 +18,7 @@ import { EnumUserRole } from 'src/common/enums/user-roles';
 import { CurrentUser } from 'src/common/decorators/current-user.decorator';
 import type { ILoggedInUserTokenData } from 'src/common/interfaces/loggedin-user-token-data';
 import { CancelOrderDto } from './dto/input/cancel-order.dto';
+import { EnumOrderStatus } from 'src/common/enums/order-status';
 
 @Controller('orders')
 export class OrdersController {
@@ -34,7 +35,7 @@ export class OrdersController {
     return this.ordersService.create(createOrderDto, user);
   }
 
-  @Put(':orderId')
+  @Patch(':orderId')
   @HttpCode(HttpStatus.OK)
   @UseGuards(AuthGuard, RoleGuard)
   @Roles(EnumUserRole.CLIENT)
@@ -84,18 +85,40 @@ export class OrdersController {
     });
   }
 
+  @Patch(':orderId/update-order-status')
+  @HttpCode(HttpStatus.OK)
+  @UseGuards(AuthGuard, RoleGuard)
+  @Roles(EnumUserRole.RESTAURANT_MEMBER)
+  updateOrderStatus(
+    @Param('orderId') orderId: string,
+    @Query('status') status: EnumOrderStatus,
+    @CurrentUser() user: ILoggedInUserTokenData,
+  ) {
+    return this.ordersService.updateOrderStatus({
+      orderId,
+      user,
+      status,
+    });
+  }
+
   @Get('my-orders')
   @HttpCode(HttpStatus.OK)
   @UseGuards(AuthGuard, RoleGuard)
   @Roles(EnumUserRole.CLIENT)
   getMyOrders(
     @CurrentUser() user: ILoggedInUserTokenData,
+    @Query('status') status: EnumOrderStatus,
     @Query('page') page: string,
     @Query('limit') limit: string,
   ) {
     const parsedPage = page ? parseInt(page, 10) : 1;
     const parsedLimit = limit ? parseInt(limit, 10) : 10;
-    return this.ordersService.getMyOrders(user, parsedPage, parsedLimit);
+    return this.ordersService.getMyOrders({
+      user,
+      status,
+      page: parsedPage,
+      limit: parsedLimit,
+    });
   }
 
   @Get('restaurant-orders')
@@ -104,16 +127,18 @@ export class OrdersController {
   @Roles(EnumUserRole.RESTAURANT_MEMBER)
   getRestaurantOrders(
     @CurrentUser() user: ILoggedInUserTokenData,
+    @Query('status') status: EnumOrderStatus,
     @Query('page') page: string,
     @Query('limit') limit: string,
   ) {
     const parsedPage = page ? parseInt(page, 10) : 1;
     const parsedLimit = limit ? parseInt(limit, 10) : 10;
-    return this.ordersService.getRestaurantOrders(
+    return this.ordersService.getRestaurantOrders({
       user,
-      parsedPage,
-      parsedLimit,
-    );
+      status,
+      page: parsedPage,
+      limit: parsedLimit,
+    });
   }
 
   @Get(':orderId/client')

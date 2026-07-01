@@ -85,10 +85,16 @@ export class WebSocketService
     this.server.to(targetRoom).emit(event, data);
   }
 
-  //   // 📡 Broadcast to everyone (public events)
-  //   emitToAll<T>(event: WebSocketEventType, data: T) {
-  //     this.server.emit(event, data);
-  //   }
+  // 📡 Emit to a list of users' rooms
+  emitToUsers<T>(userIds: string[], event: WebSocketEventType, data: T) {
+    const targetRooms = userIds.map((id) => `user:${id}`);
+
+    this.logger.log(
+      `📡 Emitting event [${event}] to ${targetRooms.length} room(s): [${targetRooms.join(', ')}]`,
+    );
+
+    this.server.to(targetRooms).emit(event, data);
+  }
 }
 
 // @Injectable()

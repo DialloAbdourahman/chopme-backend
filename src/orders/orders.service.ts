@@ -492,17 +492,33 @@ export class OrdersService {
     });
   }
 
-  async getMyOrders(user: ILoggedInUserTokenData, page: number, limit: number) {
+  async getMyOrders({
+    user,
+    status,
+    page,
+    limit,
+  }: {
+    user: ILoggedInUserTokenData;
+    status: EnumOrderStatus;
+    page: number;
+    limit: number;
+  }) {
     this.logger.log(
       `[getMyOrders] Fetching orders for clientId=${user.clientId}, page=${page}, limit=${limit}`,
     );
 
     const clientId = new Types.ObjectId(user.clientId);
-    const totalItems = await this.orderModel.countDocuments({
+    const filters: { client: Types.ObjectId; status?: EnumOrderStatus } = {
       client: clientId,
-    });
+    };
+
+    if (status) {
+      filters.status = status;
+    }
+
+    const totalItems = await this.orderModel.countDocuments(filters);
     const orders = await this.orderModel
-      .find({ client: clientId })
+      .find(filters)
       .sort({ createdAt: -1 })
       .skip((page - 1) * limit)
       .limit(limit)
@@ -528,11 +544,17 @@ export class OrdersService {
     });
   }
 
-  async getRestaurantOrders(
-    user: ILoggedInUserTokenData,
-    page: number,
-    limit: number,
-  ) {
+  async getRestaurantOrders({
+    user,
+    page,
+    limit,
+    status,
+  }: {
+    user: ILoggedInUserTokenData;
+    page: number;
+    limit: number;
+    status: EnumOrderStatus;
+  }) {
     this.logger.log(
       `[getRestaurantOrders] Fetching orders for restaurantId=${user.restaurantId}, page=${page}, limit=${limit}`,
     );
@@ -542,6 +564,7 @@ export class OrdersService {
       EnumOrderStatus.PAID,
       EnumOrderStatus.PREPARING_ORDER,
       EnumOrderStatus.CANCELLED_BY_RESTAURANT,
+      EnumOrderStatus.IN_DELIVERY,
       EnumOrderStatus.DELIVERED,
       EnumOrderStatus.DISBURSED,
     ];
@@ -550,15 +573,33 @@ export class OrdersService {
       `[getRestaurantOrders] Filtering orders by statuses: ${activeStatuses.join(', ')}`,
     );
 
-    const totalItems = await this.orderModel.countDocuments({
+    const filters: {
+      status?: EnumOrderStatus | { $in: EnumOrderStatus[] };
+      restaurant: Types.ObjectId;
+    } = {
       restaurant: restaurantId,
-      status: { $in: activeStatuses },
-    });
+    };
+
+    if (status && !activeStatuses.includes(status)) {
+      this.logger.warn(`[getRestaurantOrders] Invalid status: ${status}`);
+      throw new OrchestrationException({
+        statusCode: EnumStatusCode.CANNOT_FILTER_WITH_STATUS,
+        message: `Cannot filter with status ${status}`,
+        code: 400,
+      });
+    }
+
+    if (status) {
+      filters.status = status;
+    } else {
+      filters.status = { $in: activeStatuses };
+    }
+
+    console.log(filters);
+
+    const totalItems = await this.orderModel.countDocuments(filters);
     const orders = await this.orderModel
-      .find({
-        restaurant: restaurantId,
-        status: { $in: activeStatuses },
-      })
+      .find(filters)
       .sort({ createdAt: -1 })
       .skip((page - 1) * limit)
       .limit(limit)
@@ -733,14 +774,98 @@ export class OrdersService {
     }
 
     const orderObject = order.toObject();
-    const publicOrder = plainToInstance(OrderClientOutputDto, orderObject, {
+    const publicOrder = plainToInstance(OrderRestaurantOutputDto, orderObject, {
       excludeExtraneousValues: true,
     });
 
-    return OrchestrationResult.Success<OrderClientOutputDto>({
+    return OrchestrationResult.Success<OrderRestaurantOutputDto>({
       statusCode: EnumStatusCode.CANCELLED_SUCCESSFULLY,
       data: publicOrder,
       message: 'Order cancelled successfully',
+    });
+  }
+
+  async updateOrderStatus({
+    orderId,
+    user,
+    status,
+  }: {
+    orderId: string;
+    status: EnumOrderStatus;
+    user: ILoggedInUserTokenData;
+  }) {
+    this.logger.log(
+      `[updateOrderStatus] Order status update request by restaurantId=${user.restaurantId} for orderId=${orderId}, status=${status}`,
+    );
+
+    const validOrderTransitions = [
+      [EnumOrderStatus.PAID, EnumOrderStatus.PREPARING_ORDER],
+      [EnumOrderStatus.PAID, EnumOrderStatus.IN_DELIVERY],
+      [EnumOrderStatus.PAID, EnumOrderStatus.DELIVERED],
+      [EnumOrderStatus.PREPARING_ORDER, EnumOrderStatus.IN_DELIVERY],
+      [EnumOrderStatus.PREPARING_ORDER, EnumOrderStatus.DELIVERED],
+      [EnumOrderStatus.IN_DELIVERY, EnumOrderStatus.DELIVERED],
+    ];
+
+    const order = await this.orderModel.findOne({
+      _id: new Types.ObjectId(orderId),
+      restaurant: new Types.ObjectId(user.restaurantId),
+    });
+
+    if (!order) {
+      this.logger.warn(
+        `[updateOrderStatus] Order not found or access denied: orderId=${orderId}, restaurantId=${user.restaurantId}`,
+      );
+      throw new OrchestrationException({
+        statusCode: EnumStatusCode.ORDER_NOT_FOUND,
+        message: 'Order not found',
+        code: 404,
+      });
+    }
+
+    const canTransitionStatus = validOrderTransitions.some(
+      ([from, to]) => from === order.status && to === status,
+    );
+
+    if (!canTransitionStatus) {
+      this.logger.warn(
+        `[updateOrderStatus] Invalid order status transition: orderId=${orderId}, currentStatus=${order.status}, targetStatus=${status}`,
+      );
+      throw new OrchestrationException({
+        statusCode: EnumStatusCode.INVALID_STATUS_TRANSITION,
+        message: 'Invalid order status transition',
+        code: 400,
+      });
+    }
+
+    this.logger.log(
+      `[updateOrderStatus] Updating order status: id=${order._id}, restaurantId=${user.restaurantId}, status=${status}`,
+    );
+
+    order.status = status;
+    order.statusTransitions = [
+      ...order.statusTransitions,
+      {
+        status: status,
+        timestamp: new Date(),
+      },
+    ];
+
+    await order.save();
+
+    this.logger.log(
+      `[updateOrderStatus] Order status updated successfully: id=${order._id}, status=${order.status}`,
+    );
+
+    const orderObject = order.toObject();
+    const publicOrder = plainToInstance(OrderRestaurantOutputDto, orderObject, {
+      excludeExtraneousValues: true,
+    });
+
+    return OrchestrationResult.Success<OrderRestaurantOutputDto>({
+      statusCode: EnumStatusCode.CANCELLED_SUCCESSFULLY,
+      data: publicOrder,
+      message: 'Order status updated successfully',
     });
   }
 
