@@ -14,15 +14,23 @@ import {
   PaymentWebhookDetails,
 } from 'src/orders/entities/order.entity';
 import { EnumOrderStatus } from 'src/common/enums/order-status';
+import { WebSocketService } from 'src/web-socket/web-socket-service';
+import { EnumWebSocketEventType } from 'src/common/enums/web-socket-events';
+import { OrderRestaurantOutputDto } from 'src/orders/dto/output/order-output.dto';
+import { plainToInstance } from 'class-transformer';
+import { RestaurantMember } from 'src/restaurant-members/entities/restaurant-member.entity';
 
 @Injectable()
 export class FlwWebhookService {
   private readonly logger = new Logger(FlwWebhookService.name);
 
   constructor(
+    private readonly eventsGateway: WebSocketService,
     @InjectModel(Menu.name) private readonly menuModel: Model<MenuDocument>,
     @InjectModel(Order.name)
     private readonly orderModel: Model<OrderDocument>,
+    @InjectModel(RestaurantMember.name)
+    private readonly restaurantMemberModel: Model<RestaurantMember>,
   ) {}
 
   async processWebhook(webhook: FlutterwaveWebhook) {
@@ -107,7 +115,55 @@ export class FlwWebhookService {
     this.logger.log(
       `[FlwWebhookService] Triggering background menu ordersCount update for order: id=${order._id}, items=${order.items.length}`,
     );
-    this.incrementMenuOrdersCount(order);
+
+    try {
+      await this.incrementMenuOrdersCount(order);
+    } catch (error) {
+      this.logger.error(
+        `[FlwWebhookService] Failed to increment menu ordersCount for order: id=${order._id}`,
+        error.message,
+      );
+    }
+
+    this.logger.log(
+      `[FlwWebhookService] Emitting order created event for order: id=${order._id}`,
+    );
+
+    try {
+      this.logger.log(
+        `[FlwWebhookService] Finding restaurant members for restaurant: ${order.restaurant}`,
+      );
+      const usersToSend = await this.restaurantMemberModel
+        .find({
+          restaurant: order.restaurant,
+        })
+        .select('user');
+      this.logger.log(
+        `[FlwWebhookService] Found ${usersToSend.length} users to notify `,
+      );
+      const userIdStrings = usersToSend.map((item) => item.user.toString());
+      this.logger.log(
+        `[FlwWebhookService] User IDs to notify: ${userIdStrings.join(', ')}`,
+      );
+
+      const orderObject = order.toObject();
+      const orderToSentToRestaurant = plainToInstance(
+        OrderRestaurantOutputDto,
+        orderObject,
+        {
+          excludeExtraneousValues: true,
+        },
+      );
+      this.eventsGateway.emitToUsers<OrderRestaurantOutputDto>(
+        userIdStrings,
+        EnumWebSocketEventType.ORDER_CREATED,
+        orderToSentToRestaurant,
+      );
+    } catch (error) {
+      this.logger.error(
+        `[FlwWebhookService] Failed to emit order created event: ${error.message}`,
+      );
+    }
   }
 
   private async processFailedPayment(webhookData: WebhookData) {
@@ -185,24 +241,17 @@ export class FlwWebhookService {
     );
 
     for (const item of order.items) {
-      try {
-        const menu = await this.menuModel.findByIdAndUpdate(item.product, {
-          $inc: { ordersCount: item.quantity },
-        });
+      const menu = await this.menuModel.findByIdAndUpdate(item.product, {
+        $inc: { ordersCount: item.quantity },
+      });
 
-        if (menu) {
-          this.logger.log(
-            `[FlwWebhookService] Menu ordersCount updated: id=${menu._id}, ordersCount=${menu.ordersCount}, quantity=${item.quantity}`,
-          );
-        } else {
-          this.logger.warn(
-            `[FlwWebhookService] Menu not found for ordersCount update: productId=${item.product}, orderId=${order._id}`,
-          );
-        }
-      } catch (error) {
-        this.logger.error(
-          `[FlwWebhookService] Failed to update menu ordersCount: productId=${item.product}, orderId=${order._id}`,
-          error.message,
+      if (menu) {
+        this.logger.log(
+          `[FlwWebhookService] Menu ordersCount updated: id=${menu._id}, ordersCount=${menu.ordersCount}, quantity=${item.quantity}`,
+        );
+      } else {
+        this.logger.warn(
+          `[FlwWebhookService] Menu not found for ordersCount update: productId=${item.product}, orderId=${order._id}`,
         );
       }
     }

@@ -4,13 +4,20 @@ import { FlwWebhookController } from './flw-webhook.controller';
 import { MongooseModule } from '@nestjs/mongoose';
 import { Menu, MenuSchema } from 'src/menus/entities/menu.entity';
 import { Order, OrderSchema } from 'src/orders/entities/order.entity';
+import { WebSocketModule } from 'src/web-socket/web-socket.module';
+import {
+  RestaurantMember,
+  RestaurantMemberSchema,
+} from 'src/restaurant-members/entities/restaurant-member.entity';
 
 @Module({
   imports: [
     MongooseModule.forFeature([
       { name: Order.name, schema: OrderSchema },
       { name: Menu.name, schema: MenuSchema },
+      { name: RestaurantMember.name, schema: RestaurantMemberSchema },
     ]),
+    WebSocketModule,
   ],
   controllers: [FlwWebhookController],
   providers: [FlwWebhookService],

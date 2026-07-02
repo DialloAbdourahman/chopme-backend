@@ -32,6 +32,8 @@ import { EnumOrderCancelledReason } from 'src/common/enums/order-cancelled-reaso
 import { FlutterWaveResponse } from 'src/common/interfaces/flutterwave/response';
 import { FlutterwaveRefund } from 'src/common/interfaces/flutterwave/refund';
 import { EnumRefundStatus } from 'src/common/enums/refund-statuses';
+import { WebSocketService } from 'src/web-socket/web-socket-service';
+import { EnumWebSocketEventType } from 'src/common/enums/web-socket-events';
 
 @Injectable()
 export class OrdersService {
@@ -50,6 +52,7 @@ export class OrdersService {
     @InjectModel(Order.name)
     private readonly orderModel: Model<OrderDocument>,
     private readonly flutterwaveService: FlutterwaveService,
+    private readonly eventsGateway: WebSocketService,
   ) {}
 
   private async ensureCanOrder({
@@ -778,6 +781,38 @@ export class OrdersService {
       excludeExtraneousValues: true,
     });
 
+    try {
+      const client = await this.clientModel.findOne({
+        _id: new Types.ObjectId(order.client.toString()),
+      });
+      const userId = client?.user.toString();
+
+      if (!userId) {
+        this.logger.warn(
+          `[cancelOrderRestaurant] No user ID found for client ${order.client} to send notification`,
+        );
+        return;
+      }
+      this.logger.log(`[cancelOrderRestaurant] User ID to notify: ${userId}`);
+
+      const orderToSendToClient = plainToInstance(
+        OrderClientOutputDto,
+        orderObject,
+        {
+          excludeExtraneousValues: true,
+        },
+      );
+      this.eventsGateway.emitToUser<OrderClientOutputDto>(
+        userId,
+        EnumWebSocketEventType.ORDER_CANCELLED,
+        orderToSendToClient,
+      );
+    } catch (error) {
+      this.logger.error(
+        `[cancelOrderRestaurant] Failed to emit order created event: ${error.message}`,
+      );
+    }
+
     return OrchestrationResult.Success<OrderRestaurantOutputDto>({
       statusCode: EnumStatusCode.CANCELLED_SUCCESSFULLY,
       data: publicOrder,
@@ -861,6 +896,38 @@ export class OrdersService {
     const publicOrder = plainToInstance(OrderRestaurantOutputDto, orderObject, {
       excludeExtraneousValues: true,
     });
+
+    try {
+      const client = await this.clientModel.findOne({
+        _id: new Types.ObjectId(order.client.toString()),
+      });
+      const userId = client?.user.toString();
+
+      if (!userId) {
+        this.logger.warn(
+          `[updateOrderStatus] No user ID found for client ${order.client} to send notification`,
+        );
+        return;
+      }
+      this.logger.log(`[updateOrderStatus] User ID to notify: ${userId}`);
+
+      const orderToSendToClient = plainToInstance(
+        OrderClientOutputDto,
+        orderObject,
+        {
+          excludeExtraneousValues: true,
+        },
+      );
+      this.eventsGateway.emitToUser<OrderClientOutputDto>(
+        userId,
+        EnumWebSocketEventType.ORDER_STATUS_CHANGED,
+        orderToSendToClient,
+      );
+    } catch (error) {
+      this.logger.error(
+        `[updateOrderStatus] Failed to emit order created event: ${error.message}`,
+      );
+    }
 
     return OrchestrationResult.Success<OrderRestaurantOutputDto>({
       statusCode: EnumStatusCode.CANCELLED_SUCCESSFULLY,

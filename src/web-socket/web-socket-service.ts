@@ -10,7 +10,7 @@ import { JwtService } from '@nestjs/jwt';
 import { env } from 'src/config/env';
 import { stringToArray } from 'src/common/utils/string-to-array';
 import { ILoggedInUserTokenData } from 'src/common/interfaces/loggedin-user-token-data';
-import { WebSocketEventType } from 'src/common/enums/web-socket-events';
+import { EnumWebSocketEventType } from 'src/common/enums/web-socket-events';
 
 @Injectable()
 @WebSocketGateway({
@@ -28,7 +28,7 @@ export class WebSocketService
   constructor(private readonly jwtService: JwtService) {}
 
   onModuleInit() {
-    this.logger.log('WebSocket initialized');
+    this.logger.log('[WebSocket] WebSocket initialized');
   }
 
   async handleConnection(client: Socket) {
@@ -38,7 +38,7 @@ export class WebSocketService
         client.handshake.headers['token'] || client.handshake.auth?.token;
       if (!token) {
         this.logger.warn(
-          `Client ${client.id} connected without token — disconnecting`,
+          `[WebSocket] Client ${client.id} connected without token — disconnecting`,
         );
         client.disconnect();
         return;
@@ -56,11 +56,11 @@ export class WebSocketService
       await client.join(userRoom);
 
       this.logger.log(
-        `Client ${client.id} connected — joined room ${userRoom}`,
+        `[WebSocket] Client ${client.id} connected — joined room ${userRoom}`,
       );
     } catch (error) {
       this.logger.warn(
-        `Client ${client.id} authentication failed — disconnecting`,
+        `[WebSocket] Client ${client.id} authentication failed — disconnecting`,
       );
       client.disconnect();
     }
@@ -69,59 +69,51 @@ export class WebSocketService
   handleDisconnect(client: Socket) {
     const userId = client.data.user?.sub;
     this.logger.log(
-      `Client ${client.id} disconnected — user:${userId ?? 'unknown'}`,
+      `[WebSocket] Client ${client.id} disconnected — user:${userId ?? 'unknown'}`,
     );
   }
 
   // 📡 Emit to a specific user's room
-  emitToUser<T>(userId: string, event: WebSocketEventType, data: T) {
+  emitToUser<T>(userId: string, event: EnumWebSocketEventType, data: T) {
     const targetRoom = `user:${userId}`;
 
-    this.logger.log(`📡 Emitting event [${event}] to room [${targetRoom}]`);
+    this.logger.log(
+      `[WebSocket] 📡 Emitting event [${event}] to room [${targetRoom}]`,
+    );
 
     // Optional: Log the stringified data payload if it is small enough for your console
-    this.logger.log(`Payload for [${targetRoom}]: ${JSON.stringify(data)}`);
+    this.logger.log(
+      `[WebSocket] Payload for [${targetRoom}]: ${JSON.stringify(data)}`,
+    );
 
     this.server.to(targetRoom).emit(event, data);
+
+    this.logger.log(
+      `[WebSocket] ✅ Event [${event}] emitted to room [${targetRoom}]`,
+    );
   }
 
   // 📡 Emit to a list of users' rooms
-  emitToUsers<T>(userIds: string[], event: WebSocketEventType, data: T) {
+  emitToUsers<T>(userIds: string[], event: EnumWebSocketEventType, data: T) {
     const targetRooms = userIds.map((id) => `user:${id}`);
 
     this.logger.log(
-      `📡 Emitting event [${event}] to ${targetRooms.length} room(s): [${targetRooms.join(', ')}]`,
+      `[WebSocket] 📡 Emitting event [${event}] to ${targetRooms.length} room(s): [${targetRooms.join(', ')}]`,
+    );
+
+    this.logger.log(
+      `[WebSocket] Payload for [${targetRooms.join(', ')}]: ${JSON.stringify(data)}`,
     );
 
     this.server.to(targetRooms).emit(event, data);
+
+    this.logger.log(
+      `[WebSocket] ✅ Event [${event}] emitted to ${targetRooms.length} room(s): [${targetRooms.join(', ')}]`,
+    );
   }
 }
 
-// @Injectable()
-// export class UsersService {
-//   constructor(
-//     private readonly eventsGateway: EventsGateway,
-//     @InjectModel(User.name) private readonly userModel: Model<UserDocument>,
-//   ) {}
-
-//   async create(dto: CreateUserDto) {
-//     const user = await new this.userModel(dto).save();
-
-//     // 📡 Send only to the created user's room
-// this.eventsGateway.emitToUser(user.id, 'user.created', {
-//   id: user.id,
-//   name: user.name,
-//   role: user.role,
-// });
-
-//     return OrchestrationResult.Success({
-//       statusCode: EnumStatusCode.CREATED,
-//       data: user.parsePublic(),
-//     });
-//   }
-// }
-
-// // REACT
+// REACT
 
 // // src/hooks/useSocket.ts
 // import { useEffect, useRef, useCallback } from 'react';
