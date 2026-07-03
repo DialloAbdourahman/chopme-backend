@@ -18,6 +18,7 @@ import { WebSocketModule } from './web-socket/web-socket.module';
 import { WebSocketService } from './web-socket/web-socket-service';
 import { FlutterwaveModule } from './common/flutterwave/flutterwave.module';
 import { FlwWebhookModule } from './flw-webhook/flw-webhook.module';
+import { RestaurantRatingsModule } from './restaurant-ratings/restaurant-ratings.module';
 
 @Module({
   imports: [
@@ -54,6 +55,7 @@ import { FlwWebhookModule } from './flw-webhook/flw-webhook.module';
       secretKey: env.flutterWaveClientSecretKey,
     }),
     FlwWebhookModule,
+    RestaurantRatingsModule,
   ],
   controllers: [AppController],
   providers: [
