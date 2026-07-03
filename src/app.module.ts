@@ -19,6 +19,7 @@ import { WebSocketService } from './web-socket/web-socket-service';
 import { FlutterwaveModule } from './common/flutterwave/flutterwave.module';
 import { FlwWebhookModule } from './flw-webhook/flw-webhook.module';
 import { RestaurantRatingsModule } from './restaurant-ratings/restaurant-ratings.module';
+import { TransfersModule } from './transfers/transfers.module';
 
 @Module({
   imports: [
@@ -56,6 +57,7 @@ import { RestaurantRatingsModule } from './restaurant-ratings/restaurant-ratings
     }),
     FlwWebhookModule,
     RestaurantRatingsModule,
+    TransfersModule,
   ],
   controllers: [AppController],
   providers: [
