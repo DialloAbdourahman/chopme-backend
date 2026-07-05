@@ -5,6 +5,7 @@ import { OrchestrationExceptionFilter } from './common/filters/exception.filter'
 import { env } from './config/env';
 import { stringToArray } from './common/utils/string-to-array';
 import { createValidationPipe } from './common/pipes/validation-pipe';
+import { LogUserRequestInterceptor } from './common/interceptors/log-user-request.interceptor';
 
 async function bootstrap() {
   const app = await NestFactory.create(AppModule);
@@ -17,6 +18,7 @@ async function bootstrap() {
   app.useLogger(app.get(WINSTON_MODULE_NEST_PROVIDER));
   app.useGlobalPipes(createValidationPipe());
   app.useGlobalFilters(new OrchestrationExceptionFilter());
+  app.useGlobalInterceptors(new LogUserRequestInterceptor());
 
   await app.listen(env.port);
 }
