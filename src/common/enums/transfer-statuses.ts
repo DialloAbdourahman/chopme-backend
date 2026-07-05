@@ -1,0 +1,7 @@
+export enum EnumTransferStatuses {
+  CREATED = 'CREATED',
+  INITIATED = 'INITIATED',
+  FAILED_TO_INITIATE = 'FAILED_TO_INITIATE',
+  COMPLETED = 'COMPLETED',
+  FAILED = 'FAILED',
+}

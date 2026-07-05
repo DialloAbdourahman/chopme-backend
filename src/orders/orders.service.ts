@@ -41,7 +41,7 @@ export class OrdersService {
   private readonly flw = new Flutterwave(
     env.flutterWaveClientPublicKey,
     env.flutterWaveClientSecretKey,
-  ) as Flutterwave;
+  );
 
   constructor(
     @InjectModel(Menu.name) private readonly menuModel: Model<MenuDocument>,

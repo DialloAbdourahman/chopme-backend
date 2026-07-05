@@ -1,4 +1,25 @@
-import { Expose, Transform } from 'class-transformer';
+import { Expose, Transform, Type } from 'class-transformer';
+import { EnumNetwork } from 'src/common/enums/networks';
+import { EnumWalletTypes } from 'src/common/enums/wallet-types';
+
+export class MobileWalletDataOutputDto {
+  @Expose()
+  network: string;
+
+  @Expose()
+  number: string;
+}
+
+export class RestaurantWalletOutputDto {
+  @Expose()
+  @Transform(({ obj }) => obj.wallet?.type)
+  type: EnumWalletTypes;
+
+  @Expose()
+  @Transform(({ obj }) => obj.wallet?.mobileData)
+  @Type(() => MobileWalletDataOutputDto)
+  mobileData?: MobileWalletDataOutputDto;
+}
 
 export class RestaurantPublicOutputDto {
   @Expose()

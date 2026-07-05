@@ -1,10 +1,12 @@
 import { Injectable, Logger, NotFoundException } from '@nestjs/common';
 import {
   FlutterwaveWebhook,
-  WebhookData,
+  PaymentWebhookData,
+  RefundWebhookData,
+  TransferWebhookData,
 } from 'src/common/interfaces/flutterwave/webhook';
-import { EnumWebhookEventType } from 'src/common/enums/webhook-event-types';
-import { EnumWebhookStatus } from 'src/common/enums/webhook-statuses';
+import { EnumFlwWebhookEventType } from 'src/common/enums/flutterwave/flw-webhook-event-types';
+import { EnumFlwPaymentWebhookStatus } from 'src/common/enums/flutterwave/flw-payment-webhook-statuses';
 import { Model, Types } from 'mongoose';
 import { Menu, MenuDocument } from 'src/menus/entities/menu.entity';
 import { InjectModel } from '@nestjs/mongoose';
@@ -33,25 +35,44 @@ export class FlwWebhookService {
     private readonly restaurantMemberModel: Model<RestaurantMember>,
   ) {}
 
-  async processWebhook(webhook: FlutterwaveWebhook) {
+  async processWebhook(webhook: FlutterwaveWebhook<unknown>) {
     this.logger.log(
-      `[FlwWebhookService] Received webhook event: ${webhook.event}, status: ${webhook.data?.status}, tx_ref: ${webhook.data?.tx_ref}`,
+      `[FlwWebhookService] Received webhook event: ${webhook.event}`,
     );
 
-    if (webhook.event === EnumWebhookEventType.CHARGE_COMPLETED) {
+    if (webhook.event === EnumFlwWebhookEventType.CHARGE_COMPLETED) {
+      const typedWebhook: FlutterwaveWebhook<PaymentWebhookData> =
+        webhook as FlutterwaveWebhook<PaymentWebhookData>;
+
       this.logger.log(
-        '[FlwWebhookService] Processing charge completed webhook',
-        webhook.data,
+        '[FlwWebhookService] Processing payment completed webhook',
+        typedWebhook.data,
       );
-      if (webhook.data.status === EnumWebhookStatus.SUCCESSFUL) {
-        await this.processSuccessfulPayment(webhook.data);
-      } else if (webhook.data.status === EnumWebhookStatus.FAILED) {
-        await this.processFailedPayment(webhook.data);
+      if (typedWebhook.data.status === EnumFlwPaymentWebhookStatus.SUCCESSFUL) {
+        await this.processSuccessfulPayment(typedWebhook.data);
+      } else if (
+        typedWebhook.data.status === EnumFlwPaymentWebhookStatus.FAILED
+      ) {
+        await this.processFailedPayment(typedWebhook.data);
       } else {
         this.logger.warn(
-          `[FlwWebhookService] Unhandled charge status: ${webhook.data.status}, tx_ref: ${webhook.data.tx_ref}`,
+          `[FlwWebhookService] Unhandled charge status: ${typedWebhook.data.status}, tx_ref: ${typedWebhook.data.tx_ref}`,
         );
       }
+    } else if (webhook.event === EnumFlwWebhookEventType.TRANSFER_COMPLETED) {
+      const typedWebhook: FlutterwaveWebhook<TransferWebhookData> =
+        webhook as FlutterwaveWebhook<TransferWebhookData>;
+      this.logger.log(
+        '[FlwWebhookService] Processing transfer completed webhook',
+        typedWebhook.data,
+      );
+    } else if (webhook.event === EnumFlwWebhookEventType.REFUND_COMPLETED) {
+      const typedWebhook: FlutterwaveWebhook<RefundWebhookData> =
+        webhook as FlutterwaveWebhook<RefundWebhookData>;
+      this.logger.log(
+        '[FlwWebhookService] Processing refund completed webhook',
+        typedWebhook.data,
+      );
     } else {
       this.logger.warn(
         `[FlwWebhookService] Ignoring unsupported webhook event: ${webhook.event}`,
@@ -62,7 +83,7 @@ export class FlwWebhookService {
     return 'This action adds a new flwWebhook';
   }
 
-  private async processSuccessfulPayment(webhookData: WebhookData) {
+  private async processSuccessfulPayment(webhookData: PaymentWebhookData) {
     this.logger.log(
       `[FlwWebhookService] Processing successful payment for tx_ref: ${webhookData.tx_ref}, amount: ${webhookData.amount} ${webhookData.currency}`,
     );
@@ -166,7 +187,7 @@ export class FlwWebhookService {
     }
   }
 
-  private async processFailedPayment(webhookData: WebhookData) {
+  private async processFailedPayment(webhookData: PaymentWebhookData) {
     this.logger.log(
       `[FlwWebhookService] Processing failed payment for tx_ref: ${webhookData.tx_ref}, amount: ${webhookData.amount} ${webhookData.currency}`,
     );
@@ -218,7 +239,7 @@ export class FlwWebhookService {
   }
 
   private buildPaymentWebhookDetails(
-    webhookData: WebhookData,
+    webhookData: PaymentWebhookData,
   ): PaymentWebhookDetails {
     return {
       amount: webhookData.amount,

@@ -20,6 +20,7 @@ import {
   UpdateRestaurantDto,
   AdminUpdateRestaurantDto,
 } from './dto/input/update-restaurant.dto';
+import { AddRestaurantWalletDto } from './dto/input/restaurant-wallet.dto';
 import { AuthGuard } from 'src/common/guards/auth.guard';
 import { RoleGuard, Roles } from 'src/common/guards/role.guard';
 import { EnumUserRole } from 'src/common/enums/user-roles';
@@ -234,6 +235,43 @@ export class RestaurantsController {
     @CurrentUser() user: ILoggedInUserTokenData,
   ) {
     return this.restaurantsService.deleteRestaurantCoverImage(id, user);
+  }
+
+  @Get(':id/wallet')
+  @HttpCode(HttpStatus.OK)
+  @UseGuards(AuthGuard, RoleGuard, RestaurantRoleGuard)
+  @Roles(EnumUserRole.RESTAURANT_MEMBER)
+  @RestaurantRoles(EnumRestaurantMemberRole.OWNER)
+  getWallet(
+    @Param('id') id: string,
+    @CurrentUser() user: ILoggedInUserTokenData,
+  ) {
+    return this.restaurantsService.getWallet(id, user);
+  }
+
+  @Post(':id/wallet')
+  @HttpCode(HttpStatus.OK)
+  @UseGuards(AuthGuard, RoleGuard, RestaurantRoleGuard)
+  @Roles(EnumUserRole.RESTAURANT_MEMBER)
+  @RestaurantRoles(EnumRestaurantMemberRole.OWNER)
+  addWallet(
+    @Param('id') id: string,
+    @Body() addRestaurantWalletDto: AddRestaurantWalletDto,
+    @CurrentUser() user: ILoggedInUserTokenData,
+  ) {
+    return this.restaurantsService.addWallet(id, addRestaurantWalletDto, user);
+  }
+
+  @Delete(':id/wallet')
+  @HttpCode(HttpStatus.OK)
+  @UseGuards(AuthGuard, RoleGuard, RestaurantRoleGuard)
+  @Roles(EnumUserRole.RESTAURANT_MEMBER)
+  @RestaurantRoles(EnumRestaurantMemberRole.OWNER)
+  removeWallet(
+    @Param('id') id: string,
+    @CurrentUser() user: ILoggedInUserTokenData,
+  ) {
+    return this.restaurantsService.removeWallet(id, user);
   }
 
   @Delete(':id')

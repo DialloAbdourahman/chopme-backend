@@ -1,5 +1,5 @@
-export enum EnumWebhookEventType {
+export enum EnumFlwWebhookEventType {
   CHARGE_COMPLETED = 'charge.completed',
   TRANSFER_COMPLETED = 'transfer.completed',
-  SUBSCRIPTION_CANCELLED = 'subscription.cancelled',
+  REFUND_COMPLETED = 'refund.completed',
 }

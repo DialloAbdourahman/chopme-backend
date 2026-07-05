@@ -19,13 +19,20 @@ import { EnumStatusCode } from 'src/common/enums/response-status-code';
 import { OrchestrationException } from 'src/common/exceptions/orchestration.exception';
 import * as bcrypt from 'bcrypt';
 import { EnumRestaurantMemberRole } from 'src/common/enums/restaurant-member-role';
+import { EnumNetwork } from 'src/common/enums/networks';
 import type { ILoggedInUserTokenData } from 'src/common/interfaces/loggedin-user-token-data';
 import { plainToInstance } from 'class-transformer';
-import { RestaurantPublicOutputDto } from './dto/output/restaurant-output.dto';
+import {
+  RestaurantPublicOutputDto,
+  RestaurantWalletOutputDto,
+} from './dto/output/restaurant-output.dto';
 import { AwsS3Helper } from 'src/common/aws/s3';
 import { env } from 'src/config/env';
 import type { Pagination } from 'src/common/interfaces/pagination';
 import { FindRestaurantDto } from './dto/input/find-restaurant.dto';
+import { AddRestaurantWalletDto } from './dto/input/restaurant-wallet.dto';
+import { CameroonPhoneUtils } from 'src/common/utils/cameroon-phone-utils';
+import { EnumWalletTypes } from 'src/common/enums/wallet-types';
 
 @Injectable()
 export class RestaurantsService {
@@ -944,6 +951,197 @@ export class RestaurantsService {
       statusCode: EnumStatusCode.DELETED_SUCCESSFULLY,
       data: publicRestaurant,
       message: 'Cover image deleted successfully',
+    });
+  }
+
+  async addWallet(
+    restaurantId: string,
+    dto: AddRestaurantWalletDto,
+    user: ILoggedInUserTokenData,
+  ) {
+    this.logger.log(
+      `[addWallet] Adding wallet to restaurant id=${restaurantId} by user id=${user.id}`,
+    );
+
+    this.ensureUserCanManageRestaurant(restaurantId, user, 'addWallet');
+
+    const restaurant = await this.restaurantModel.findOne({
+      _id: new Types.ObjectId(restaurantId),
+      deleted: false,
+    });
+
+    if (!restaurant) {
+      this.logger.log(`[addWallet] Restaurant not found id=${restaurantId}`);
+      throw new OrchestrationException({
+        statusCode: EnumStatusCode.NOT_FOUND,
+        message: 'Restaurant not found',
+        code: 404,
+      });
+    }
+
+    if (restaurant.wallet) {
+      this.logger.log(
+        `[addWallet] Restaurant id=${restaurantId} already has a wallet`,
+      );
+      throw new OrchestrationException({
+        statusCode: EnumStatusCode.WALLET_EXISTS_ALREADY,
+        message: 'Restaurant already has a wallet',
+        code: 400,
+      });
+    }
+
+    let mobileData: { network: EnumNetwork; number: string } | undefined;
+
+    if (dto.type === EnumWalletTypes.MOBILE_WALLET && dto.number) {
+      const network = CameroonPhoneUtils.getOperator(dto.number);
+
+      if (network === EnumNetwork.UNKNOWN) {
+        this.logger.warn(
+          `[addWallet] Unknown network for phone number: ${dto.number}`,
+        );
+        throw new OrchestrationException({
+          statusCode: EnumStatusCode.INVALID_PHONE_NUMBER,
+          message: 'Unable to determine mobile network operator',
+          code: 400,
+        });
+      }
+
+      mobileData = {
+        network,
+        number: dto.number,
+      };
+    }
+
+    if (dto.type === EnumWalletTypes.MOBILE_WALLET) {
+      restaurant.wallet = {
+        type: dto.type,
+        mobileData,
+      };
+    }
+
+    await restaurant.save();
+
+    this.logger.log(
+      `[addWallet] Wallet added to restaurant id=${restaurantId}`,
+    );
+
+    const publicRestaurant = plainToInstance(
+      RestaurantWalletOutputDto,
+      restaurant.toObject(),
+      {
+        excludeExtraneousValues: true,
+      },
+    );
+
+    return OrchestrationResult.Success<RestaurantWalletOutputDto>({
+      statusCode: EnumStatusCode.UPDATED_SUCCESSFULLY,
+      data: publicRestaurant,
+      message: 'Wallet added successfully',
+    });
+  }
+
+  async removeWallet(restaurantId: string, user: ILoggedInUserTokenData) {
+    this.logger.log(
+      `[removeWallet] Removing wallet from restaurant id=${restaurantId} by user id=${user.id}`,
+    );
+
+    this.ensureUserCanManageRestaurant(restaurantId, user, 'removeWallet');
+
+    const restaurant = await this.restaurantModel.findOne({
+      _id: new Types.ObjectId(restaurantId),
+      deleted: false,
+    });
+
+    if (!restaurant) {
+      this.logger.log(`[removeWallet] Restaurant not found id=${restaurantId}`);
+      throw new OrchestrationException({
+        statusCode: EnumStatusCode.NOT_FOUND,
+        message: 'Restaurant not found',
+        code: 404,
+      });
+    }
+
+    if (!restaurant.wallet) {
+      this.logger.log(
+        `[removeWallet] Restaurant id=${restaurantId} has no wallet`,
+      );
+      throw new OrchestrationException({
+        statusCode: EnumStatusCode.NOT_FOUND,
+        message: 'No wallet found for this restaurant',
+        code: 404,
+      });
+    }
+
+    restaurant.wallet = undefined;
+    await restaurant.save();
+
+    this.logger.log(
+      `[removeWallet] Wallet removed from restaurant id=${restaurantId}`,
+    );
+
+    const publicRestaurant = plainToInstance(
+      RestaurantPublicOutputDto,
+      restaurant.toObject(),
+      {
+        excludeExtraneousValues: true,
+      },
+    );
+
+    return OrchestrationResult.Success<RestaurantPublicOutputDto>({
+      statusCode: EnumStatusCode.DELETED_SUCCESSFULLY,
+      data: publicRestaurant,
+      message: 'Wallet removed successfully',
+    });
+  }
+
+  async getWallet(restaurantId: string, user: ILoggedInUserTokenData) {
+    this.logger.log(
+      `[getWallet] Fetching wallet for restaurant id=${restaurantId} by user id=${user.id}`,
+    );
+
+    this.ensureUserCanManageRestaurant(restaurantId, user, 'getWallet');
+
+    const restaurant = await this.restaurantModel.findOne({
+      _id: new Types.ObjectId(restaurantId),
+      deleted: false,
+    });
+
+    if (!restaurant) {
+      this.logger.log(`[getWallet] Restaurant not found id=${restaurantId}`);
+      throw new OrchestrationException({
+        statusCode: EnumStatusCode.NOT_FOUND,
+        message: 'Restaurant not found',
+        code: 404,
+      });
+    }
+
+    if (!restaurant.wallet) {
+      this.logger.log(
+        `[getWallet] Restaurant id=${restaurantId} has no wallet`,
+      );
+      throw new OrchestrationException({
+        statusCode: EnumStatusCode.NOT_FOUND,
+        message: 'No wallet found for this restaurant',
+        code: 404,
+      });
+    }
+
+    this.logger.log(
+      `[getWallet] Wallet found for restaurant id=${restaurantId}`,
+    );
+
+    const publicWallet = plainToInstance(
+      RestaurantWalletOutputDto,
+      restaurant,
+      {
+        excludeExtraneousValues: true,
+      },
+    );
+
+    return OrchestrationResult.Success<RestaurantWalletOutputDto>({
+      statusCode: EnumStatusCode.RECOVERED_SUCCESSFULLY,
+      data: publicWallet,
+      message: 'Wallet fetched successfully',
     });
   }
 }

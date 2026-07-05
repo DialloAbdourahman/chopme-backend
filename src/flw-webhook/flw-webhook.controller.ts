@@ -20,13 +20,13 @@ export class FlwWebhookController {
 
   @Post()
   @HttpCode(HttpStatus.OK)
-  async create(@Body() body: any, @Headers('verif-hash') signature: string) {
+  async create(@Body() body, @Headers('verif-hash') signature: string) {
     if (!signature || signature !== env.flutterWaveWebhookSecretHash) {
       this.logger.log('[FlwWebhookController] invalid Flutterwave signature');
       throw new UnauthorizedException('Invalid Flutterwave signature');
     }
 
-    const data = body as FlutterwaveWebhook;
+    const data = body as FlutterwaveWebhook<unknown>;
     return this.flwWebhookService.processWebhook(data);
   }
 }

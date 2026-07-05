@@ -1,9 +1,13 @@
-import { EnumWebhookEventType } from '../../enums/webhook-event-types';
-import { EnumWebhookStatus } from '../../enums/webhook-statuses';
+import { EnumFlwWebhookEventType } from '../../enums/flutterwave/flw-webhook-event-types';
+import { EnumFlwPaymentWebhookStatus } from '../../enums/flutterwave/flw-payment-webhook-statuses';
 import { WebhookCustomer } from './customer';
 import { WebhookCard } from './card';
+import { EnumCurrency } from 'src/common/enums/currencies';
+import { EnumFlwTransferWebhookStatus } from 'src/common/enums/flutterwave/flw-transfer-webhook-status';
+import { FlutterwaveBulkTransferMetaData } from './transfer';
+import { EnumFlwRefundWebhookStatus } from 'src/common/enums/flutterwave/flw-refund-webhook-status';
 
-export interface WebhookData {
+export interface PaymentWebhookData {
   id: number;
   tx_ref: string;
   flw_ref: string;
@@ -17,7 +21,7 @@ export interface WebhookData {
   auth_model: string;
   ip: string;
   narration: string;
-  status: EnumWebhookStatus;
+  status: EnumFlwPaymentWebhookStatus;
   payment_type: string;
   created_at: string;
   account_id: number;
@@ -25,7 +29,45 @@ export interface WebhookData {
   card?: WebhookCard;
 }
 
-export interface FlutterwaveWebhook {
-  event: EnumWebhookEventType;
-  data: WebhookData;
+export interface TransferWebhookData {
+  id: number;
+  account_number: string;
+  bank_name: string;
+  bank_code: string;
+  fullname: string;
+  created_at: string;
+  currency: EnumCurrency;
+  debit_currency: string;
+  amount: number;
+  fee: number;
+  status: EnumFlwTransferWebhookStatus;
+  reference: string;
+  meta: FlutterwaveBulkTransferMetaData;
+  narration: string;
+  approver: string | null;
+  complete_message: string;
+  requires_approval: 0 | 1;
+  is_approved: 0 | 1;
+}
+
+export interface RefundWebhookData {
+  id: number;
+  AmountRefunded: number;
+  status: EnumFlwRefundWebhookStatus;
+  FlwRef: string;
+  destination: string;
+  comments: string | null;
+  settlement_id: string;
+  meta: string | null;
+  createdAt: string;
+  updatedAt: string;
+  deletedAt: string | null;
+  walletId: number;
+  AccountId: number;
+  TransactionId: number;
+}
+
+export interface FlutterwaveWebhook<T> {
+  event: EnumFlwWebhookEventType;
+  data: T;
 }

@@ -1,9 +1,30 @@
 import { Prop, Schema, SchemaFactory } from '@nestjs/mongoose';
 import { HydratedDocument } from 'mongoose';
+import { EnumNetwork } from 'src/common/enums/networks';
 import { EnumRestaurantType } from 'src/common/enums/restaurant-types';
+import { EnumWalletTypes } from 'src/common/enums/wallet-types';
 import { BaseSchema } from 'src/common/schemas/base.schema';
 
 export type RestaurantDocument = HydratedDocument<Restaurant>;
+
+@Schema({ _id: false })
+export class Wallet {
+  @Prop({ type: String, enum: EnumWalletTypes, required: true })
+  type: EnumWalletTypes;
+
+  @Prop({
+    type: {
+      network: { type: String, enum: EnumNetwork, required: true },
+      number: { type: String, required: true },
+    },
+    _id: false,
+    required: false,
+  })
+  mobileData?: {
+    network: EnumNetwork;
+    number: string;
+  };
+}
 
 @Schema({ timestamps: true })
 export class Restaurant extends BaseSchema {
@@ -125,6 +146,9 @@ export class Restaurant extends BaseSchema {
     openTime: string;
     closeTime: string;
   }[];
+
+  @Prop({ type: Wallet, required: false, _id: false })
+  wallet?: Wallet;
 }
 
 export const RestaurantSchema = SchemaFactory.createForClass(Restaurant);

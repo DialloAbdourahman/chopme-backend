@@ -34,6 +34,9 @@ export interface EnvConfig {
   flutterWaveRedirectUrl: string;
   flutterWaveMaxPaymentLinkValidityInHr: number;
   flutterWaveWebhookSecretHash: string;
+
+  platformMobileMoneyAccountNumber: string;
+  platformMobileMoneyNetworkType: string;
 }
 
 export const env: EnvConfig = {
@@ -74,4 +77,9 @@ export const env: EnvConfig = {
     process.env.FLUTTER_WAVE_MAX_PAYMENT_LINK_VALIDITY_IN_HR!,
   ),
   flutterWaveWebhookSecretHash: process.env.FLUTTER_WAVE_WEBHOOK_SECRET_HASH!,
+
+  platformMobileMoneyAccountNumber:
+    process.env.PLATFORM_MOBILE_MONEY_ACCOUNT_NUMBER!,
+  platformMobileMoneyNetworkType:
+    process.env.PLATFORM_MOBILE_MONEY_NETWORK_TYPE!,
 };

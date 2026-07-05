@@ -1,5 +1,5 @@
 export enum EnumNetwork {
   MTN = 'MTN',
-  ORANGE = 'ORANGE',
+  ORANGE = 'ORANGEMONEY',
   UNKNOWN = 'UNKNOWN',
 }
