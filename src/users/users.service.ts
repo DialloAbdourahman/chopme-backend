@@ -24,7 +24,7 @@ import { ILoggedInUserTokenData } from 'src/common/interfaces/loggedin-user-toke
 import { JwtService } from '@nestjs/jwt';
 import { getUserFromGoogle } from 'src/common/utils/get-user-from-google';
 import type { IUserFromGoogle } from 'src/common/interfaces/user-from-google';
-import { CreateClientDto } from 'src/clients/dto/input/create-client.dto';
+import { CreateClientDto } from 'src/users/dto/input/create-client.dto';
 
 @Injectable()
 export class UsersService {

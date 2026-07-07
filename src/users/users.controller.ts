@@ -17,7 +17,7 @@ import { UpdatePasswordDto } from './dto/input/update-password.dto';
 import { AuthGuard } from 'src/common/guards/auth.guard';
 import { CurrentUser } from 'src/common/decorators/current-user.decorator';
 import type { ILoggedInUserTokenData } from 'src/common/interfaces/loggedin-user-token-data';
-import { CreateClientDto } from 'src/clients/dto/input/create-client.dto';
+import { CreateClientDto } from 'src/users/dto/input/create-client.dto';
 
 @Controller('users')
 export class UsersController {
