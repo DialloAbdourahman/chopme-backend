@@ -47,7 +47,7 @@ export class UsersController {
     return this.usersService.googleLogin(googleLoginDto);
   }
 
-  @Post('token')
+  @Get('token')
   @HttpCode(HttpStatus.OK)
   refreshToken(@Headers('authorization') authorization: string) {
     const token = authorization?.split(' ')[1] || '';
