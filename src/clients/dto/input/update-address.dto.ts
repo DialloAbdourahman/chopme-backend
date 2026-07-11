@@ -1,4 +1,4 @@
-import { IsNumber } from 'class-validator';
+import { IsNumber, IsOptional, IsString } from 'class-validator';
 
 export class UpdateAddressDto {
   @IsNumber()
@@ -6,4 +6,12 @@ export class UpdateAddressDto {
 
   @IsNumber()
   latitude: number;
+
+  @IsString()
+  @IsOptional()
+  country: string;
+
+  @IsString()
+  @IsOptional()
+  city: string;
 }

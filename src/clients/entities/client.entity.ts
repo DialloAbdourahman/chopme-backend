@@ -17,6 +17,8 @@ export class Client extends BaseSchema {
     type: {
       longitude: { type: Number, required: true },
       latitude: { type: Number, required: true },
+      country: { type: String, required: false },
+      city: { type: String, required: false },
     },
     _id: false,
     required: false,
@@ -24,6 +26,8 @@ export class Client extends BaseSchema {
   address?: {
     longitude: number;
     latitude: number;
+    country: string;
+    city: string;
   };
 }
 
