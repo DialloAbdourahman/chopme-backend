@@ -41,13 +41,5 @@ export class FindRestaurantDto {
   // @Type(() => Boolean)
   // onlyOpened?: boolean;
 
-  @IsNumber()
-  @IsOptional()
-  @Type(() => Number)
-  page?: number;
 
-  @IsNumber()
-  @IsOptional()
-  @Type(() => Number)
-  limit?: number;
 }

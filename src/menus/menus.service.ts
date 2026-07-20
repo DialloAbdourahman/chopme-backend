@@ -30,8 +30,8 @@ export class MenusService {
     private readonly categoryModel: Model<CategoryDocument>,
   ) {
     this.s3Helper = new AwsS3Helper({
-      bucketName: env.s3BucketName,
-      bucketRegion: env.s3BucketRegion,
+      bucketName: env.s3PublicBucketName,
+      bucketRegion: env.s3PublicBucketRegion,
     });
   }
 

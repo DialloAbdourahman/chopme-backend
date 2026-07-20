@@ -50,8 +50,8 @@ export class RestaurantsService {
     private readonly connection: Connection,
   ) {
     this.s3Helper = new AwsS3Helper({
-      bucketName: env.s3BucketName,
-      bucketRegion: env.s3BucketRegion,
+      bucketName: env.s3PublicBucketName,
+      bucketRegion: env.s3PublicBucketRegion,
     });
   }
 
@@ -239,7 +239,7 @@ export class RestaurantsService {
     });
   }
 
-  async findAll(filters: FindRestaurantDto) {
+  async findAll(filters: FindRestaurantDto, page: number, limit: number) {
     this.logger.log(`[findAll] Finding restaurants with filters`, filters);
 
     const {
@@ -250,11 +250,7 @@ export class RestaurantsService {
       latitude,
       longitude,
       radiusKm,
-      page = 1,
-      limit = 10,
     } = filters;
-
-    console.log(page, limit);
 
     const pipeline: any[] = [];
 
@@ -291,15 +287,26 @@ export class RestaurantsService {
     }
 
     if (search) {
-      pipeline.push({
-        $match: {
-          $or: [
-            { name: { $regex: search, $options: 'i' } },
-            { description: { $regex: search, $options: 'i' } },
-            { slogan: { $regex: search, $options: 'i' } },
-          ],
+      pipeline.push(
+        {
+          $lookup: {
+            from: 'menus',
+            localField: '_id',
+            foreignField: 'restaurant',
+            as: 'menus',
+          },
         },
-      });
+        {
+          $match: {
+            $or: [
+              { name: { $regex: search, $options: 'i' } },
+              { description: { $regex: search, $options: 'i' } },
+              { slogan: { $regex: search, $options: 'i' } },
+              { 'menus.name': { $regex: search, $options: 'i' } },
+            ],
+          },
+        },
+      );
     }
 
     // Only apply city filter if not using geospatial search

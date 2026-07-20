@@ -15,8 +15,8 @@ export interface EnvConfig {
   googleClientSecret: string;
   googleRedirectLink: string;
 
-  s3BucketName: string;
-  s3BucketRegion: string;
+  s3PublicBucketName: string;
+  s3PublicBucketRegion: string;
 
   maxRestaurantImages: number;
   maxRestaurantImageSizeInMb: number;
@@ -54,8 +54,8 @@ export const env: EnvConfig = {
   googleClientSecret: process.env.GOOGLE_CLIENT_SECRET!,
   googleRedirectLink: process.env.GOOGLE_REDIRECT_LINK!,
 
-  s3BucketName: process.env.S3_BUCKET_NAME!,
-  s3BucketRegion: process.env.S3_BUCKET_REGION!,
+  s3PublicBucketName: process.env.S3_PUBLIC_BUCKET_NAME!,
+  s3PublicBucketRegion: process.env.S3_PRIVATE_BUCKET_REGION!,
 
   maxRestaurantImages: Number(process.env.MAX_RESTAURANT_IMAGES),
   maxRestaurantImageSizeInMb: Number(

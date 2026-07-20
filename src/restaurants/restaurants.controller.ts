@@ -12,6 +12,8 @@ import {
   UseGuards,
   UseInterceptors,
   UploadedFile,
+  DefaultValuePipe,
+  ParseIntPipe,
 } from '@nestjs/common';
 import { FileInterceptor } from '@nestjs/platform-express';
 import { RestaurantsService } from './restaurants.service';
@@ -59,8 +61,12 @@ export class RestaurantsController {
 
   @Post('search')
   @HttpCode(HttpStatus.OK)
-  findAll(@Body() filters: FindRestaurantDto) {
-    return this.restaurantsService.findAll(filters);
+  findAll(
+    @Body() filters: FindRestaurantDto,
+    @Query('page', new DefaultValuePipe(1), ParseIntPipe) page: number,
+    @Query('limit', new DefaultValuePipe(10), ParseIntPipe) limit: number,
+  ) {
+    return this.restaurantsService.findAll(filters, page, limit);
   }
 
   @Get(':id')

@@ -8,10 +8,8 @@ export class UpdateAddressDto {
   latitude: number;
 
   @IsString()
-  @IsOptional()
   country: string;
 
   @IsString()
-  @IsOptional()
   city: string;
 }

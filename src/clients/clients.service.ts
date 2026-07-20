@@ -80,14 +80,8 @@ export class ClientsService {
 
     currentAddress.longitude = Number(updateClientDto.longitude);
     currentAddress.latitude = Number(updateClientDto.latitude);
-
-    if (updateClientDto.country) {
-      currentAddress.country = updateClientDto.country;
-    }
-
-    if (updateClientDto.city) {
-      currentAddress.city = updateClientDto.city;
-    }
+    currentAddress.country = updateClientDto.country;
+    currentAddress.city = updateClientDto.city;
 
     client.address = currentAddress;
     await client.save();
