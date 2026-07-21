@@ -14,6 +14,7 @@ import {
   UploadedFile,
   DefaultValuePipe,
   ParseIntPipe,
+  ParseFloatPipe,
 } from '@nestjs/common';
 import { FileInterceptor } from '@nestjs/platform-express';
 import { RestaurantsService } from './restaurants.service';
@@ -69,10 +70,16 @@ export class RestaurantsController {
     return this.restaurantsService.findAll(filters, page, limit);
   }
 
-  @Get(':id')
+  @Get(':idOrSlug')
   @HttpCode(HttpStatus.OK)
-  findOne(@Param('id') id: string) {
-    return this.restaurantsService.findOne(id);
+  findOne(
+    @Param('idOrSlug') idOrSlug: string,
+    @Query('longitude', new ParseFloatPipe({ optional: true }))
+    longitude?: number,
+    @Query('latitude', new ParseFloatPipe({ optional: true }))
+    latitude?: number,
+  ) {
+    return this.restaurantsService.findOne(idOrSlug, longitude, latitude);
   }
 
   @Patch(':id/increment-views')

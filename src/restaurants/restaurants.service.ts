@@ -379,7 +379,7 @@ export class RestaurantsService {
     });
   }
 
-  async findOne(idOrSlug: string) {
+  async findOne(idOrSlug: string, longitude?: number, latitude?: number) {
     this.logger.log(`[findOne] Finding restaurant by idOrSlug=${idOrSlug}`);
 
     const isObjectId = Types.ObjectId.isValid(idOrSlug);
@@ -388,9 +388,31 @@ export class RestaurantsService {
       ? { _id: new Types.ObjectId(idOrSlug), deleted: false }
       : { slug: idOrSlug, deleted: false };
 
-    const restaurant = await this.restaurantModel.findOne(query);
+    let restaurantObject: Record<string, any> | undefined;
 
-    if (!restaurant) {
+    // If coordinates are provided, compute the distance with $geoNear
+    if (longitude !== undefined && latitude !== undefined) {
+      const [result] = await this.restaurantModel.aggregate([
+        {
+          $geoNear: {
+            near: {
+              type: 'Point',
+              coordinates: [Number(longitude), Number(latitude)],
+            },
+            spherical: true,
+            distanceField: 'distance',
+            query,
+          },
+        },
+        { $limit: 1 },
+      ]);
+      restaurantObject = result;
+    } else {
+      const restaurant = await this.restaurantModel.findOne(query);
+      restaurantObject = restaurant?.toObject();
+    }
+
+    if (!restaurantObject) {
       this.logger.log(
         `[findOne] Restaurant not found for idOrSlug=${idOrSlug}`,
       );
@@ -400,8 +422,6 @@ export class RestaurantsService {
         code: 404,
       });
     }
-
-    const restaurantObject = restaurant.toObject();
 
     const publicRestaurant = plainToInstance(
       RestaurantPublicOutputDto,
