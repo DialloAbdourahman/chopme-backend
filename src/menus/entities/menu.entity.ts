@@ -32,21 +32,21 @@ export class Menu extends BaseSchema {
   @Prop({ type: Boolean, default: true })
   available: boolean;
 
-  @Prop({
-    type: {
-      average: { type: Number },
-      total: { type: Number },
-    },
-    _id: false,
-    default: {
-      average: 0,
-      total: 0,
-    },
-  })
-  rating: {
-    average: number;
-    total: number;
-  };
+  // @Prop({
+  //   type: {
+  //     average: { type: Number },
+  //     total: { type: Number },
+  //   },
+  //   _id: false,
+  //   default: {
+  //     average: 0,
+  //     total: 0,
+  //   },
+  // })
+  // rating: {
+  //   average: number;
+  //   total: number;
+  // };
 
   @Prop({ default: 0 })
   ordersCount: number;

@@ -46,11 +46,14 @@ export class MenuPublicOutputDto {
   @Expose()
   available: boolean;
 
+  // @Expose()
+  // rating: {
+  //   average: number;
+  //   total: number;
+  // };
+
   @Expose()
-  rating: {
-    average: number;
-    total: number;
-  };
+  ordersCount: number;
 
   @Expose()
   createdAt: Date;
