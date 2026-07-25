@@ -33,6 +33,7 @@ import { FindRestaurantDto } from './dto/input/find-restaurant.dto';
 import { AddRestaurantWalletDto } from './dto/input/restaurant-wallet.dto';
 import { CameroonPhoneUtils } from 'src/common/utils/cameroon-phone-utils';
 import { EnumWalletTypes } from 'src/common/enums/wallet-types';
+import { Menu, MenuDocument } from 'src/menus/entities/menu.entity';
 
 @Injectable()
 export class RestaurantsService {
@@ -44,6 +45,8 @@ export class RestaurantsService {
     private readonly restaurantModel: Model<RestaurantDocument>,
     @InjectModel(User.name)
     private readonly userModel: Model<UserDocument>,
+    @InjectModel(Menu.name)
+    private readonly menuModel: Model<MenuDocument>,
     @InjectModel(RestaurantMember.name)
     private readonly restaurantMemberModel: Model<RestaurantMemberDocument>,
     @InjectConnection()
@@ -597,7 +600,42 @@ export class RestaurantsService {
       restaurant.type = type;
     }
 
-    await restaurant.save();
+    const session = await this.connection.startSession();
+    session.startTransaction();
+
+    try {
+      await restaurant.save({ session });
+      this.logger.log(`[adminUpdate] Restaurant updated id=${restaurantId}`);
+
+      await this.menuModel.updateMany(
+        { restaurant: restaurant._id },
+        {
+          $set: {
+            location: restaurant.location,
+          },
+        },
+        { session },
+      );
+      this.logger.log(
+        `[adminUpdate] Menus updated for restaurant id=${restaurantId}`,
+      );
+
+      await session.commitTransaction();
+    } catch (error) {
+      await session.abortTransaction();
+      this.logger.error(
+        `[create] Error during restaurant update: ${error?.message}`,
+        error?.stack,
+      );
+
+      throw new OrchestrationException({
+        statusCode: EnumStatusCode.INTERNAL_SERVER_ERROR,
+        message: 'Unable to update restaurant',
+        code: 500,
+      });
+    } finally {
+      session.endSession();
+    }
 
     const restaurantObject = restaurant.toObject();
 
