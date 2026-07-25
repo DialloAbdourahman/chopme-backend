@@ -6,12 +6,7 @@ export class RestaurantRatingOutputDto {
   id: string;
 
   @Expose()
-  @Transform(({ obj }) => obj.client?.toString())
-  clientId: string;
-
-  @Expose()
-  @Transform(({ obj }) => obj.restaurant?.toString())
-  restaurantId: string;
+  publicUserName: string;
 
   @Expose()
   rating: number;

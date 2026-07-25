@@ -19,6 +19,11 @@ export class RestaurantRating extends BaseSchema {
 
   @Prop({ type: String, required: true })
   comment: string;
+
+  @Prop({
+    required: true,
+  })
+  publicUserName: string;
 }
 
 export const RestaurantRatingSchema =

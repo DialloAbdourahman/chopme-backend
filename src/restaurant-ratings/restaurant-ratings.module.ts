@@ -7,6 +7,8 @@ import {
   RestaurantRatingSchema,
 } from './entities/restaurant-rating.entity';
 import { Order, OrderSchema } from 'src/orders/entities/order.entity';
+import { Client, ClientSchema } from 'src/clients/entities/client.entity';
+
 import {
   Restaurant,
   RestaurantSchema,
@@ -18,6 +20,7 @@ import {
       { name: RestaurantRating.name, schema: RestaurantRatingSchema },
       { name: Order.name, schema: OrderSchema },
       { name: Restaurant.name, schema: RestaurantSchema },
+      { name: Client.name, schema: ClientSchema },
     ]),
   ],
   controllers: [RestaurantRatingsController],

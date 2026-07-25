@@ -10,6 +10,8 @@ import {
   HttpCode,
   HttpStatus,
   Query,
+  DefaultValuePipe,
+  ParseIntPipe,
 } from '@nestjs/common';
 import { RestaurantRatingsService } from './restaurant-ratings.service';
 import { UpdateRestaurantRatingDto } from './dto/input/update-restaurant-rating.dto';
@@ -46,16 +48,17 @@ export class RestaurantRatingsController {
   @HttpCode(HttpStatus.OK)
   getRestaurantRatings(
     @Param('restaurantId') restaurantId: string,
-    @Query('page') page: string,
-    @Query('limit') limit: string,
+    @Query('page', new DefaultValuePipe(1), ParseIntPipe) page: number,
+    @Query('limit', new DefaultValuePipe(10), ParseIntPipe) limit: number,
+    @Query('rating', new ParseIntPipe({ optional: true }))
+    rating?: number,
   ) {
-    const parsedPage = page ? parseInt(page, 10) : 1;
-    const parsedLimit = limit ? parseInt(limit, 10) : 10;
-    return this.restaurantRatingsService.getRestaurantRatings(
+    return this.restaurantRatingsService.getRestaurantRatings({
       restaurantId,
-      parsedPage,
-      parsedLimit,
-    );
+      page,
+      limit,
+      rating,
+    });
   }
 
   @Patch(':ratingId')
@@ -83,12 +86,6 @@ export class RestaurantRatingsController {
     @CurrentUser() user: ILoggedInUserTokenData,
   ) {
     return this.restaurantRatingsService.getMyRating(restaurantId, user);
-  }
-
-  @Get(':ratingId/client')
-  @HttpCode(HttpStatus.OK)
-  getRatingClient(@Param('ratingId') ratingId: string) {
-    return this.restaurantRatingsService.getRatingClient(ratingId);
   }
 
   @Delete(':ratingId')

@@ -22,6 +22,7 @@ import {
   Restaurant,
   RestaurantDocument,
 } from 'src/restaurants/entities/restaurant.entity';
+import { UserDocument } from 'src/users/entities/user.entity';
 
 @Injectable()
 export class RestaurantRatingsService {
@@ -34,6 +35,8 @@ export class RestaurantRatingsService {
     private readonly orderModel: Model<OrderDocument>,
     @InjectModel(Restaurant.name)
     private readonly restaurantModel: Model<RestaurantDocument>,
+    @InjectModel(Client.name)
+    private readonly clientModel: Model<ClientDocument>,
   ) {}
 
   async create(
@@ -45,23 +48,12 @@ export class RestaurantRatingsService {
       `[create] Rating request by clientId=${user.clientId} for restaurantId=${restaurantId}`,
     );
 
-    const clientId = new Types.ObjectId(user.clientId);
-    const restaurantObjectId = new Types.ObjectId(restaurantId);
-
-    const completedStatuses = [
-      EnumOrderStatus.DELIVERED,
-      EnumOrderStatus.DISBURSED,
-    ];
-
-    const hasCompletedOrder = await this.orderModel.exists({
-      client: clientId,
-      restaurant: restaurantObjectId,
-      status: { $in: completedStatuses },
-    });
-
-    if (!hasCompletedOrder) {
+    const client = await this.clientModel
+      .findById(user.clientId)
+      .populate('user');
+    if (!client) {
       this.logger.warn(
-        `[create] No completed order found for clientId=${user.clientId}, restaurantId=${restaurantId}`,
+        `[create] No client found for clientId=${user.clientId}`,
       );
       throw new OrchestrationException({
         statusCode: EnumStatusCode.NO_COMPLETED_ORDER_FOR_RESTAURANT,
@@ -69,10 +61,43 @@ export class RestaurantRatingsService {
         code: 403,
       });
     }
+    const restaurant = await this.restaurantModel.findById(restaurantId);
+    if (!restaurant) {
+      this.logger.warn(
+        `[create] No restaurant found for restaurantId=${restaurantId}`,
+      );
+      throw new OrchestrationException({
+        statusCode: EnumStatusCode.RESTAURANT_NOT_FOUND,
+        message: 'Restaurant not found',
+        code: 404,
+      });
+    }
+
+    const completedStatuses = [
+      EnumOrderStatus.DELIVERED,
+      EnumOrderStatus.DISBURSED,
+    ];
+
+    const hasCompletedOrder = await this.orderModel.exists({
+      client,
+      restaurant,
+      status: { $in: completedStatuses },
+    });
+
+    // if (!hasCompletedOrder) {
+    //   this.logger.warn(
+    //     `[create] No completed order found for clientId=${user.clientId}, restaurantId=${restaurantId}`,
+    //   );
+    //   throw new OrchestrationException({
+    //     statusCode: EnumStatusCode.NO_COMPLETED_ORDER_FOR_RESTAURANT,
+    //     message: 'You must have a completed order to rate this restaurant',
+    //     code: 403,
+    //   });
+    // }
 
     const existingRating = await this.ratingModel.findOne({
-      client: clientId,
-      restaurant: restaurantObjectId,
+      client,
+      restaurant,
       deleted: false,
     });
 
@@ -87,11 +112,14 @@ export class RestaurantRatingsService {
       });
     }
 
+    const userInClient = client.user as UserDocument;
+
     const rating = await this.ratingModel.create({
-      client: clientId,
-      restaurant: restaurantObjectId,
+      client,
+      restaurant,
       rating: dto.rating,
       comment: dto.comment,
+      publicUserName: userInClient.fullName,
     });
 
     this.logger.log(
@@ -102,7 +130,7 @@ export class RestaurantRatingsService {
       `[create] Update public restaurant rating values, restaurantId=${restaurantId}`,
     );
 
-    await this.updateRestaurantRating(restaurantObjectId);
+    await this.updateRestaurantRating(restaurant.id);
 
     const publicRating = plainToInstance(
       RestaurantRatingOutputDto,
@@ -200,24 +228,40 @@ export class RestaurantRatingsService {
     });
   }
 
-  async getRestaurantRatings(
-    restaurantId: string,
-    page: number,
-    limit: number,
-  ) {
+  async getRestaurantRatings({
+    limit,
+    page,
+    restaurantId,
+    rating,
+  }: {
+    restaurantId: string;
+    page: number;
+    limit: number;
+    rating?: number;
+  }) {
     this.logger.log(
       `[getRestaurantRatings] Fetching ratings for restaurantId=${restaurantId}, page=${page}, limit=${limit}`,
     );
 
     const restaurantObjectId = new Types.ObjectId(restaurantId);
 
-    const totalItems = await this.ratingModel.countDocuments({
+    const filters: {
+      restaurant: Types.ObjectId;
+      deleted: boolean;
+      rating?: number;
+    } = {
       restaurant: restaurantObjectId,
       deleted: false,
-    });
+    };
+
+    if (rating) {
+      filters.rating = rating;
+    }
+
+    const totalItems = await this.ratingModel.countDocuments(filters);
 
     const ratings = await this.ratingModel
-      .find({ restaurant: restaurantObjectId })
+      .find(filters)
       .sort({ createdAt: -1 })
       .skip((page - 1) * limit)
       .limit(limit)
@@ -278,56 +322,6 @@ export class RestaurantRatingsService {
     this.logger.log(
       `[updateRestaurantRating] Restaurant rating recalculated: count=${ratingCount}, average=${averageRating}`,
     );
-  }
-
-  async getRatingClient(ratingId: string) {
-    this.logger.log(
-      `[getRatingClient] Fetching client for ratingId=${ratingId}`,
-    );
-
-    const rating = await this.ratingModel
-      .findOne({ _id: new Types.ObjectId(ratingId), deleted: false })
-      .populate({ path: 'client', populate: { path: 'user' } });
-
-    if (!rating) {
-      this.logger.warn(
-        `[getRatingClient] Rating not found: ratingId=${ratingId}`,
-      );
-      throw new OrchestrationException({
-        statusCode: EnumStatusCode.RATING_NOT_FOUND,
-        message: 'Rating not found',
-        code: 404,
-      });
-    }
-
-    const client = rating.client as ClientDocument;
-
-    if (!client) {
-      this.logger.warn(
-        `[getRatingClient] Client not found for ratingId=${ratingId}`,
-      );
-      throw new OrchestrationException({
-        statusCode: EnumStatusCode.CLIENT_NOT_FOUND,
-        message: 'Client not found',
-        code: 404,
-      });
-    }
-
-    this.logger.log(
-      `[getRatingClient] Client found for ratingId=${ratingId}, clientId=${client._id}`,
-    );
-
-    const publicClient = plainToInstance(
-      ClientPublicWithUserOutputDto,
-      client.toObject(),
-      { excludeExtraneousValues: true },
-    );
-
-    return OrchestrationResult.Success<ClientPublicWithUserOutputDto>({
-      statusCode: EnumStatusCode.RECOVERED_SUCCESSFULLY,
-      data: publicClient,
-      message: 'Rating client fetched successfully',
-    });
   }
 
   async getMyRating(restaurantId: string, user: ILoggedInUserTokenData) {
