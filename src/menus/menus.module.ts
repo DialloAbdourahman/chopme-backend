@@ -7,12 +7,17 @@ import {
   Category,
   CategorySchema,
 } from 'src/categories/entities/category.entity';
+import {
+  Restaurant,
+  RestaurantSchema,
+} from 'src/restaurants/entities/restaurant.entity';
 
 @Module({
   imports: [
     MongooseModule.forFeature([
       { name: Menu.name, schema: MenuSchema },
       { name: Category.name, schema: CategorySchema },
+      { name: Restaurant.name, schema: RestaurantSchema },
     ]),
   ],
   controllers: [MenusController],

@@ -4,17 +4,13 @@ import { computePriceWithPlatformPercentage } from 'src/common/utils/compute-pri
 import { env } from 'src/config/env';
 import { RestaurantPublicOutputDto } from 'src/restaurants/dto/output/restaurant-output.dto';
 
-export class MenuPublicOutputDto {
+export class MenuOutputDto {
   @Expose()
   @Transform(({ obj }) => obj._id?.toString())
   id: string;
 
   @Expose()
   name: string;
-
-  @Expose()
-  @Type(() => RestaurantPublicOutputDto)
-  restaurant: RestaurantPublicOutputDto;
 
   @Expose()
   @Type(() => CategoryPublicOutputDto)
@@ -57,6 +53,17 @@ export class MenuPublicOutputDto {
 
   @Expose()
   createdAt: Date;
+}
+
+export class MenuPublicOutputDto extends MenuOutputDto {
+  @Expose()
+  @Transform(({ obj }) => obj.restaurant._id?.toString())
+  restaurantId: string;
+}
+
+export class MenuPublicWithCompleteRestaurantOutputDto extends MenuOutputDto {
+  @Expose()
+  restaurant: RestaurantPublicOutputDto;
 }
 
 export class MenuPrivateOutputDto extends MenuPublicOutputDto {

@@ -50,6 +50,23 @@ export class Menu extends BaseSchema {
 
   @Prop({ default: 0 })
   ordersCount: number;
+
+  @Prop({
+    type: {
+      type: String,
+      enum: ['Point'],
+      required: true,
+      default: 'Point',
+    },
+    coordinates: {
+      type: [Number],
+      required: true,
+    },
+  })
+  location: {
+    type: string;
+    coordinates: number[];
+  };
 }
 
 export const MenuSchema = SchemaFactory.createForClass(Menu);

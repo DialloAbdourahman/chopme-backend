@@ -74,6 +74,7 @@ export class RestaurantRatingsService {
     }
 
     const completedStatuses = [
+      EnumOrderStatus.CANCELLED_BY_RESTAURANT,
       EnumOrderStatus.DELIVERED,
       EnumOrderStatus.DISBURSED,
     ];

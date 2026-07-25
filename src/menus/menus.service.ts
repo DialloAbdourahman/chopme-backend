@@ -17,6 +17,10 @@ import {
 import { AwsS3Helper } from 'src/common/aws/s3';
 import { env } from 'src/config/env';
 import { Pagination } from 'src/common/interfaces/pagination';
+import {
+  Restaurant,
+  RestaurantDocument,
+} from 'src/restaurants/entities/restaurant.entity';
 
 @Injectable()
 export class MenusService {
@@ -28,6 +32,8 @@ export class MenusService {
     private readonly menuModel: Model<MenuDocument>,
     @InjectModel(Category.name)
     private readonly categoryModel: Model<CategoryDocument>,
+    @InjectModel(Restaurant.name)
+    private readonly restaurantModel: Model<RestaurantDocument>,
   ) {
     this.s3Helper = new AwsS3Helper({
       bucketName: env.s3PublicBucketName,
@@ -47,11 +53,25 @@ export class MenusService {
       });
     }
 
-    const restaurantObjectId = new Types.ObjectId(user.restaurantId);
+    const restaurant = await this.restaurantModel.findOne({
+      _id: user.restaurantId,
+      deleted: false,
+    });
+
+    if (!restaurant) {
+      this.logger.log(
+        `[create] Restaurant with id categoryId=${createMenuDto.category} does not exist`,
+      );
+      return OrchestrationResult.Failure<string>({
+        statusCode: EnumStatusCode.RESTAURANT_NOT_FOUND,
+        message: 'Restaurant does not exist',
+      });
+    }
+
     const category = await this.categoryModel.findOne({
       _id: createMenuDto.category,
       deleted: false,
-      restaurant: new Types.ObjectId(user.restaurantId),
+      restaurant: restaurant._id,
     });
 
     if (!category) {
@@ -65,7 +85,7 @@ export class MenusService {
     }
 
     const menu = await this.menuModel.create({
-      restaurant: restaurantObjectId,
+      restaurant,
       name: createMenuDto.name,
       category,
       description: createMenuDto.description,
@@ -75,8 +95,10 @@ export class MenusService {
         typeof createMenuDto.available === 'boolean'
           ? createMenuDto.available
           : true,
+      location: restaurant.location,
     });
-    await menu.populate(['restaurant', 'category']);
+
+    await menu.populate('category');
 
     const menuObject = menu.toObject();
 
@@ -228,7 +250,7 @@ export class MenusService {
         _id: new Types.ObjectId(id),
         deleted: false,
       })
-      .populate(['restaurant', 'category']);
+      .populate('category');
 
     if (!menu) {
       this.logger.log(`[findOne] Menu not found for id=${id}`);
@@ -308,7 +330,7 @@ export class MenusService {
     }
 
     await menu.save();
-    await menu.populate(['restaurant', 'category']);
+    await menu.populate('category');
 
     const menuObject = menu.toObject();
 
@@ -385,7 +407,7 @@ export class MenusService {
     menu.deletedBy = null;
 
     await menu.save();
-    await menu.populate(['restaurant', 'category']);
+    await menu.populate('category');
 
     const menuObject = menu.toObject();
 
@@ -424,7 +446,7 @@ export class MenusService {
 
     menu.available = !menu.available;
     await menu.save();
-    await menu.populate(['restaurant', 'category']);
+    await menu.populate('category');
 
     const menuObject = menu.toObject();
 
@@ -483,7 +505,7 @@ export class MenusService {
 
     menu.pictures.push(key);
     await menu.save();
-    await menu.populate(['restaurant', 'category']);
+    await menu.populate('category');
 
     const menuObject = menu.toObject();
 
@@ -531,7 +553,7 @@ export class MenusService {
 
     menu.coverImage = key;
     await menu.save();
-    await menu.populate(['restaurant', 'category']);
+    await menu.populate('category');
 
     const menuObject = menu.toObject();
 
@@ -587,7 +609,7 @@ export class MenusService {
 
     menu.pictures = menu.pictures.filter((picture) => picture !== key);
     await menu.save();
-    await menu.populate(['restaurant', 'category']);
+    await menu.populate('category');
 
     const menuObject = menu.toObject();
 
@@ -639,7 +661,7 @@ export class MenusService {
 
     menu.coverImage = undefined;
     await menu.save();
-    await menu.populate(['restaurant', 'category']);
+    await menu.populate('category');
 
     const menuObject = menu.toObject();
 
