@@ -9,7 +9,7 @@ import { OrchestrationResult } from 'src/common/utils/orchestration.result';
 import { EnumStatusCode } from 'src/common/enums/response-status-code';
 import { OrchestrationException } from 'src/common/exceptions/orchestration.exception';
 import { plainToInstance } from 'class-transformer';
-import { MenuPublicOutputDto } from './dto/output/menu-outpus.dto';
+import { MenuPublicWithCompleteRestaurantOutputDto } from './dto/output/menu-output.dto';
 import {
   Category,
   CategoryDocument,
@@ -98,19 +98,25 @@ export class MenusService {
       location: restaurant.location,
     });
 
-    await menu.populate('category');
+    await menu.populate(['category', 'restaurant']);
 
     const menuObject = menu.toObject();
 
-    const publicMenu = plainToInstance(MenuPublicOutputDto, menuObject, {
-      excludeExtraneousValues: true,
-    });
+    const publicMenu = plainToInstance(
+      MenuPublicWithCompleteRestaurantOutputDto,
+      menuObject,
+      {
+        excludeExtraneousValues: true,
+      },
+    );
 
-    return OrchestrationResult.Success<MenuPublicOutputDto>({
-      statusCode: EnumStatusCode.CREATED_SUCCESSFULLY,
-      data: publicMenu,
-      message: 'Menu created successfully',
-    });
+    return OrchestrationResult.Success<MenuPublicWithCompleteRestaurantOutputDto>(
+      {
+        statusCode: EnumStatusCode.CREATED_SUCCESSFULLY,
+        data: publicMenu,
+        message: 'Menu created successfully',
+      },
+    );
   }
 
   async search({
@@ -215,19 +221,26 @@ export class MenusService {
 
     const totalPages = Math.ceil(totalItems / limit);
 
-    const publicMenus = plainToInstance(MenuPublicOutputDto, menus, {
-      excludeExtraneousValues: true,
-    });
+    const publicMenus = plainToInstance(
+      MenuPublicWithCompleteRestaurantOutputDto,
+      menus,
+      {
+        excludeExtraneousValues: true,
+      },
+    );
 
-    const paginatedResult: Pagination<MenuPublicOutputDto> = {
-      items: publicMenus,
-      page,
-      totalPages,
-      totalItems,
-      itemsPerPage: limit,
-    };
+    const paginatedResult: Pagination<MenuPublicWithCompleteRestaurantOutputDto> =
+      {
+        items: publicMenus,
+        page,
+        totalPages,
+        totalItems,
+        itemsPerPage: limit,
+      };
 
-    return OrchestrationResult.Success<Pagination<MenuPublicOutputDto>>({
+    return OrchestrationResult.Success<
+      Pagination<MenuPublicWithCompleteRestaurantOutputDto>
+    >({
       statusCode: EnumStatusCode.RECOVERED_SUCCESSFULLY,
       data: paginatedResult,
       message: 'Menus fetched successfully',
@@ -250,7 +263,7 @@ export class MenusService {
         _id: new Types.ObjectId(id),
         deleted: false,
       })
-      .populate('category');
+      .populate(['category', 'restaurant']);
 
     if (!menu) {
       this.logger.log(`[findOne] Menu not found for id=${id}`);
@@ -263,15 +276,21 @@ export class MenusService {
 
     const menuObject = menu.toObject();
 
-    const publicMenu = plainToInstance(MenuPublicOutputDto, menuObject, {
-      excludeExtraneousValues: true,
-    });
+    const publicMenu = plainToInstance(
+      MenuPublicWithCompleteRestaurantOutputDto,
+      menuObject,
+      {
+        excludeExtraneousValues: true,
+      },
+    );
 
-    return OrchestrationResult.Success<MenuPublicOutputDto>({
-      statusCode: EnumStatusCode.RECOVERED_SUCCESSFULLY,
-      data: publicMenu,
-      message: 'Menu fetched successfully',
-    });
+    return OrchestrationResult.Success<MenuPublicWithCompleteRestaurantOutputDto>(
+      {
+        statusCode: EnumStatusCode.RECOVERED_SUCCESSFULLY,
+        data: publicMenu,
+        message: 'Menu fetched successfully',
+      },
+    );
   }
 
   async update(
@@ -330,19 +349,25 @@ export class MenusService {
     }
 
     await menu.save();
-    await menu.populate('category');
+    await menu.populate(['category', 'restaurant']);
 
     const menuObject = menu.toObject();
 
-    const publicMenu = plainToInstance(MenuPublicOutputDto, menuObject, {
-      excludeExtraneousValues: true,
-    });
+    const publicMenu = plainToInstance(
+      MenuPublicWithCompleteRestaurantOutputDto,
+      menuObject,
+      {
+        excludeExtraneousValues: true,
+      },
+    );
 
-    return OrchestrationResult.Success<MenuPublicOutputDto>({
-      statusCode: EnumStatusCode.UPDATED_SUCCESSFULLY,
-      data: publicMenu,
-      message: 'Menu updated successfully',
-    });
+    return OrchestrationResult.Success<MenuPublicWithCompleteRestaurantOutputDto>(
+      {
+        statusCode: EnumStatusCode.UPDATED_SUCCESSFULLY,
+        data: publicMenu,
+        message: 'Menu updated successfully',
+      },
+    );
   }
 
   async remove(id: string, user: ILoggedInUserTokenData) {
@@ -407,19 +432,25 @@ export class MenusService {
     menu.deletedBy = null;
 
     await menu.save();
-    await menu.populate('category');
+    await menu.populate(['category', 'restaurant']);
 
     const menuObject = menu.toObject();
 
-    const publicMenu = plainToInstance(MenuPublicOutputDto, menuObject, {
-      excludeExtraneousValues: true,
-    });
+    const publicMenu = plainToInstance(
+      MenuPublicWithCompleteRestaurantOutputDto,
+      menuObject,
+      {
+        excludeExtraneousValues: true,
+      },
+    );
 
-    return OrchestrationResult.Success<MenuPublicOutputDto>({
-      statusCode: EnumStatusCode.UPDATED_SUCCESSFULLY,
-      data: publicMenu,
-      message: 'Menu restored successfully',
-    });
+    return OrchestrationResult.Success<MenuPublicWithCompleteRestaurantOutputDto>(
+      {
+        statusCode: EnumStatusCode.UPDATED_SUCCESSFULLY,
+        data: publicMenu,
+        message: 'Menu restored successfully',
+      },
+    );
   }
 
   async toggleAvailable(id: string, user: ILoggedInUserTokenData) {
@@ -446,19 +477,25 @@ export class MenusService {
 
     menu.available = !menu.available;
     await menu.save();
-    await menu.populate('category');
+    await menu.populate(['category', 'restaurant']);
 
     const menuObject = menu.toObject();
 
-    const publicMenu = plainToInstance(MenuPublicOutputDto, menuObject, {
-      excludeExtraneousValues: true,
-    });
+    const publicMenu = plainToInstance(
+      MenuPublicWithCompleteRestaurantOutputDto,
+      menuObject,
+      {
+        excludeExtraneousValues: true,
+      },
+    );
 
-    return OrchestrationResult.Success<MenuPublicOutputDto>({
-      statusCode: EnumStatusCode.UPDATED_SUCCESSFULLY,
-      data: publicMenu,
-      message: 'Menu availability updated successfully',
-    });
+    return OrchestrationResult.Success<MenuPublicWithCompleteRestaurantOutputDto>(
+      {
+        statusCode: EnumStatusCode.UPDATED_SUCCESSFULLY,
+        data: publicMenu,
+        message: 'Menu availability updated successfully',
+      },
+    );
   }
 
   async uploadMenuImage(
@@ -505,19 +542,25 @@ export class MenusService {
 
     menu.pictures.push(key);
     await menu.save();
-    await menu.populate('category');
+    await menu.populate(['category', 'restaurant']);
 
     const menuObject = menu.toObject();
 
-    const publicMenu = plainToInstance(MenuPublicOutputDto, menuObject, {
-      excludeExtraneousValues: true,
-    });
+    const publicMenu = plainToInstance(
+      MenuPublicWithCompleteRestaurantOutputDto,
+      menuObject,
+      {
+        excludeExtraneousValues: true,
+      },
+    );
 
-    return OrchestrationResult.Success<MenuPublicOutputDto>({
-      statusCode: EnumStatusCode.CREATED_SUCCESSFULLY,
-      data: publicMenu,
-      message: 'Image uploaded successfully',
-    });
+    return OrchestrationResult.Success<MenuPublicWithCompleteRestaurantOutputDto>(
+      {
+        statusCode: EnumStatusCode.CREATED_SUCCESSFULLY,
+        data: publicMenu,
+        message: 'Image uploaded successfully',
+      },
+    );
   }
 
   async uploadMenuCoverImage(
@@ -553,19 +596,25 @@ export class MenusService {
 
     menu.coverImage = key;
     await menu.save();
-    await menu.populate('category');
+    await menu.populate(['category', 'restaurant']);
 
     const menuObject = menu.toObject();
 
-    const publicMenu = plainToInstance(MenuPublicOutputDto, menuObject, {
-      excludeExtraneousValues: true,
-    });
+    const publicMenu = plainToInstance(
+      MenuPublicWithCompleteRestaurantOutputDto,
+      menuObject,
+      {
+        excludeExtraneousValues: true,
+      },
+    );
 
-    return OrchestrationResult.Success<MenuPublicOutputDto>({
-      statusCode: EnumStatusCode.CREATED_SUCCESSFULLY,
-      data: publicMenu,
-      message: 'Cover image uploaded successfully',
-    });
+    return OrchestrationResult.Success<MenuPublicWithCompleteRestaurantOutputDto>(
+      {
+        statusCode: EnumStatusCode.CREATED_SUCCESSFULLY,
+        data: publicMenu,
+        message: 'Cover image uploaded successfully',
+      },
+    );
   }
 
   async deleteMenuImage(
@@ -609,19 +658,25 @@ export class MenusService {
 
     menu.pictures = menu.pictures.filter((picture) => picture !== key);
     await menu.save();
-    await menu.populate('category');
+    await menu.populate(['category', 'restaurant']);
 
     const menuObject = menu.toObject();
 
-    const publicMenu = plainToInstance(MenuPublicOutputDto, menuObject, {
-      excludeExtraneousValues: true,
-    });
+    const publicMenu = plainToInstance(
+      MenuPublicWithCompleteRestaurantOutputDto,
+      menuObject,
+      {
+        excludeExtraneousValues: true,
+      },
+    );
 
-    return OrchestrationResult.Success<MenuPublicOutputDto>({
-      statusCode: EnumStatusCode.DELETED_SUCCESSFULLY,
-      data: publicMenu,
-      message: 'Image deleted successfully',
-    });
+    return OrchestrationResult.Success<MenuPublicWithCompleteRestaurantOutputDto>(
+      {
+        statusCode: EnumStatusCode.DELETED_SUCCESSFULLY,
+        data: publicMenu,
+        message: 'Image deleted successfully',
+      },
+    );
   }
 
   async deleteMenuCoverImage(menuId: string, user: ILoggedInUserTokenData) {
@@ -661,18 +716,24 @@ export class MenusService {
 
     menu.coverImage = undefined;
     await menu.save();
-    await menu.populate('category');
+    await menu.populate(['category', 'restaurant']);
 
     const menuObject = menu.toObject();
 
-    const publicMenu = plainToInstance(MenuPublicOutputDto, menuObject, {
-      excludeExtraneousValues: true,
-    });
+    const publicMenu = plainToInstance(
+      MenuPublicWithCompleteRestaurantOutputDto,
+      menuObject,
+      {
+        excludeExtraneousValues: true,
+      },
+    );
 
-    return OrchestrationResult.Success<MenuPublicOutputDto>({
-      statusCode: EnumStatusCode.DELETED_SUCCESSFULLY,
-      data: publicMenu,
-      message: 'Cover image deleted successfully',
-    });
+    return OrchestrationResult.Success<MenuPublicWithCompleteRestaurantOutputDto>(
+      {
+        statusCode: EnumStatusCode.DELETED_SUCCESSFULLY,
+        data: publicMenu,
+        message: 'Cover image deleted successfully',
+      },
+    );
   }
 }
