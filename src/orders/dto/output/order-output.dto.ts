@@ -113,6 +113,9 @@ abstract class OrderOutputDto {
   status: string;
 
   @Expose()
+  distanceKm: number;
+
+  @Expose()
   @Type(() => StatusTransitionOutputDto)
   statusTransitions: StatusTransitionOutputDto;
 

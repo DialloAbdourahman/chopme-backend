@@ -219,6 +219,26 @@ export class Order extends BaseSchema {
     required: false,
   })
   refundWebhookDetails: RefundWebhookDetails;
+
+  @Prop({
+    type: {
+      type: String,
+      enum: ['Point'],
+      required: true,
+      default: 'Point',
+    },
+    coordinates: {
+      type: [Number],
+      required: true,
+    },
+  })
+  clientLocation: {
+    type: string;
+    coordinates: number[];
+  };
+
+  @Prop({ type: Number, required: true })
+  distanceKm: number;
 }
 
 export const OrderSchema = SchemaFactory.createForClass(Order);

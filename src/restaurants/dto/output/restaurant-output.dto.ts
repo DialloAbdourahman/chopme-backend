@@ -1,6 +1,8 @@
 import { Expose, Transform, Type } from 'class-transformer';
 import { EnumNetwork } from 'src/common/enums/networks';
 import { EnumWalletTypes } from 'src/common/enums/wallet-types';
+import { computePriceWithPlatformPercentage } from 'src/common/utils/compute-price-with-platform-percentage';
+import { env } from 'src/config/env';
 
 export class MobileWalletDataOutputDto {
   @Expose()
@@ -78,10 +80,24 @@ export class RestaurantPublicOutputDto {
   pictures: string[];
 
   @Expose()
+  @Transform(({ obj }) =>
+    obj.deliveryPricingKm?.map(
+      (tier: { from: number; to: number; price: number }) => ({
+        ...tier,
+        priceWithPlatformPercentage: computePriceWithPlatformPercentage({
+          price: tier.price,
+          platformPercentage:
+            env.collectionPercentage + env.disbursementPercentage,
+          roundToNearestFCFA: env.roundToNearestFCFA,
+        }),
+      }),
+    ),
+  )
   deliveryPricingKm: {
     from: number;
     to: number;
     price: number;
+    priceWithPlatformPercentage: number;
   }[];
 
   @Expose()

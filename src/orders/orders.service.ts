@@ -11,7 +11,6 @@ import {
   Restaurant,
   RestaurantDocument,
 } from 'src/restaurants/entities/restaurant.entity';
-import { computeDistanceBetweenTwoPoints } from 'src/common/utils/compute-distance-between-two-points';
 import { env } from 'src/config/env';
 import { Order, OrderDocument, OrderItem } from './entities/order.entity';
 import { computePriceWithPlatformPercentage } from 'src/common/utils/compute-price-with-platform-percentage';
@@ -69,6 +68,11 @@ export class OrdersService {
     };
     orders: { menu: MenuDocument; quantity: number }[];
     maxTimeToPayOrder: Date;
+    distanceKm: number;
+    clientLocation: {
+      type: string;
+      coordinates: number[];
+    };
     createOrderDto?: CreateOrderDto;
   }> {
     const productIds = createOrderDto.items.map((item) => item.productId);
@@ -182,30 +186,51 @@ export class OrdersService {
     }
 
     // Make sure that the client is not too far from the restaurant.
-    const distanceBetweenRestaurantAndClient = computeDistanceBetweenTwoPoints({
-      from: {
-        latitude: restaurant.location.coordinates[1],
-        longitude: restaurant.location.coordinates[0],
+    const clientLocation: {
+      type: 'Point';
+      coordinates: [number, number];
+    } = {
+      type: 'Point',
+      coordinates: [client.address.longitude, client.address.latitude],
+    };
+    const [restaurantWithDistance] = await this.restaurantModel.aggregate<{
+      distance: number;
+    }>([
+      {
+        $geoNear: {
+          near: clientLocation,
+          spherical: true,
+          distanceField: 'distance',
+          query: {
+            _id: restaurant._id,
+            deleted: false,
+          },
+        },
       },
-      to: {
-        latitude: client.address.latitude,
-        longitude: client.address.longitude,
-      },
-    });
+      { $limit: 1 },
+    ]);
 
+    if (!restaurantWithDistance) {
+      throw new OrchestrationException({
+        statusCode: EnumStatusCode.RESTAURANT_NOT_FOUND,
+        message: 'Restaurant not found',
+        code: 404,
+      });
+    }
+
+    const distanceKm =
+      Math.round((restaurantWithDistance.distance / 1000) * 100) / 100;
     const deliveryTier = restaurant.deliveryPricingKm.find(
-      (tier) =>
-        distanceBetweenRestaurantAndClient >= tier.from &&
-        distanceBetweenRestaurantAndClient <= tier.to,
+      (tier) => distanceKm >= tier.from && distanceKm <= tier.to,
     );
 
     this.logger.log(
-      `[ensureCanOrder] Distance to restaurant: ${distanceBetweenRestaurantAndClient.toFixed(2)}km`,
+      `[ensureCanOrder] Distance to restaurant: ${distanceKm.toFixed(2)}km`,
     );
 
     if (!deliveryTier) {
       this.logger.warn(
-        `[ensureCanOrder] Client too far: distance=${distanceBetweenRestaurantAndClient.toFixed(2)}km, clientId=${client._id}, restaurantId=${restaurant._id}`,
+        `[ensureCanOrder] Client too far: distance=${distanceKm.toFixed(2)}km, clientId=${client._id}, restaurantId=${restaurant._id}`,
       );
       throw new OrchestrationException({
         statusCode: EnumStatusCode.TOO_FAR,
@@ -275,6 +300,8 @@ export class OrdersService {
       })),
       deliveryTier,
       maxTimeToPayOrder,
+      distanceKm,
+      clientLocation,
     };
   }
 
@@ -284,6 +311,8 @@ export class OrdersService {
     deliveryTier,
     orders,
     maxTimeToPayOrder,
+    distanceKm,
+    clientLocation,
     orderId,
   }: {
     createOrderDto: CreateOrderDto;
@@ -295,6 +324,11 @@ export class OrdersService {
     };
     orders: { menu: MenuDocument; quantity: number }[];
     maxTimeToPayOrder: Date;
+    distanceKm: number;
+    clientLocation: {
+      type: string;
+      coordinates: number[];
+    };
     orderId?: string;
   }): Promise<OrderDocument> {
     const deliveryPrice = deliveryTier.price;
@@ -351,6 +385,8 @@ export class OrdersService {
         },
       ],
       maxTimeToPayOrder: maxTimeToPayOrder,
+      distanceKm,
+      clientLocation,
       pricing: {
         totalAmountCollected: totalPriceWithPlatformPercentage,
         totalAmountCollectedWithDelivery:
@@ -419,6 +455,8 @@ export class OrdersService {
       deliveryTier: validatedOrder.deliveryTier,
       orders: validatedOrder.orders,
       maxTimeToPayOrder: validatedOrder.maxTimeToPayOrder,
+      distanceKm: validatedOrder.distanceKm,
+      clientLocation: validatedOrder.clientLocation,
     });
     const orderObject = order.toObject();
     const publicOrder = plainToInstance(OrderClientOutputDto, orderObject, {
@@ -481,6 +519,8 @@ export class OrdersService {
       deliveryTier: validatedOrder.deliveryTier,
       orders: validatedOrder.orders,
       maxTimeToPayOrder: validatedOrder.maxTimeToPayOrder,
+      distanceKm: validatedOrder.distanceKm,
+      clientLocation: validatedOrder.clientLocation,
       orderId,
     });
     const orderObject = order.toObject();
