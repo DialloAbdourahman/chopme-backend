@@ -35,18 +35,6 @@ export class OrdersController {
     return this.ordersService.create(createOrderDto, user);
   }
 
-  @Patch(':orderId')
-  @HttpCode(HttpStatus.OK)
-  @UseGuards(AuthGuard, RoleGuard)
-  @Roles(EnumUserRole.CLIENT)
-  update(
-    @Param('orderId') orderId: string,
-    @CurrentUser() user: ILoggedInUserTokenData,
-    @Body() createOrderDto: CreateOrderDto,
-  ) {
-    return this.ordersService.update(orderId, createOrderDto, user);
-  }
-
   @Post(':orderId/pay')
   @HttpCode(HttpStatus.OK)
   @UseGuards(AuthGuard, RoleGuard)
