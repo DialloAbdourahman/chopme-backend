@@ -388,6 +388,7 @@ export class OrdersService {
         collectionPercentage: env.collectionPercentage,
         disbursementPercentage: env.disbursementPercentage,
       },
+      createdBy: new Types.ObjectId(user.id),
     };
 
     const order = new this.orderModel(orderData);

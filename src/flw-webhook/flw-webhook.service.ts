@@ -163,6 +163,12 @@ export class FlwWebhookService {
         `[FlwWebhookService] Found ${usersToSend.length} users to notify `,
       );
       const userIdStrings = usersToSend.map((item) => item.user.toString());
+      if (order.createdBy) {
+        this.logger.log(
+          `[FlwWebhookService] Adding creator to notification list: ${order.createdBy.toString()}`,
+        );
+        userIdStrings.push(order.createdBy.toString());
+      }
       this.logger.log(
         `[FlwWebhookService] User IDs to notify: ${userIdStrings.join(', ')}`,
       );
@@ -177,7 +183,7 @@ export class FlwWebhookService {
       );
       this.eventsGateway.emitToUsers<OrderRestaurantOutputDto>(
         userIdStrings,
-        EnumWebSocketEventType.ORDER_CREATED,
+        EnumWebSocketEventType.ORDER_STATUS_CHANGED,
         orderToSentToRestaurant,
       );
     } catch (error) {
