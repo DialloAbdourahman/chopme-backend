@@ -15,9 +15,7 @@ class OrderItemPublicOutputDto {
 
   @Expose()
   originalPrice: number;
-}
 
-class OrderItemPrivateOutputDto extends OrderItemPublicOutputDto {
   @Expose()
   priceWithPlatformPercentage: number;
 }
@@ -113,6 +111,9 @@ abstract class OrderOutputDto {
   status: string;
 
   @Expose()
+  refundStatus;
+
+  @Expose()
   distanceKm: number;
 
   @Expose()
@@ -157,9 +158,9 @@ export class OrderAdminOutputDto extends OrderOutputDto {
   @Type(() => PricingAdminOutputDto)
   pricing: PricingAdminOutputDto;
 
-  @Expose()
-  @Type(() => OrderItemPrivateOutputDto)
-  declare items: OrderItemPrivateOutputDto[];
+  // @Expose()
+  // @Type(() => OrderItemPrivateOutputDto)
+  // declare items: OrderItemPrivateOutputDto[];
 
   @Expose()
   @Type(() => MetaDataOutputDto)

@@ -634,7 +634,11 @@ export class OrdersService {
       });
     }
 
-    if (order.status !== EnumOrderStatus.PAID) {
+    if (
+      order.status !== EnumOrderStatus.PAID &&
+      order.status !== EnumOrderStatus.IN_DELIVERY &&
+      order.status !== EnumOrderStatus.PREPARING_ORDER
+    ) {
       this.logger.warn(
         `[cancelOrderRestaurant] Order cannot be cancelled - invalid status: orderId=${orderId}, currentStatus=${order.status}`,
       );
@@ -717,7 +721,7 @@ export class OrdersService {
       );
       this.eventsGateway.emitToUser<OrderClientOutputDto>(
         userId,
-        EnumWebSocketEventType.ORDER_CANCELLED,
+        EnumWebSocketEventType.ORDER_STATUS_CHANGED,
         orderToSendToClient,
       );
     } catch (error) {
@@ -909,6 +913,47 @@ export class OrdersService {
     });
   }
 
+  async getOrderByIdAndClient(orderId: string, user: ILoggedInUserTokenData) {
+    this.logger.log(
+      `[getOrderByIdAndClient] Fetching orderId=${orderId}, clientId=${user.clientId}`,
+    );
+
+    if (!Types.ObjectId.isValid(orderId)) {
+      throw new OrchestrationException({
+        statusCode: EnumStatusCode.ORDER_NOT_FOUND,
+        message: 'Order not found',
+        code: 404,
+      });
+    }
+
+    const order = await this.orderModel.findOne({
+      _id: new Types.ObjectId(orderId),
+      client: new Types.ObjectId(user.clientId),
+    });
+
+    if (!order) {
+      this.logger.warn(
+        `[getOrderByIdAndClient] Order not found or access denied: orderId=${orderId}, clientId=${user.clientId}`,
+      );
+      throw new OrchestrationException({
+        statusCode: EnumStatusCode.ORDER_NOT_FOUND,
+        message: 'Order not found',
+        code: 404,
+      });
+    }
+
+    const orderObject = order.toObject();
+    const publicOrder = plainToInstance(OrderClientOutputDto, orderObject, {
+      excludeExtraneousValues: true,
+    });
+
+    return OrchestrationResult.Success<OrderClientOutputDto>({
+      statusCode: EnumStatusCode.RECOVERED_SUCCESSFULLY,
+      data: publicOrder,
+      message: 'Order fetched successfully',
+    });
+  }
+
   async pay(orderId: string, user: ILoggedInUserTokenData) {
     this.logger.log(
       `[pay] Payment request by clientId=${user.clientId} for orderId=${orderId}`,
@@ -982,7 +1027,7 @@ export class OrdersService {
       customizations: {
         title: 'Chopme',
       },
-      redirect_url: `${env.flutterWaveRedirectUrl}?orderId=${order.id}`,
+      redirect_url: `${env.flutterWaveRedirectUrl}/${order.id}`,
       meta: {
         orderId: order.id.toString(),
       },

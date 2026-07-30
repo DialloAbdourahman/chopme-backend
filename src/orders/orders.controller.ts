@@ -129,7 +129,7 @@ export class OrdersController {
     });
   }
 
-  @Get(':orderId/client')
+  @Get(':orderId/get-client')
   @HttpCode(HttpStatus.OK)
   @UseGuards(AuthGuard, RoleGuard)
   @Roles(EnumUserRole.RESTAURANT_MEMBER)
@@ -138,5 +138,16 @@ export class OrdersController {
     @CurrentUser() user: ILoggedInUserTokenData,
   ) {
     return this.ordersService.getOrderClient(orderId, user);
+  }
+
+  @Get(':orderId')
+  @HttpCode(HttpStatus.OK)
+  @UseGuards(AuthGuard, RoleGuard)
+  @Roles(EnumUserRole.CLIENT)
+  getOrderByIdAndClient(
+    @Param('orderId') orderId: string,
+    @CurrentUser() user: ILoggedInUserTokenData,
+  ) {
+    return this.ordersService.getOrderByIdAndClient(orderId, user);
   }
 }
