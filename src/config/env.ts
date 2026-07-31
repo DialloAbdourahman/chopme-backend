@@ -5,6 +5,9 @@ export interface EnvConfig {
   port: number;
   allowedOrigins: string;
 
+  adminEmail: string;
+  adminPassword: string;
+
   accessTokenSecret: string;
   refreshTokenSecret: string;
 
@@ -43,6 +46,9 @@ export const env: EnvConfig = {
   mongodbUri: process.env.MONGODB_URI!,
   port: Number(process.env.PORT ?? 3000),
   allowedOrigins: process.env.ALLOWED_ORIGINS!,
+
+  adminEmail: process.env.ADMIN_EMAIL!,
+  adminPassword: process.env.ADMIN_PASSWORD!,
 
   accessTokenSecret: process.env.ACCESS_TOKEN_SECRET!,
   refreshTokenSecret: process.env.REFRESH_TOKEN_SECRET!,

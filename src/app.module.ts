@@ -20,6 +20,7 @@ import { FlutterwaveModule } from './common/flutterwave/flutterwave.module';
 import { FlwWebhookModule } from './flw-webhook/flw-webhook.module';
 import { RestaurantRatingsModule } from './restaurant-ratings/restaurant-ratings.module';
 import { TransfersModule } from './transfers/transfers.module';
+import { StartupService } from './startup';
 
 @Module({
   imports: [
@@ -67,6 +68,7 @@ import { TransfersModule } from './transfers/transfers.module';
       useClass: ThrottlerGuard,
     },
     WebSocketService,
+    StartupService,
   ],
 })
 export class AppModule {}

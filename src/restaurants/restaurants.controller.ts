@@ -250,6 +250,93 @@ export class RestaurantsController {
     return this.restaurantsService.deleteRestaurantCoverImage(id, user);
   }
 
+  @Post('admin/:id/upload-image')
+  @HttpCode(HttpStatus.CREATED)
+  @UseGuards(AuthGuard, RoleGuard)
+  @Roles(EnumUserRole.ADMIN)
+  @UseInterceptors(
+    FileInterceptor('file', {
+      fileFilter: (_, file, callback) => {
+        if (!file.mimetype.startsWith('image/')) {
+          return callback(
+            new OrchestrationException({
+              statusCode: EnumStatusCode.ONLY_IMAGE_FILES_ALLOWED,
+              message: 'Only image files are allowed',
+              code: 400,
+            }),
+            false,
+          );
+        }
+        callback(null, true);
+      },
+      limits: {
+        fileSize: env.maxRestaurantImageSizeInMb * 1024 * 1024,
+      },
+    }),
+  )
+  adminUploadImage(
+    @Param('id') id: string,
+    @UploadedFile() file: Express.Multer.File,
+    @CurrentUser() user: ILoggedInUserTokenData,
+  ) {
+    return this.restaurantsService.uploadRestaurantImage(id, file, user);
+  }
+
+  @Post('admin/:id/upload-cover-image')
+  @HttpCode(HttpStatus.CREATED)
+  @UseGuards(AuthGuard, RoleGuard)
+  @Roles(EnumUserRole.ADMIN)
+  @UseInterceptors(
+    FileInterceptor('file', {
+      fileFilter: (_, file, callback) => {
+        if (!file.mimetype.startsWith('image/')) {
+          return callback(
+            new OrchestrationException({
+              statusCode: EnumStatusCode.ONLY_IMAGE_FILES_ALLOWED,
+              message: 'Only image files are allowed',
+              code: 400,
+            }),
+            false,
+          );
+        }
+        callback(null, true);
+      },
+      limits: {
+        fileSize: env.maxRestaurantImageSizeInMb * 1024 * 1024,
+      },
+    }),
+  )
+  adminUploadCoverImage(
+    @Param('id') id: string,
+    @UploadedFile() file: Express.Multer.File,
+    @CurrentUser() user: ILoggedInUserTokenData,
+  ) {
+    return this.restaurantsService.uploadRestaurantCoverImage(id, file, user);
+  }
+
+  @Delete('admin/:id/images')
+  @HttpCode(HttpStatus.OK)
+  @UseGuards(AuthGuard, RoleGuard)
+  @Roles(EnumUserRole.ADMIN)
+  adminDeleteImage(
+    @Param('id') id: string,
+    @Query('key') key: string,
+    @CurrentUser() user: ILoggedInUserTokenData,
+  ) {
+    return this.restaurantsService.deleteRestaurantImage(id, key, user);
+  }
+
+  @Delete('admin/:id/cover-image')
+  @HttpCode(HttpStatus.OK)
+  @UseGuards(AuthGuard, RoleGuard)
+  @Roles(EnumUserRole.ADMIN)
+  adminDeleteCoverImage(
+    @Param('id') id: string,
+    @CurrentUser() user: ILoggedInUserTokenData,
+  ) {
+    return this.restaurantsService.deleteRestaurantCoverImage(id, user);
+  }
+
   @Get(':id/wallet')
   @HttpCode(HttpStatus.OK)
   @UseGuards(AuthGuard, RoleGuard, RestaurantRoleGuard)

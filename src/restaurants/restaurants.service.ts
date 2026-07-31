@@ -63,6 +63,10 @@ export class RestaurantsService {
     user: ILoggedInUserTokenData,
     context: string,
   ) {
+    if (user.role === EnumUserRole.ADMIN) {
+      return;
+    }
+
     if (!user.restaurantId || user.restaurantId !== restaurantId) {
       this.logger.log(
         `[${context}] User id=${user.id} is not allowed to update restaurant id=${restaurantId}`,

@@ -80,21 +80,21 @@ export class RestaurantRatingsService {
     ];
 
     const hasCompletedOrder = await this.orderModel.exists({
-      client,
-      restaurant,
+      client: client._id,
+      restaurant: restaurant._id,
       status: { $in: completedStatuses },
     });
 
-    // if (!hasCompletedOrder) {
-    //   this.logger.warn(
-    //     `[create] No completed order found for clientId=${user.clientId}, restaurantId=${restaurantId}`,
-    //   );
-    //   throw new OrchestrationException({
-    //     statusCode: EnumStatusCode.NO_COMPLETED_ORDER_FOR_RESTAURANT,
-    //     message: 'You must have a completed order to rate this restaurant',
-    //     code: 403,
-    //   });
-    // }
+    if (!hasCompletedOrder) {
+      this.logger.warn(
+        `[create] No completed order found for clientId=${user.clientId}, restaurantId=${restaurantId}`,
+      );
+      throw new OrchestrationException({
+        statusCode: EnumStatusCode.NO_COMPLETED_ORDER_FOR_RESTAURANT,
+        message: 'You must have a completed order to rate this restaurant',
+        code: 403,
+      });
+    }
 
     const existingRating = await this.ratingModel.findOne({
       client,

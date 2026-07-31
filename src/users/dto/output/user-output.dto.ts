@@ -1,4 +1,5 @@
 import { Expose, Transform } from 'class-transformer';
+import { EnumAuthType } from 'src/common/enums/auth-types';
 import { EnumUserRole } from 'src/common/enums/user-roles';
 
 export class UserPublicOutputDto {
@@ -14,6 +15,9 @@ export class UserPublicOutputDto {
 
   @Expose()
   role: EnumUserRole;
+
+  @Expose()
+  authType: EnumAuthType;
 
   @Expose()
   createdAt: Date;

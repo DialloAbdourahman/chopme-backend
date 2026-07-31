@@ -2,6 +2,7 @@ import { IsEmail, IsString, Matches, MinLength } from 'class-validator';
 
 export class CreateClientDto {
   @IsString()
+  @MinLength(5, { message: 'Full name must be at least 5 characters long' })
   fullName: string;
 
   @IsString()
