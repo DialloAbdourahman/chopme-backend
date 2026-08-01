@@ -816,14 +816,11 @@ export class OrdersService {
     });
 
     try {
-      const client = await this.clientModel.findOne({
-        _id: new Types.ObjectId(order.client.toString()),
-      });
-      const userId = client?.user.toString();
+      const userId = order.createdBy?.toString();
 
       if (!userId) {
         this.logger.warn(
-          `[updateOrderStatus] No user ID found for client ${order.client} to send notification`,
+          `[updateOrderStatus] No user ID found for order creator ${order.createdBy} to send notification`,
         );
         return;
       }

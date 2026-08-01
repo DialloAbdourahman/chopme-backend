@@ -18,7 +18,10 @@ import {
 import { EnumOrderStatus } from 'src/common/enums/order-status';
 import { WebSocketService } from 'src/web-socket/web-socket-service';
 import { EnumWebSocketEventType } from 'src/common/enums/web-socket-events';
-import { OrderRestaurantOutputDto } from 'src/orders/dto/output/order-output.dto';
+import {
+  OrderClientOutputDto,
+  OrderRestaurantOutputDto,
+} from 'src/orders/dto/output/order-output.dto';
 import { plainToInstance } from 'class-transformer';
 import { RestaurantMember } from 'src/restaurant-members/entities/restaurant-member.entity';
 
@@ -150,6 +153,8 @@ export class FlwWebhookService {
       `[FlwWebhookService] Emitting order created event for order: id=${order._id}`,
     );
 
+    const orderObject = order.toObject();
+
     try {
       this.logger.log(
         `[FlwWebhookService] Finding restaurant members for restaurant: ${order.restaurant}`,
@@ -162,19 +167,14 @@ export class FlwWebhookService {
       this.logger.log(
         `[FlwWebhookService] Found ${usersToSend.length} users to notify `,
       );
-      const userIdStrings = usersToSend.map((item) => item.user.toString());
-      if (order.createdBy) {
-        this.logger.log(
-          `[FlwWebhookService] Adding creator to notification list: ${order.createdBy.toString()}`,
-        );
-        userIdStrings.push(order.createdBy.toString());
-      }
+      const restaurantMemberUserIds = usersToSend.map((item) =>
+        item.user.toString(),
+      );
       this.logger.log(
-        `[FlwWebhookService] User IDs to notify: ${userIdStrings.join(', ')}`,
+        `[FlwWebhookService] Restaurant member user IDs to notify: ${restaurantMemberUserIds.join(', ')}`,
       );
 
-      const orderObject = order.toObject();
-      const orderToSentToRestaurant = plainToInstance(
+      const orderToSendToRestaurant = plainToInstance(
         OrderRestaurantOutputDto,
         orderObject,
         {
@@ -182,14 +182,39 @@ export class FlwWebhookService {
         },
       );
       this.eventsGateway.emitToUsers<OrderRestaurantOutputDto>(
-        userIdStrings,
+        restaurantMemberUserIds,
         EnumWebSocketEventType.ORDER_STATUS_CHANGED,
-        orderToSentToRestaurant,
+        orderToSendToRestaurant,
       );
     } catch (error) {
       this.logger.error(
-        `[FlwWebhookService] Failed to emit order created event: ${error.message}`,
+        `[FlwWebhookService] Failed to emit restaurant member notification: ${error.message}`,
       );
+    }
+
+    if (order.createdBy) {
+      try {
+        const clientId = order.createdBy.toString();
+        this.logger.log(
+          `[FlwWebhookService] Notifying order creator: ${clientId}`,
+        );
+        const orderToSendToClient = plainToInstance(
+          OrderClientOutputDto,
+          orderObject,
+          {
+            excludeExtraneousValues: true,
+          },
+        );
+        this.eventsGateway.emitToUsers<OrderClientOutputDto>(
+          [clientId],
+          EnumWebSocketEventType.ORDER_STATUS_CHANGED,
+          orderToSendToClient,
+        );
+      } catch (error) {
+        this.logger.error(
+          `[FlwWebhookService] Failed to emit client notification: ${error.message}`,
+        );
+      }
     }
   }
 
@@ -242,6 +267,32 @@ export class FlwWebhookService {
     this.logger.log(
       `[FlwWebhookService] Order saved successfully: id=${order._id}, status=${order.status}`,
     );
+
+    if (order.createdBy) {
+      try {
+        const clientId = order.createdBy.toString();
+        this.logger.log(
+          `[FlwWebhookService] Notifying order creator of failed payment: ${clientId}`,
+        );
+        const orderObject = order.toObject();
+        const orderToSendToClient = plainToInstance(
+          OrderClientOutputDto,
+          orderObject,
+          {
+            excludeExtraneousValues: true,
+          },
+        );
+        this.eventsGateway.emitToUser<OrderClientOutputDto>(
+          clientId,
+          EnumWebSocketEventType.ORDER_STATUS_CHANGED,
+          orderToSendToClient,
+        );
+      } catch (error) {
+        this.logger.error(
+          `[FlwWebhookService] Failed to emit client notification for failed payment: ${error.message}`,
+        );
+      }
+    }
   }
 
   private buildPaymentWebhookDetails(
