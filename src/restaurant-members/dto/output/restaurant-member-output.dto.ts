@@ -1,7 +1,6 @@
 import { Expose, Transform, Type } from 'class-transformer';
-// import { RestaurantPublicOutputDto } from 'src/restaurants/dto/output/restaurant-output.dto';
-// import { UserPublicOutputDto } from 'src/users/dto/output/user-output.dto';
 import { EnumRestaurantMemberRole } from 'src/common/enums/restaurant-member-role';
+import { RestaurantPublicOutputDto } from 'src/restaurants/dto/output/restaurant-output.dto';
 import { UserPublicOutputDto } from 'src/users/dto/output/user-output.dto';
 
 export class RestaurantMemberPublicOutputDto {
@@ -9,9 +8,9 @@ export class RestaurantMemberPublicOutputDto {
   @Transform(({ obj }) => obj._id?.toString())
   id: string;
 
-  // @Expose()
-  // @Type(() => RestaurantPublicOutputDto)
-  // restaurant: RestaurantPublicOutputDto;
+  @Expose()
+  @Type(() => RestaurantPublicOutputDto)
+  restaurant: string;
 
   @Expose()
   role: EnumRestaurantMemberRole;

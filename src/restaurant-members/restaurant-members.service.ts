@@ -115,6 +115,7 @@ export class RestaurantMembersService {
         '[create] Restaurant member creation transaction committed',
       );
 
+      await member.populate('restaurant');
       const memberObject = member.toObject();
 
       const publicMember = plainToInstance(
@@ -224,6 +225,15 @@ export class RestaurantMembersService {
     // Get paginated items
     const itemsPipeline = [
       ...pipeline,
+      {
+        $lookup: {
+          from: 'restaurants',
+          localField: 'restaurant',
+          foreignField: '_id',
+          as: 'restaurant',
+        },
+      },
+      { $unwind: '$restaurant' },
       { $skip: (page - 1) * limit },
       { $limit: limit },
     ];
@@ -366,6 +376,7 @@ export class RestaurantMembersService {
         `[restore] Restaurant member id=${memberId} restored successfully`,
       );
 
+      await member.populate('restaurant');
       const memberObject = member.toObject();
 
       const publicMember = plainToInstance(
@@ -443,6 +454,7 @@ export class RestaurantMembersService {
     member.role = role;
     await member.save();
 
+    await member.populate('restaurant');
     const memberObject = member.toObject();
 
     const publicMember = plainToInstance(
