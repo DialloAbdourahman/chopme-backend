@@ -154,16 +154,18 @@ export class RestaurantMembersService {
       page,
       limit,
       role,
+      deleted,
     }: {
       search?: string;
       page: number;
       limit: number;
       role?: EnumRestaurantMemberRole;
+      deleted?: boolean;
     },
     managerUser?: ILoggedInUserTokenData,
   ) {
     this.logger.log(
-      `[search] Searching restaurant members with filters: search=${search}, page=${page}, limit=${limit}, restaurantId=${managerUser?.restaurantId}`,
+      `[search] Searching restaurant members with filters: search=${search}, page=${page}, limit=${limit}, deleted=${deleted}, restaurantId=${managerUser?.restaurantId}`,
     );
 
     const pipeline: any[] = [];
@@ -172,7 +174,7 @@ export class RestaurantMembersService {
     pipeline.push({
       $match: {
         restaurant: new Types.ObjectId(managerUser!.restaurantId!),
-        deleted: false,
+        deleted: deleted ?? false,
       },
     });
 
@@ -308,58 +310,50 @@ export class RestaurantMembersService {
     });
   }
 
-  update(id: number, updateRestaurantMemberDto: UpdateRestaurantMemberDto) {
-    return `This action updates a #${id} restaurantMember`;
-  }
-
   async restore(memberId: string, managerUser: ILoggedInUserTokenData) {
     this.logger.log(
       `[restore] Restoring restaurant member id=${memberId} by manager user id=${managerUser.id}, restaurantId=${managerUser.restaurantId}`,
     );
 
+    const restaurantObjectId = new Types.ObjectId(managerUser.restaurantId);
+
+    const member = await this.restaurantMemberModel.findOne({
+      _id: new Types.ObjectId(memberId),
+      restaurant: restaurantObjectId,
+      deleted: true,
+    });
+
+    if (!member) {
+      this.logger.log(
+        `[restore] Restaurant member not found id=${memberId} in restaurantId=${managerUser.restaurantId}`,
+      );
+      throw new OrchestrationException({
+        statusCode: EnumStatusCode.NOT_FOUND,
+        message: 'Restaurant member not found',
+        code: 404,
+      });
+    }
+
+    const user = await this.userModel.findOne({
+      _id: member.user.toString(),
+      deleted: true,
+    });
+
+    if (!user) {
+      this.logger.error(
+        `[restore] No user found for restaurant member id=${memberId}, userId=${member.user}`,
+      );
+      throw new OrchestrationException({
+        statusCode: EnumStatusCode.LINKED_USER_NOT_FOUND,
+        message: 'User linked to restaurant member not found',
+        code: 500,
+      });
+    }
+
     const session = await this.connection.startSession();
     session.startTransaction();
 
     try {
-      const restaurantObjectId = new Types.ObjectId(managerUser.restaurantId);
-
-      const member = await this.restaurantMemberModel
-        .findOne({
-          _id: new Types.ObjectId(memberId),
-          restaurant: restaurantObjectId,
-          deleted: true,
-        })
-        .session(session);
-
-      if (!member) {
-        this.logger.log(
-          `[restore] Restaurant member not found id=${memberId} in restaurantId=${managerUser.restaurantId}`,
-        );
-        throw new OrchestrationException({
-          statusCode: EnumStatusCode.NOT_FOUND,
-          message: 'Restaurant member not found',
-          code: 404,
-        });
-      }
-
-      const user = await this.userModel
-        .findOne({
-          _id: member.user.toString(),
-          deleted: true,
-        })
-        .session(session);
-
-      if (!user) {
-        this.logger.error(
-          `[restore] No user found for restaurant member id=${memberId}, userId=${member.user}`,
-        );
-        throw new OrchestrationException({
-          statusCode: EnumStatusCode.LINKED_USER_NOT_FOUND,
-          message: 'User linked to restaurant member not found',
-          code: 500,
-        });
-      }
-
       member.deleted = false;
       member.deletedAt = null;
       member.deletedBy = null;
@@ -488,60 +482,56 @@ export class RestaurantMembersService {
       });
     }
 
+    const restaurantObjectId = new Types.ObjectId(managerUser.restaurantId);
+
+    const member = await this.restaurantMemberModel.findOne({
+      _id: new Types.ObjectId(memberId),
+      restaurant: restaurantObjectId,
+      deleted: false,
+    });
+
+    if (!member) {
+      this.logger.log(
+        `[remove] Restaurant member not found id=${memberId} in restaurantId=${managerUser.restaurantId}`,
+      );
+      throw new OrchestrationException({
+        statusCode: EnumStatusCode.NOT_FOUND,
+        message: 'Restaurant member not found',
+        code: 404,
+      });
+    }
+
+    if (member.role === EnumRestaurantMemberRole.OWNER) {
+      this.logger.log(
+        `[remove] Attempt to delete owner restaurant member id=${memberId} in restaurantId=${managerUser.restaurantId}`,
+      );
+      throw new OrchestrationException({
+        statusCode: EnumStatusCode.CANNOT_DELETE_OWNER,
+        message: 'Cannot delete restaurant owner',
+        code: 403,
+      });
+    }
+
+    const user = await this.userModel.findOne({
+      _id: member.user.toString(),
+      deleted: false,
+    });
+
+    if (!user) {
+      this.logger.error(
+        `[remove] No user found for restaurant member id=${memberId}, userId=${member.user}`,
+      );
+      throw new OrchestrationException({
+        statusCode: EnumStatusCode.INTERNAL_SERVER_ERROR,
+        message: 'User linked to restaurant member not found',
+        code: 500,
+      });
+    }
+
     const session = await this.connection.startSession();
     session.startTransaction();
 
     try {
-      const restaurantObjectId = new Types.ObjectId(managerUser.restaurantId);
-
-      const member = await this.restaurantMemberModel
-        .findOne({
-          _id: new Types.ObjectId(memberId),
-          restaurant: restaurantObjectId,
-          deleted: false,
-        })
-        .session(session);
-
-      if (!member) {
-        this.logger.log(
-          `[remove] Restaurant member not found id=${memberId} in restaurantId=${managerUser.restaurantId}`,
-        );
-        throw new OrchestrationException({
-          statusCode: EnumStatusCode.NOT_FOUND,
-          message: 'Restaurant member not found',
-          code: 404,
-        });
-      }
-
-      if (member.role === EnumRestaurantMemberRole.OWNER) {
-        this.logger.log(
-          `[remove] Attempt to delete owner restaurant member id=${memberId} in restaurantId=${managerUser.restaurantId}`,
-        );
-        throw new OrchestrationException({
-          statusCode: EnumStatusCode.CANNOT_DELETE_OWNER,
-          message: 'Cannot delete restaurant owner',
-          code: 403,
-        });
-      }
-
-      const user = await this.userModel
-        .findOne({
-          _id: member.user.toString(),
-          deleted: false,
-        })
-        .session(session);
-
-      if (!user) {
-        this.logger.error(
-          `[remove] No user found for restaurant member id=${memberId}, userId=${member.user}`,
-        );
-        throw new OrchestrationException({
-          statusCode: EnumStatusCode.INTERNAL_SERVER_ERROR,
-          message: 'User linked to restaurant member not found',
-          code: 500,
-        });
-      }
-
       const deletedAt = new Date();
       const deletedById = new Types.ObjectId(managerUser.id);
 

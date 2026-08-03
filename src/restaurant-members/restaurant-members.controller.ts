@@ -11,6 +11,7 @@ import {
   Query,
   UseGuards,
   ParseIntPipe,
+  ParseBoolPipe,
   DefaultValuePipe,
 } from '@nestjs/common';
 import { RestaurantMembersService } from './restaurant-members.service';
@@ -66,9 +67,11 @@ export class RestaurantMembersController {
     @Query('limit', new DefaultValuePipe(10), ParseIntPipe) limit: number,
     @Query('search') search?: string,
     @Query('role') role?: EnumRestaurantMemberRole,
+    @Query('deleted', new DefaultValuePipe(false), ParseBoolPipe)
+    deleted?: boolean,
   ) {
     return this.restaurantMembersService.search(
-      { search, page, limit, role },
+      { search, page, limit, role, deleted },
       user,
     );
   }
@@ -110,15 +113,6 @@ export class RestaurantMembersController {
     @CurrentUser() user: ILoggedInUserTokenData,
   ) {
     return this.restaurantMembersService.restore(id, user);
-  }
-
-  @Patch(':id')
-  @HttpCode(HttpStatus.OK)
-  update(
-    @Param('id') id: string,
-    @Body() updateRestaurantMemberDto: UpdateRestaurantMemberDto,
-  ) {
-    return this.restaurantMembersService.update(+id, updateRestaurantMemberDto);
   }
 
   @Delete(':id')
