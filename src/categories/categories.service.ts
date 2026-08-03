@@ -4,6 +4,7 @@ import { Model, Types } from 'mongoose';
 import { CreateCategoryDto } from './dto/input/create-category.dto';
 import { UpdateCategoryDto } from './dto/input/update-category.dto';
 import { Category, CategoryDocument } from './entities/category.entity';
+import { Menu, MenuDocument } from '../menus/entities/menu.entity';
 import type { ILoggedInUserTokenData } from 'src/common/interfaces/loggedin-user-token-data';
 import { OrchestrationResult } from 'src/common/utils/orchestration.result';
 import { EnumStatusCode } from 'src/common/enums/response-status-code';
@@ -18,6 +19,8 @@ export class CategoriesService {
   constructor(
     @InjectModel(Category.name)
     private readonly categoryModel: Model<CategoryDocument>,
+    @InjectModel(Menu.name)
+    private readonly menuModel: Model<MenuDocument>,
   ) {}
 
   async create(
@@ -211,6 +214,21 @@ export class CategoriesService {
         statusCode: EnumStatusCode.NOT_FOUND,
         message: 'Category not found',
         code: 404,
+      });
+    }
+
+    const menu = await this.menuModel.findOne({
+      category: category._id,
+      deleted: false,
+    });
+
+    if (menu) {
+      this.logger.log(
+        `[remove] Category id=${id} is used in menu id=${menu._id}`,
+      );
+      return OrchestrationResult.Failure<string>({
+        statusCode: EnumStatusCode.CATEGORY_IN_USE,
+        message: 'Category is used in one or more menus',
       });
     }
 
