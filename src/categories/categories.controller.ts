@@ -7,7 +7,11 @@ import {
   HttpStatus,
   Param,
   Patch,
+  ParseBoolPipe,
+  ParseIntPipe,
+  DefaultValuePipe,
   Post,
+  Query,
   UseGuards,
   ValidationPipe,
 } from '@nestjs/common';
@@ -42,6 +46,28 @@ export class CategoriesController {
     @Body() createCategoryDto: CreateCategoryDto,
   ) {
     return this.categoriesService.create(createCategoryDto, user);
+  }
+
+  @Get('search')
+  @HttpCode(HttpStatus.OK)
+  @UseGuards(AuthGuard, RoleGuard, RestaurantRoleGuard)
+  @Roles(EnumUserRole.RESTAURANT_MEMBER)
+  @RestaurantRoles(
+    EnumRestaurantMemberRole.OWNER,
+    EnumRestaurantMemberRole.MANAGER,
+  )
+  search(
+    @CurrentUser() user: ILoggedInUserTokenData,
+    @Query('page', new DefaultValuePipe(1), ParseIntPipe) page: number,
+    @Query('limit', new DefaultValuePipe(10), ParseIntPipe) limit: number,
+    @Query('search') search?: string,
+    @Query('deleted', new DefaultValuePipe(false), ParseBoolPipe)
+    deleted?: boolean,
+  ) {
+    return this.categoriesService.search(
+      { search, page, limit, deleted },
+      user,
+    );
   }
 
   @Get('restaurant/:restaurantId')

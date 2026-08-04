@@ -10,7 +10,11 @@ import { OrchestrationResult } from 'src/common/utils/orchestration.result';
 import { EnumStatusCode } from 'src/common/enums/response-status-code';
 import { OrchestrationException } from 'src/common/exceptions/orchestration.exception';
 import { plainToInstance } from 'class-transformer';
-import { CategoryPublicOutputDto } from './dto/output/category-output.dto';
+import {
+  CategoryPrivateOutputDto,
+  CategoryPublicOutputDto,
+} from './dto/output/category-output.dto';
+import type { Pagination } from 'src/common/interfaces/pagination';
 
 @Injectable()
 export class CategoriesService {
@@ -62,6 +66,68 @@ export class CategoriesService {
       statusCode: EnumStatusCode.CREATED_SUCCESSFULLY,
       data: publicCategory,
       message: 'Category created successfully',
+    });
+  }
+
+  async search(
+    {
+      search,
+      page,
+      limit,
+      deleted,
+    }: {
+      search?: string;
+      page: number;
+      limit: number;
+      deleted?: boolean;
+    },
+    user: ILoggedInUserTokenData,
+  ) {
+    this.logger.log(
+      `[search] Searching categories with filters: search=${search}, page=${page}, limit=${limit}, deleted=${deleted}, restaurantId=${user.restaurantId}`,
+    );
+
+    const filter: Record<string, unknown> = {
+      restaurant: new Types.ObjectId(user.restaurantId),
+      deleted: deleted ?? false,
+    };
+
+    if (search) {
+      filter.$or = [
+        { name: { $regex: search, $options: 'i' } },
+        { description: { $regex: search, $options: 'i' } },
+      ];
+    }
+
+    const totalItems = await this.categoryModel.countDocuments(filter);
+    const totalPages = Math.ceil(totalItems / limit);
+
+    const categories = await this.categoryModel
+      .find(filter)
+      .sort({ name: 1 })
+      .skip((page - 1) * limit)
+      .limit(limit);
+
+    const publicCategories = plainToInstance(
+      CategoryPrivateOutputDto,
+      categories.map((category) => category.toObject()),
+      {
+        excludeExtraneousValues: true,
+      },
+    );
+
+    const paginatedResult: Pagination<CategoryPrivateOutputDto> = {
+      items: publicCategories,
+      page,
+      totalPages,
+      totalItems,
+      itemsPerPage: limit,
+    };
+
+    return OrchestrationResult.Success<Pagination<CategoryPrivateOutputDto>>({
+      statusCode: EnumStatusCode.RECOVERED_SUCCESSFULLY,
+      data: paginatedResult,
+      message: 'Categories retrieved successfully',
     });
   }
 
