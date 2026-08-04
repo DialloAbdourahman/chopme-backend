@@ -13,6 +13,7 @@ import {
   UseInterceptors,
   UploadedFile,
   ParseIntPipe,
+  ParseBoolPipe,
   DefaultValuePipe,
 } from '@nestjs/common';
 import { FileInterceptor } from '@nestjs/platform-express';
@@ -61,13 +62,55 @@ export class MenusController {
     @Query('categoryId') categoryId?: string,
     @Query('search') search?: string,
   ) {
-    return this.menusService.search({
+    return this.menusService.searchPublic({
       search,
       page,
       limit,
       restaurantId,
       categoryId,
     });
+  }
+
+  @Get('restaurant/search')
+  @HttpCode(HttpStatus.OK)
+  @UseGuards(AuthGuard, RoleGuard, RestaurantRoleGuard)
+  @Roles(EnumUserRole.RESTAURANT_MEMBER)
+  @RestaurantRoles(
+    EnumRestaurantMemberRole.OWNER,
+    EnumRestaurantMemberRole.MANAGER,
+  )
+  searchForRestaurantMember(
+    @Query('page', new DefaultValuePipe(1), ParseIntPipe) page: number,
+    @Query('limit', new DefaultValuePipe(10), ParseIntPipe) limit: number,
+    @Query('restaurantId') restaurantId: string,
+    @Query('categoryId') categoryId?: string,
+    @Query('search') search?: string,
+    @Query('deleted', new DefaultValuePipe(false), ParseBoolPipe)
+    deleted?: boolean,
+  ) {
+    return this.menusService.searchPrivate({
+      search,
+      page,
+      limit,
+      restaurantId,
+      categoryId,
+      deleted,
+    });
+  }
+
+  @Get('restaurant/:id')
+  @HttpCode(HttpStatus.OK)
+  @UseGuards(AuthGuard, RoleGuard, RestaurantRoleGuard)
+  @Roles(EnumUserRole.RESTAURANT_MEMBER)
+  @RestaurantRoles(
+    EnumRestaurantMemberRole.OWNER,
+    EnumRestaurantMemberRole.MANAGER,
+  )
+  findOneForRestaurantMember(
+    @Param('id') id: string,
+    @CurrentUser() user: ILoggedInUserTokenData,
+  ) {
+    return this.menusService.findOnePrivate(id, user);
   }
 
   @Get(':id')

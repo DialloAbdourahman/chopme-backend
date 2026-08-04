@@ -48,7 +48,7 @@ export class CreateMenuDto {
 
   @IsNumber()
   @Type(() => Number)
-  @Min(0)
+  @Min(env.roundToNearestFCFA)
   @IsDivisibleBy(env.roundToNearestFCFA, {
     message: `Price must be divisible by ${env.roundToNearestFCFA}`,
   })

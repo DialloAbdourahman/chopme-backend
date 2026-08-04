@@ -33,4 +33,7 @@ export class ClientPublicWithUserOutputDto extends ClientPublicOutputDto {
 export class ClientPrivateOutputDto extends ClientPublicOutputDto {
   @Expose()
   deletedAt: Date | null;
+
+  @Expose()
+  deleted: boolean;
 }

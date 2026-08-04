@@ -129,4 +129,7 @@ export class RestaurantPrivateOutputDto extends RestaurantPublicOutputDto {
 
   @Expose()
   deletedAt: Date | null;
+
+  @Expose()
+  deleted: boolean;
 }

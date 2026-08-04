@@ -57,16 +57,6 @@ export class MenuOutputDto {
 
 export class MenuPublicOutputDto extends MenuOutputDto {
   @Expose()
-  @Transform(({ obj }) => obj.restaurant._id?.toString())
-  restaurantId: string;
-
-  @Expose()
-  @Transform(({ obj }) => obj.restaurant.slug)
-  restaurantSlug: string;
-}
-
-export class MenuPublicWithCompleteRestaurantOutputDto extends MenuOutputDto {
-  @Expose()
   @Type(() => RestaurantPublicOutputDto)
   restaurant: RestaurantPublicOutputDto;
 }
@@ -74,6 +64,9 @@ export class MenuPublicWithCompleteRestaurantOutputDto extends MenuOutputDto {
 export class MenuPrivateOutputDto extends MenuPublicOutputDto {
   @Expose()
   updatedAt: Date;
+
+  @Expose()
+  deleted: boolean;
 
   @Expose()
   deletedAt: Date | null;

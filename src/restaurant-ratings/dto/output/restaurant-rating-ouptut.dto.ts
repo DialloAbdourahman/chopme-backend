@@ -19,4 +19,7 @@ export class RestaurantRatingOutputDto {
 
   @Expose()
   updatedAt: Date;
+
+  @Expose()
+  deleted: boolean;
 }

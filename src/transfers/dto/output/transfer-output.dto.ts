@@ -40,4 +40,7 @@ export class TransferPublicOutputDto {
 export class TransferPrivateOutputDto extends TransferPublicOutputDto {
   @Expose()
   deletedAt: Date | null;
+
+  @Expose()
+  deleted: boolean;
 }

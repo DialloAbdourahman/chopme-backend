@@ -55,14 +55,14 @@ export class CategoriesService {
     const categoryObject = category.toObject();
 
     const publicCategory = plainToInstance(
-      CategoryPublicOutputDto,
+      CategoryPrivateOutputDto,
       categoryObject,
       {
         excludeExtraneousValues: true,
       },
     );
 
-    return OrchestrationResult.Success<CategoryPublicOutputDto>({
+    return OrchestrationResult.Success<CategoryPrivateOutputDto>({
       statusCode: EnumStatusCode.CREATED_SUCCESSFULLY,
       data: publicCategory,
       message: 'Category created successfully',
@@ -247,14 +247,14 @@ export class CategoriesService {
     const categoryObject = category.toObject();
 
     const publicCategory = plainToInstance(
-      CategoryPublicOutputDto,
+      CategoryPrivateOutputDto,
       categoryObject,
       {
         excludeExtraneousValues: true,
       },
     );
 
-    return OrchestrationResult.Success<CategoryPublicOutputDto>({
+    return OrchestrationResult.Success<CategoryPrivateOutputDto>({
       statusCode: EnumStatusCode.UPDATED_SUCCESSFULLY,
       data: publicCategory,
       message: 'Category updated successfully',
@@ -342,14 +342,14 @@ export class CategoriesService {
     const categoryObject = category.toObject();
 
     const publicCategory = plainToInstance(
-      CategoryPublicOutputDto,
+      CategoryPrivateOutputDto,
       categoryObject,
       {
         excludeExtraneousValues: true,
       },
     );
 
-    return OrchestrationResult.Success<CategoryPublicOutputDto>({
+    return OrchestrationResult.Success<CategoryPrivateOutputDto>({
       statusCode: EnumStatusCode.UPDATED_SUCCESSFULLY,
       data: publicCategory,
       message: 'Category restored successfully',

@@ -13,10 +13,7 @@ import { OrchestrationResult } from 'src/common/utils/orchestration.result';
 import { EnumStatusCode } from 'src/common/enums/response-status-code';
 import { OrchestrationException } from 'src/common/exceptions/orchestration.exception';
 import { plainToInstance } from 'class-transformer';
-import {
-  RestaurantMemberPrivateOutputDto,
-  RestaurantMemberPublicOutputDto,
-} from './dto/output/restaurant-member-output.dto';
+import { RestaurantMemberOutputDto } from './dto/output/restaurant-member-output.dto';
 import { EnumUserRole } from 'src/common/enums/user-roles';
 import { EnumAuthType } from 'src/common/enums/auth-types';
 import * as bcrypt from 'bcrypt';
@@ -116,17 +113,18 @@ export class RestaurantMembersService {
       );
 
       await member.populate('restaurant');
+      await member.populate('user');
       const memberObject = member.toObject();
 
       const publicMember = plainToInstance(
-        RestaurantMemberPublicOutputDto,
+        RestaurantMemberOutputDto,
         memberObject,
         {
           excludeExtraneousValues: true,
         },
       );
 
-      return OrchestrationResult.Success<RestaurantMemberPublicOutputDto>({
+      return OrchestrationResult.Success<RestaurantMemberOutputDto>({
         statusCode: EnumStatusCode.CREATED_SUCCESSFULLY,
         data: publicMember,
         message: 'Restaurant member created successfully',
@@ -243,15 +241,11 @@ export class RestaurantMembersService {
 
     const totalPages = Math.ceil(totalItems / limit);
 
-    const publicMembers = plainToInstance(
-      RestaurantMemberPrivateOutputDto,
-      members,
-      {
-        excludeExtraneousValues: true,
-      },
-    );
+    const publicMembers = plainToInstance(RestaurantMemberOutputDto, members, {
+      excludeExtraneousValues: true,
+    });
 
-    const paginatedResult: Pagination<RestaurantMemberPrivateOutputDto> = {
+    const paginatedResult: Pagination<RestaurantMemberOutputDto> = {
       items: publicMembers,
       page,
       totalPages,
@@ -259,9 +253,7 @@ export class RestaurantMembersService {
       itemsPerPage: limit,
     };
 
-    return OrchestrationResult.Success<
-      Pagination<RestaurantMemberPrivateOutputDto>
-    >({
+    return OrchestrationResult.Success<Pagination<RestaurantMemberOutputDto>>({
       statusCode: EnumStatusCode.RECOVERED_SUCCESSFULLY,
       data: paginatedResult,
       message: 'Restaurant members retrieved successfully',
@@ -296,14 +288,14 @@ export class RestaurantMembersService {
     const memberObject = restaurantMember.toObject();
 
     const publicMember = plainToInstance(
-      RestaurantMemberPublicOutputDto,
+      RestaurantMemberOutputDto,
       memberObject,
       {
         excludeExtraneousValues: true,
       },
     );
 
-    return OrchestrationResult.Success<RestaurantMemberPublicOutputDto>({
+    return OrchestrationResult.Success<RestaurantMemberOutputDto>({
       statusCode: EnumStatusCode.RECOVERED_SUCCESSFULLY,
       data: publicMember,
       message: 'Restaurant member retrieved successfully',
@@ -371,17 +363,18 @@ export class RestaurantMembersService {
       );
 
       await member.populate('restaurant');
+      await member.populate('user');
       const memberObject = member.toObject();
 
       const publicMember = plainToInstance(
-        RestaurantMemberPublicOutputDto,
+        RestaurantMemberOutputDto,
         memberObject,
         {
           excludeExtraneousValues: true,
         },
       );
 
-      return OrchestrationResult.Success<RestaurantMemberPublicOutputDto>({
+      return OrchestrationResult.Success<RestaurantMemberOutputDto>({
         statusCode: EnumStatusCode.UPDATED_SUCCESSFULLY,
         data: publicMember,
         message: 'Restaurant member restored successfully',
@@ -449,17 +442,18 @@ export class RestaurantMembersService {
     await member.save();
 
     await member.populate('restaurant');
+    await member.populate('user');
     const memberObject = member.toObject();
 
     const publicMember = plainToInstance(
-      RestaurantMemberPublicOutputDto,
+      RestaurantMemberOutputDto,
       memberObject,
       {
         excludeExtraneousValues: true,
       },
     );
 
-    return OrchestrationResult.Success<RestaurantMemberPublicOutputDto>({
+    return OrchestrationResult.Success<RestaurantMemberOutputDto>({
       statusCode: EnumStatusCode.UPDATED_SUCCESSFULLY,
       data: publicMember,
       message: 'Restaurant member role updated successfully',

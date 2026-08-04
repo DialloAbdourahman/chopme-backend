@@ -18,4 +18,7 @@ export class CategoryPrivateOutputDto extends CategoryPublicOutputDto {
 
   @Expose()
   deletedAt: Date | null;
+
+  @Expose()
+  deleted: boolean;
 }

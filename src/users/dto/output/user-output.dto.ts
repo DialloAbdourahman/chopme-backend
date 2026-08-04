@@ -29,4 +29,7 @@ export class UserPublicOutputDto {
 export class UserPrivateOutputDto extends UserPublicOutputDto {
   @Expose()
   deletedAt: Date | null;
+
+  @Expose()
+  deleted: Boolean;
 }

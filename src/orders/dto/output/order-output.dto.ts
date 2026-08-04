@@ -171,4 +171,7 @@ export class OrderAdminOutputDto extends OrderOutputDto {
 
   @Expose()
   deletedAt: Date | null;
+
+  @Expose()
+  deleted: boolean;
 }
