@@ -22,14 +22,20 @@ export class User extends BaseSchema {
   @Prop({ enum: EnumUserRole, type: String })
   role: EnumUserRole;
 
-  @Prop({ index: true })
-  token: string;
+  @Prop({ type: [String], default: [], index: true })
+  tokens: string[];
 
   @Prop({ enum: EnumAuthType, type: String })
   authType: EnumAuthType;
 
   @Prop({ type: Boolean, default: true })
   active: boolean;
+
+  @Prop({ type: Date, default: null })
+  lastLoginAt?: Date;
+
+  @Prop({ type: Date, default: null })
+  lastTokenRefreshedAt?: Date;
 }
 
 export const UserSchema = SchemaFactory.createForClass(User);

@@ -70,6 +70,21 @@ export class RestaurantsController {
     return this.restaurantsService.findAll(filters, page, limit);
   }
 
+  @Get('member/:idOrSlug')
+  @HttpCode(HttpStatus.OK)
+  @UseGuards(AuthGuard, RoleGuard, RestaurantRoleGuard)
+  @Roles(EnumUserRole.RESTAURANT_MEMBER)
+  @RestaurantRoles(
+    EnumRestaurantMemberRole.OWNER,
+    EnumRestaurantMemberRole.MANAGER,
+  )
+  findOnePrivate(
+    @Param('idOrSlug') idOrSlug: string,
+    @CurrentUser() user: ILoggedInUserTokenData,
+  ) {
+    return this.restaurantsService.findOnePrivate(idOrSlug, user);
+  }
+
   @Get(':idOrSlug')
   @HttpCode(HttpStatus.OK)
   findOne(

@@ -4,11 +4,13 @@ import {
   IsOptional,
   IsString,
   Matches,
+  Validate,
   ValidateNested,
 } from 'class-validator';
 import { Type } from 'class-transformer';
 import {
   AvailabilityDto,
+  DeliveryPricingKmArrayValidator,
   DeliveryPricingKmDto,
   RestaurantAddressDto,
   RestaurantLocationDto,
@@ -43,6 +45,7 @@ export class UpdateRestaurantDto {
   @IsOptional()
   @IsArray()
   @ValidateNested({ each: true })
+  @Validate(DeliveryPricingKmArrayValidator)
   @Type(() => DeliveryPricingKmDto)
   deliveryPricingKm?: DeliveryPricingKmDto[];
 

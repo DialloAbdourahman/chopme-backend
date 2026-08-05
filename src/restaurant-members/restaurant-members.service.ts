@@ -538,7 +538,7 @@ export class RestaurantMembersService {
       user.active = false;
       user.deletedAt = deletedAt;
       user.deletedBy = deletedById;
-      user.token = '';
+      user.tokens = [];
       await user.save({ session });
 
       await session.commitTransaction();

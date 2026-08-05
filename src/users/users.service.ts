@@ -246,7 +246,9 @@ export class UsersService {
       expiresIn: `${env.refreshTokenDurationMins}m`,
     });
 
-    user.token = refreshToken;
+    user.tokens.push(refreshToken);
+    user.lastLoginAt = new Date();
+    user.lastTokenRefreshedAt = new Date();
     await user.save();
 
     const publicUser = plainToInstance(UserPublicOutputDto, user, {
@@ -412,7 +414,9 @@ export class UsersService {
       expiresIn: `${env.refreshTokenDurationMins}m`,
     });
 
-    user.token = refreshToken;
+    user.tokens.push(refreshToken);
+    user.lastLoginAt = new Date();
+    user.lastTokenRefreshedAt = new Date();
     await user.save();
 
     const publicUser = plainToInstance(UserPublicOutputDto, user, {
@@ -470,7 +474,7 @@ export class UsersService {
       active: true,
     });
 
-    if (!user || user.token !== token) {
+    if (!user || !user.tokens.includes(token)) {
       this.logger.log(
         `[refreshToken] Stored refresh token mismatch for user id=${decoded.id}`,
       );
@@ -493,7 +497,9 @@ export class UsersService {
       expiresIn: `${env.refreshTokenDurationMins}m`,
     });
 
-    user.token = refreshToken;
+    user.tokens = user.tokens.filter((t) => t !== token);
+    user.tokens.push(refreshToken);
+    user.lastTokenRefreshedAt = new Date();
     await user.save();
 
     const publicUser = plainToInstance(UserPublicOutputDto, user, {
@@ -517,7 +523,7 @@ export class UsersService {
     });
   }
 
-  async logout(user: ILoggedInUserTokenData) {
+  async logout(user: ILoggedInUserTokenData, token?: string) {
     this.logger.log(`[logout] Logging out user id=${user.id}`);
 
     const dbUser = await this.userModel.findOne({
@@ -535,7 +541,11 @@ export class UsersService {
       });
     }
 
-    dbUser.token = '';
+    if (token) {
+      dbUser.tokens = dbUser.tokens.filter((t) => t !== token);
+    } else {
+      dbUser.tokens = [];
+    }
     await dbUser.save();
 
     return OrchestrationResult.Success<string>({
@@ -685,9 +695,9 @@ export class UsersService {
 
     dbUser.password = hashedNewPassword;
 
-    // Clear token for non-client users to force re-authentication
+    // Clear all tokens for non-client users to force re-authentication
     if (dbUser.role !== EnumUserRole.CLIENT) {
-      dbUser.token = '';
+      dbUser.tokens = [];
     }
 
     await dbUser.save();

@@ -11,6 +11,7 @@ import {
 } from '@nestjs/common';
 import { UsersService } from './users.service';
 import { EmailPasswordLoginDto } from './dto/input/email-password-login.dto';
+import { LogoutDto } from './dto/input/logout.dto';
 import { GoogleLoginDto } from './dto/input/google-login.dto';
 import { UpdateUserDto } from './dto/input/update-user.dto';
 import { UpdatePasswordDto } from './dto/input/update-password.dto';
@@ -57,8 +58,11 @@ export class UsersController {
   @Post('logout')
   @HttpCode(HttpStatus.OK)
   @UseGuards(AuthGuard)
-  logout(@CurrentUser() user: ILoggedInUserTokenData) {
-    return this.usersService.logout(user);
+  logout(
+    @CurrentUser() user: ILoggedInUserTokenData,
+    @Body() logoutDto: LogoutDto,
+  ) {
+    return this.usersService.logout(user, logoutDto.token);
   }
 
   @Get('me')

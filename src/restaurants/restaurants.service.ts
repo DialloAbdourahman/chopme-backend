@@ -23,6 +23,7 @@ import { EnumNetwork } from 'src/common/enums/networks';
 import type { ILoggedInUserTokenData } from 'src/common/interfaces/loggedin-user-token-data';
 import { plainToInstance } from 'class-transformer';
 import {
+  RestaurantPrivateOutputDto,
   RestaurantPublicOutputDto,
   RestaurantWalletOutputDto,
 } from './dto/output/restaurant-output.dto';
@@ -193,14 +194,14 @@ export class RestaurantsService {
       const restaurantObject = restaurant.toObject();
 
       const publicRestaurant = plainToInstance(
-        RestaurantPublicOutputDto,
+        RestaurantPrivateOutputDto,
         restaurantObject,
         {
           excludeExtraneousValues: true,
         },
       );
 
-      return OrchestrationResult.Success<RestaurantPublicOutputDto>({
+      return OrchestrationResult.Success<RestaurantPrivateOutputDto>({
         statusCode: EnumStatusCode.CREATED_SUCCESSFULLY,
         data: publicRestaurant,
         message: 'Restaurant created successfully',
@@ -445,6 +446,51 @@ export class RestaurantsService {
     });
   }
 
+  async findOnePrivate(idOrSlug: string, user: ILoggedInUserTokenData) {
+    this.logger.log(
+      `[findOnePrivate] Finding restaurant by idOrSlug=${idOrSlug}`,
+    );
+
+    const isObjectId = Types.ObjectId.isValid(idOrSlug);
+
+    const query = isObjectId
+      ? { _id: new Types.ObjectId(idOrSlug), deleted: false }
+      : { slug: idOrSlug, deleted: false };
+
+    const restaurant = await this.restaurantModel.findOne(query);
+
+    if (!restaurant) {
+      this.logger.log(
+        `[findOnePrivate] Restaurant not found for idOrSlug=${idOrSlug}`,
+      );
+      throw new OrchestrationException({
+        statusCode: EnumStatusCode.NOT_FOUND,
+        message: 'Restaurant not found',
+        code: 404,
+      });
+    }
+
+    this.ensureUserCanManageRestaurant(
+      restaurant._id.toString(),
+      user,
+      'findOnePrivate',
+    );
+
+    const privateRestaurant = plainToInstance(
+      RestaurantPrivateOutputDto,
+      restaurant.toObject(),
+      {
+        excludeExtraneousValues: true,
+      },
+    );
+
+    return OrchestrationResult.Success<RestaurantPrivateOutputDto>({
+      statusCode: EnumStatusCode.RECOVERED_SUCCESSFULLY,
+      data: privateRestaurant,
+      message: 'Restaurant fetched successfully',
+    });
+  }
+
   async incrementTotalViews(idOrSlug: string) {
     this.logger.log(
       `[incrementTotalViews] Incrementing totalViews for restaurant idOrSlug=${idOrSlug}`,
@@ -552,14 +598,14 @@ export class RestaurantsService {
     const restaurantObject = restaurant.toObject();
 
     const publicRestaurant = plainToInstance(
-      RestaurantPublicOutputDto,
+      RestaurantPrivateOutputDto,
       restaurantObject,
       {
         excludeExtraneousValues: true,
       },
     );
 
-    return OrchestrationResult.Success<RestaurantPublicOutputDto>({
+    return OrchestrationResult.Success<RestaurantPrivateOutputDto>({
       statusCode: EnumStatusCode.UPDATED_SUCCESSFULLY,
       data: publicRestaurant,
       message: 'Restaurant updated successfully',
@@ -644,14 +690,14 @@ export class RestaurantsService {
     const restaurantObject = restaurant.toObject();
 
     const publicRestaurant = plainToInstance(
-      RestaurantPublicOutputDto,
+      RestaurantPrivateOutputDto,
       restaurantObject,
       {
         excludeExtraneousValues: true,
       },
     );
 
-    return OrchestrationResult.Success<RestaurantPublicOutputDto>({
+    return OrchestrationResult.Success<RestaurantPrivateOutputDto>({
       statusCode: EnumStatusCode.UPDATED_SUCCESSFULLY,
       data: publicRestaurant,
       message: 'Restaurant updated successfully',
@@ -685,14 +731,14 @@ export class RestaurantsService {
     const restaurantObject = restaurant.toObject();
 
     const publicRestaurant = plainToInstance(
-      RestaurantPublicOutputDto,
+      RestaurantPrivateOutputDto,
       restaurantObject,
       {
         excludeExtraneousValues: true,
       },
     );
 
-    return OrchestrationResult.Success<RestaurantPublicOutputDto>({
+    return OrchestrationResult.Success<RestaurantPrivateOutputDto>({
       statusCode: EnumStatusCode.UPDATED_SUCCESSFULLY,
       data: publicRestaurant,
       message: 'Restaurant closing state updated successfully',
@@ -759,14 +805,14 @@ export class RestaurantsService {
     const restaurantObject = restaurant.toObject();
 
     const publicRestaurant = plainToInstance(
-      RestaurantPublicOutputDto,
+      RestaurantPrivateOutputDto,
       restaurantObject,
       {
         excludeExtraneousValues: true,
       },
     );
 
-    return OrchestrationResult.Success<RestaurantPublicOutputDto>({
+    return OrchestrationResult.Success<RestaurantPrivateOutputDto>({
       statusCode: EnumStatusCode.UPDATED_SUCCESSFULLY,
       data: publicRestaurant,
       message: 'Restaurant restored successfully',
@@ -826,14 +872,14 @@ export class RestaurantsService {
     const restaurantObject = restaurant.toObject();
 
     const publicRestaurant = plainToInstance(
-      RestaurantPublicOutputDto,
+      RestaurantPrivateOutputDto,
       restaurantObject,
       {
         excludeExtraneousValues: true,
       },
     );
 
-    return OrchestrationResult.Success<RestaurantPublicOutputDto>({
+    return OrchestrationResult.Success<RestaurantPrivateOutputDto>({
       statusCode: EnumStatusCode.CREATED_SUCCESSFULLY,
       data: publicRestaurant,
       message: 'Image uploaded successfully',
@@ -882,14 +928,14 @@ export class RestaurantsService {
     const restaurantObject = restaurant.toObject();
 
     const publicRestaurant = plainToInstance(
-      RestaurantPublicOutputDto,
+      RestaurantPrivateOutputDto,
       restaurantObject,
       {
         excludeExtraneousValues: true,
       },
     );
 
-    return OrchestrationResult.Success<RestaurantPublicOutputDto>({
+    return OrchestrationResult.Success<RestaurantPrivateOutputDto>({
       statusCode: EnumStatusCode.CREATED_SUCCESSFULLY,
       data: publicRestaurant,
       message: 'Cover image uploaded successfully',
@@ -946,14 +992,14 @@ export class RestaurantsService {
     const restaurantObject = restaurant.toObject();
 
     const publicRestaurant = plainToInstance(
-      RestaurantPublicOutputDto,
+      RestaurantPrivateOutputDto,
       restaurantObject,
       {
         excludeExtraneousValues: true,
       },
     );
 
-    return OrchestrationResult.Success<RestaurantPublicOutputDto>({
+    return OrchestrationResult.Success<RestaurantPrivateOutputDto>({
       statusCode: EnumStatusCode.DELETED_SUCCESSFULLY,
       data: publicRestaurant,
       message: 'Image deleted successfully',
@@ -1009,14 +1055,14 @@ export class RestaurantsService {
     const restaurantObject = restaurant.toObject();
 
     const publicRestaurant = plainToInstance(
-      RestaurantPublicOutputDto,
+      RestaurantPrivateOutputDto,
       restaurantObject,
       {
         excludeExtraneousValues: true,
       },
     );
 
-    return OrchestrationResult.Success<RestaurantPublicOutputDto>({
+    return OrchestrationResult.Success<RestaurantPrivateOutputDto>({
       statusCode: EnumStatusCode.DELETED_SUCCESSFULLY,
       data: publicRestaurant,
       message: 'Cover image deleted successfully',
@@ -1149,14 +1195,14 @@ export class RestaurantsService {
     );
 
     const publicRestaurant = plainToInstance(
-      RestaurantPublicOutputDto,
+      RestaurantPrivateOutputDto,
       restaurant.toObject(),
       {
         excludeExtraneousValues: true,
       },
     );
 
-    return OrchestrationResult.Success<RestaurantPublicOutputDto>({
+    return OrchestrationResult.Success<RestaurantPrivateOutputDto>({
       statusCode: EnumStatusCode.DELETED_SUCCESSFULLY,
       data: publicRestaurant,
       message: 'Wallet removed successfully',
