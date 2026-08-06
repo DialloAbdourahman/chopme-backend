@@ -140,6 +140,17 @@ export class OrdersController {
     return this.ordersService.getOrderClient(orderId, user);
   }
 
+  @Get(':orderId/restaurant')
+  @HttpCode(HttpStatus.OK)
+  @UseGuards(AuthGuard, RoleGuard)
+  @Roles(EnumUserRole.RESTAURANT_MEMBER)
+  getOrderByIdAndRestaurant(
+    @Param('orderId') orderId: string,
+    @CurrentUser() user: ILoggedInUserTokenData,
+  ) {
+    return this.ordersService.getOrderByIdAndRestaurant(orderId, user);
+  }
+
   @Get(':orderId')
   @HttpCode(HttpStatus.OK)
   @UseGuards(AuthGuard, RoleGuard)

@@ -18,6 +18,7 @@ import { GoogleLoginDto } from './dto/input/google-login.dto';
 import { UpdatePasswordDto } from './dto/input/update-password.dto';
 import { EnumAuthType } from 'src/common/enums/auth-types';
 import { EnumUserRole } from 'src/common/enums/user-roles';
+import { EnumUserLanguage } from 'src/common/enums/user-language';
 import { env } from 'src/config/env';
 import { UserPublicOutputDto } from 'src/users/dto/output/user-output.dto';
 import { ILoggedInUserTokenData } from 'src/common/interfaces/loggedin-user-token-data';
@@ -588,7 +589,7 @@ export class UsersService {
 
   async updateMyProfile(
     user: ILoggedInUserTokenData,
-    updateUserDto: { fullName?: string },
+    updateUserDto: { fullName?: string; language?: EnumUserLanguage },
   ) {
     this.logger.log(
       `[updateMyProfile] Updating profile for user id=${user.id}`,
@@ -612,6 +613,7 @@ export class UsersService {
     }
 
     dbUser.fullName = updateUserDto.fullName || dbUser.fullName;
+    dbUser.language = updateUserDto.language || dbUser.language;
     await dbUser.save();
 
     const publicUser = plainToInstance(UserPublicOutputDto, dbUser, {

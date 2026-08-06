@@ -3,6 +3,7 @@ import { HydratedDocument } from 'mongoose';
 import { EnumUserRole } from '../../common/enums/user-roles';
 import { BaseSchema } from '../../common/schemas/base.schema';
 import { EnumAuthType } from 'src/common/enums/auth-types';
+import { EnumUserLanguage } from 'src/common/enums/user-language';
 
 export type UserDocument = HydratedDocument<User> & {
   // parsePublic(): void;
@@ -27,6 +28,9 @@ export class User extends BaseSchema {
 
   @Prop({ enum: EnumAuthType, type: String })
   authType: EnumAuthType;
+
+  @Prop({ enum: EnumUserLanguage, type: String, default: EnumUserLanguage.FR })
+  language: EnumUserLanguage;
 
   @Prop({ type: Boolean, default: true })
   active: boolean;

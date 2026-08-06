@@ -41,6 +41,14 @@ export class OrdersService {
     env.flutterWaveClientPublicKey,
     env.flutterWaveClientSecretKey,
   );
+  private readonly restaurantOrderStatuses = [
+    EnumOrderStatus.PAID,
+    EnumOrderStatus.CANCELLED_BY_RESTAURANT,
+    EnumOrderStatus.PREPARING_ORDER,
+    EnumOrderStatus.IN_DELIVERY,
+    EnumOrderStatus.DELIVERED,
+    EnumOrderStatus.DISBURSED,
+  ];
 
   constructor(
     @InjectModel(Menu.name) private readonly menuModel: Model<MenuDocument>,
@@ -477,14 +485,7 @@ export class OrdersService {
     );
 
     const restaurantId = new Types.ObjectId(user.restaurantId);
-    const activeStatuses = [
-      EnumOrderStatus.PAID,
-      EnumOrderStatus.PREPARING_ORDER,
-      EnumOrderStatus.CANCELLED_BY_RESTAURANT,
-      EnumOrderStatus.IN_DELIVERY,
-      EnumOrderStatus.DELIVERED,
-      EnumOrderStatus.DISBURSED,
-    ];
+    const activeStatuses = this.restaurantOrderStatuses;
 
     this.logger.log(
       `[getRestaurantOrders] Filtering orders by statuses: ${activeStatuses.join(', ')}`,
@@ -845,9 +846,56 @@ export class OrdersService {
     }
 
     return OrchestrationResult.Success<OrderRestaurantOutputDto>({
-      statusCode: EnumStatusCode.CANCELLED_SUCCESSFULLY,
+      statusCode: EnumStatusCode.UPDATED_SUCCESSFULLY,
       data: publicOrder,
       message: 'Order status updated successfully',
+    });
+  }
+
+  async getOrderByIdAndRestaurant(
+    orderId: string,
+    user: ILoggedInUserTokenData,
+  ) {
+    this.logger.log(
+      `[getOrderByIdAndRestaurant] Fetching orderId=${orderId}, restaurantId=${user.restaurantId}`,
+    );
+
+    if (!Types.ObjectId.isValid(orderId)) {
+      throw new OrchestrationException({
+        statusCode: EnumStatusCode.ORDER_NOT_FOUND,
+        message: 'Order not found',
+        code: 404,
+      });
+    }
+
+    const restaurantId = new Types.ObjectId(user.restaurantId);
+    const activeStatuses = this.restaurantOrderStatuses;
+
+    const order = await this.orderModel.findOne({
+      _id: new Types.ObjectId(orderId),
+      restaurant: restaurantId,
+    });
+
+    if (!order || !activeStatuses.includes(order.status)) {
+      this.logger.warn(
+        `[getOrderByIdAndRestaurant] Order not found or access denied: orderId=${orderId}, restaurantId=${user.restaurantId}`,
+      );
+      throw new OrchestrationException({
+        statusCode: EnumStatusCode.ORDER_NOT_FOUND,
+        message: 'Order not found',
+        code: 404,
+      });
+    }
+
+    const orderObject = order.toObject();
+    const publicOrder = plainToInstance(OrderRestaurantOutputDto, orderObject, {
+      excludeExtraneousValues: true,
+    });
+
+    return OrchestrationResult.Success<OrderRestaurantOutputDto>({
+      statusCode: EnumStatusCode.RECOVERED_SUCCESSFULLY,
+      data: publicOrder,
+      message: 'Order fetched successfully',
     });
   }
 
