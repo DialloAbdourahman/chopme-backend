@@ -1,3 +1,5 @@
 export enum EnumWebSocketEventType {
-  ORDER_STATUS_CHANGED = 'order_status_changed',
+  CLIENT_APPLICATION = 'client_application',
+  RESTAURANT_APPLICATION = 'restaurant_application',
+  ADMIN_APPLICATION = 'admin_application',
 }

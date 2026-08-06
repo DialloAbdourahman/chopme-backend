@@ -11,6 +11,7 @@ import { env } from 'src/config/env';
 import { stringToArray } from 'src/common/utils/string-to-array';
 import { ILoggedInUserTokenData } from 'src/common/interfaces/loggedin-user-token-data';
 import { EnumWebSocketEventType } from 'src/common/enums/web-socket-events';
+import { INotification } from 'src/common/interfaces/notification';
 
 @Injectable()
 @WebSocketGateway({
@@ -74,7 +75,15 @@ export class WebSocketService
   }
 
   // 📡 Emit to a specific user's room
-  emitToUser<T>(userId: string, event: EnumWebSocketEventType, data: T) {
+  emitToUser<INotification>({
+    data,
+    event,
+    userId,
+  }: {
+    userId: string;
+    event: EnumWebSocketEventType;
+    data: INotification;
+  }) {
     const targetRoom = `user:${userId}`;
 
     this.logger.log(
@@ -94,7 +103,15 @@ export class WebSocketService
   }
 
   // 📡 Emit to a list of users' rooms
-  emitToUsers<T>(userIds: string[], event: EnumWebSocketEventType, data: T) {
+  emitToUsers({
+    userIds,
+    event,
+    data,
+  }: {
+    userIds: string[];
+    event: EnumWebSocketEventType;
+    data: INotification<any>;
+  }) {
     const targetRooms = userIds.map((id) => `user:${id}`);
 
     this.logger.log(

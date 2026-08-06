@@ -33,6 +33,8 @@ import { FlutterwaveRefund } from 'src/common/interfaces/flutterwave/refund';
 import { EnumRefundStatus } from 'src/common/enums/refund-statuses';
 import { WebSocketService } from 'src/web-socket/web-socket-service';
 import { EnumWebSocketEventType } from 'src/common/enums/web-socket-events';
+import { EnumNotificationType } from 'src/common/enums/notification-type';
+import { INotification } from 'src/common/interfaces/notification';
 
 @Injectable()
 export class OrdersService {
@@ -721,11 +723,15 @@ export class OrdersService {
           excludeExtraneousValues: true,
         },
       );
-      this.eventsGateway.emitToUser<OrderClientOutputDto>(
+      const notification: INotification<OrderClientOutputDto> = {
+        type: EnumNotificationType.ORDER_STATUS_CHANGED,
+        data: orderToSendToClient,
+      };
+      this.eventsGateway.emitToUser({
         userId,
-        EnumWebSocketEventType.ORDER_STATUS_CHANGED,
-        orderToSendToClient,
-      );
+        event: EnumWebSocketEventType.CLIENT_APPLICATION,
+        data: notification,
+      });
     } catch (error) {
       this.logger.error(
         `[cancelOrderRestaurant] Failed to emit order created event: ${error.message}`,
@@ -834,11 +840,15 @@ export class OrdersService {
           excludeExtraneousValues: true,
         },
       );
-      this.eventsGateway.emitToUser<OrderClientOutputDto>(
-        userId,
-        EnumWebSocketEventType.ORDER_STATUS_CHANGED,
-        orderToSendToClient,
-      );
+      const notification: INotification<OrderClientOutputDto> = {
+        type: EnumNotificationType.ORDER_STATUS_CHANGED,
+        data: orderToSendToClient,
+      };
+      this.eventsGateway.emitToUser({
+        userId: userId,
+        event: EnumWebSocketEventType.CLIENT_APPLICATION,
+        data: notification,
+      });
     } catch (error) {
       this.logger.error(
         `[updateOrderStatus] Failed to emit order created event: ${error.message}`,

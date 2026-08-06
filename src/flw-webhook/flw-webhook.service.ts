@@ -24,6 +24,8 @@ import {
 } from 'src/orders/dto/output/order-output.dto';
 import { plainToInstance } from 'class-transformer';
 import { RestaurantMember } from 'src/restaurant-members/entities/restaurant-member.entity';
+import { EnumNotificationType } from 'src/common/enums/notification-type';
+import { INotification } from 'src/common/interfaces/notification';
 
 @Injectable()
 export class FlwWebhookService {
@@ -137,18 +139,27 @@ export class FlwWebhookService {
     );
 
     this.logger.log(
-      `[FlwWebhookService] Triggering background menu ordersCount update for order: id=${order._id}, items=${order.items.length}`,
+      `[FlwWebhookService] Triggering background menu ordersCount update for order: id=${order._id}`,
     );
 
-    try {
-      await this.incrementMenuOrdersCount(order);
-    } catch (error) {
+    // Fire-and-forget: these are non-critical side effects and should not
+    // delay the webhook response.
+    this.incrementMenuOrdersCount(order).catch((error) => {
       this.logger.error(
         `[FlwWebhookService] Failed to increment menu ordersCount for order: id=${order._id}`,
         error.message,
       );
-    }
+    });
 
+    this.notifyPaymentSuccess(order).catch((error) => {
+      this.logger.error(
+        `[FlwWebhookService] Failed to emit payment success notifications for order: id=${order._id}`,
+        error.message,
+      );
+    });
+  }
+
+  private async notifyPaymentSuccess(order: OrderDocument) {
     this.logger.log(
       `[FlwWebhookService] Emitting order created event for order: id=${order._id}`,
     );
@@ -181,11 +192,15 @@ export class FlwWebhookService {
           excludeExtraneousValues: true,
         },
       );
-      this.eventsGateway.emitToUsers<OrderRestaurantOutputDto>(
-        restaurantMemberUserIds,
-        EnumWebSocketEventType.ORDER_STATUS_CHANGED,
-        orderToSendToRestaurant,
-      );
+      const notification: INotification<OrderRestaurantOutputDto> = {
+        type: EnumNotificationType.ORDER_STATUS_CHANGED,
+        data: orderToSendToRestaurant,
+      };
+      this.eventsGateway.emitToUsers({
+        userIds: restaurantMemberUserIds,
+        event: EnumWebSocketEventType.RESTAURANT_APPLICATION,
+        data: notification,
+      });
     } catch (error) {
       this.logger.error(
         `[FlwWebhookService] Failed to emit restaurant member notification: ${error.message}`,
@@ -205,11 +220,15 @@ export class FlwWebhookService {
             excludeExtraneousValues: true,
           },
         );
-        this.eventsGateway.emitToUsers<OrderClientOutputDto>(
-          [clientId],
-          EnumWebSocketEventType.ORDER_STATUS_CHANGED,
-          orderToSendToClient,
-        );
+        const notification: INotification<OrderClientOutputDto> = {
+          type: EnumNotificationType.ORDER_STATUS_CHANGED,
+          data: orderToSendToClient,
+        };
+        this.eventsGateway.emitToUser({
+          userId: clientId,
+          event: EnumWebSocketEventType.CLIENT_APPLICATION,
+          data: notification,
+        });
       } catch (error) {
         this.logger.error(
           `[FlwWebhookService] Failed to emit client notification: ${error.message}`,
@@ -268,49 +287,48 @@ export class FlwWebhookService {
       `[FlwWebhookService] Order saved successfully: id=${order._id}, status=${order.status}`,
     );
 
-    if (order.createdBy) {
-      try {
-        const clientId = order.createdBy.toString();
-        this.logger.log(
-          `[FlwWebhookService] Notifying order creator of failed payment: ${clientId}`,
-        );
-        const orderObject = order.toObject();
-        const orderToSendToClient = plainToInstance(
-          OrderClientOutputDto,
-          orderObject,
-          {
-            excludeExtraneousValues: true,
-          },
-        );
-        this.eventsGateway.emitToUser<OrderClientOutputDto>(
-          clientId,
-          EnumWebSocketEventType.ORDER_STATUS_CHANGED,
-          orderToSendToClient,
-        );
-      } catch (error) {
-        this.logger.error(
-          `[FlwWebhookService] Failed to emit client notification for failed payment: ${error.message}`,
-        );
-      }
-    }
+    // Fire-and-forget: notification is non-critical and should not delay
+    // the webhook response.
+    this.notifyPaymentFailure(order).catch((error) => {
+      this.logger.error(
+        `[FlwWebhookService] Failed to emit payment failure notification for order: id=${order._id}`,
+        error.message,
+      );
+    });
   }
 
-  private buildPaymentWebhookDetails(
-    webhookData: PaymentWebhookData,
-  ): PaymentWebhookDetails {
-    return {
-      amount: webhookData.amount,
-      appFee: webhookData.app_fee,
-      chargedAmount: webhookData.charged_amount,
-      currency: webhookData.currency,
-      ip: webhookData.ip,
-      merchantFee: webhookData.merchant_fee,
-      paymentType: webhookData.payment_type,
-      status: webhookData.status,
-      flwRef: webhookData.flw_ref,
-      txRef: webhookData.tx_ref,
-      transactionId: webhookData.id,
-    };
+  private async notifyPaymentFailure(order: OrderDocument) {
+    if (!order.createdBy) {
+      return;
+    }
+
+    try {
+      const clientId = order.createdBy.toString();
+      this.logger.log(
+        `[FlwWebhookService] Notifying order creator of failed payment: ${clientId}`,
+      );
+      const orderObject = order.toObject();
+      const orderToSendToClient = plainToInstance(
+        OrderClientOutputDto,
+        orderObject,
+        {
+          excludeExtraneousValues: true,
+        },
+      );
+      const notification: INotification<OrderClientOutputDto> = {
+        type: EnumNotificationType.ORDER_STATUS_CHANGED,
+        data: orderToSendToClient,
+      };
+      this.eventsGateway.emitToUser({
+        userId: clientId,
+        event: EnumWebSocketEventType.CLIENT_APPLICATION,
+        data: notification,
+      });
+    } catch (error) {
+      this.logger.error(
+        `[FlwWebhookService] Failed to emit client notification for failed payment: ${error.message}`,
+      );
+    }
   }
 
   private async incrementMenuOrdersCount(order: OrderDocument) {
@@ -337,5 +355,23 @@ export class FlwWebhookService {
     this.logger.log(
       `[FlwWebhookService] Background menu ordersCount update completed for order: id=${order._id}`,
     );
+  }
+
+  private buildPaymentWebhookDetails(
+    webhookData: PaymentWebhookData,
+  ): PaymentWebhookDetails {
+    return {
+      amount: webhookData.amount,
+      appFee: webhookData.app_fee,
+      chargedAmount: webhookData.charged_amount,
+      currency: webhookData.currency,
+      ip: webhookData.ip,
+      merchantFee: webhookData.merchant_fee,
+      paymentType: webhookData.payment_type,
+      status: webhookData.status,
+      flwRef: webhookData.flw_ref,
+      txRef: webhookData.tx_ref,
+      transactionId: webhookData.id,
+    };
   }
 }
