@@ -8,14 +8,16 @@ import { Server, Socket } from 'socket.io';
 import { Injectable, Logger, OnModuleInit } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
 import { env } from 'src/config/env';
-import { stringToArray } from 'src/common/utils/string-to-array';
 import { ILoggedInUserTokenData } from 'src/common/interfaces/loggedin-user-token-data';
 import { EnumWebSocketEventType } from 'src/common/enums/web-socket-events';
 import { INotification } from 'src/common/interfaces/notification';
 
 @Injectable()
 @WebSocketGateway({
-  cors: { origin: stringToArray(env.allowedOrigins), credentials: true },
+  cors: {
+    origin: [env.clientFrontendUrl, env.restaurantFrontendUrl],
+    credentials: true,
+  },
   transports: ['websocket'],
 })
 export class WebSocketService

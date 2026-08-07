@@ -35,6 +35,15 @@ import { WebSocketService } from 'src/web-socket/web-socket-service';
 import { EnumWebSocketEventType } from 'src/common/enums/web-socket-events';
 import { EnumNotificationType } from 'src/common/enums/notification-type';
 import { INotification } from 'src/common/interfaces/notification';
+import { FcmService } from 'src/fcm/fcm.service';
+import {
+  FcmToken,
+  FcmTokenDocument,
+} from 'src/fcm-tokens/entities/fcm-token.entity';
+import { User } from 'src/users/entities/user.entity';
+import { EnumUserLanguage } from 'src/common/enums/user-language';
+import { EnumNotificationI18nType } from 'src/common/enums/notification-internationalization-type';
+import { getNotificationMessage } from '../common/utils/get-fcm-notification-message';
 
 @Injectable()
 export class OrdersService {
@@ -62,7 +71,29 @@ export class OrdersService {
     private readonly orderModel: Model<OrderDocument>,
     private readonly flutterwaveService: FlutterwaveService,
     private readonly eventsGateway: WebSocketService,
+    private readonly fcmService: FcmService,
+    @InjectModel(FcmToken.name)
+    private readonly fcmTokenModel: Model<FcmTokenDocument>,
   ) {}
+
+  private getOrderStatusNotificationI18nType(
+    status: EnumOrderStatus,
+  ): EnumNotificationI18nType {
+    const statusToType: Partial<
+      Record<EnumOrderStatus, EnumNotificationI18nType>
+    > = {
+      [EnumOrderStatus.CANCELLED_BY_RESTAURANT]:
+        EnumNotificationI18nType.ORDER_CANCELLED_BY_RESTAURANT,
+      [EnumOrderStatus.PREPARING_ORDER]:
+        EnumNotificationI18nType.ORDER_PREPARING_ORDER,
+      [EnumOrderStatus.IN_DELIVERY]: EnumNotificationI18nType.ORDER_IN_DELIVERY,
+      [EnumOrderStatus.DELIVERED]: EnumNotificationI18nType.ORDER_DELIVERED,
+    };
+
+    return (
+      statusToType[status] ?? EnumNotificationI18nType.ORDER_STATUS_CHANGED
+    );
+  }
 
   private async ensureCanOrder({
     user,
@@ -452,9 +483,13 @@ export class OrdersService {
       .exec();
 
     const totalPages = Math.ceil(totalItems / limit) || 1;
-    const publicOrders = plainToInstance(OrderClientOutputDto, orders, {
-      excludeExtraneousValues: true,
-    });
+    const publicOrders = plainToInstance(
+      OrderClientOutputDto,
+      orders.map((order) => order.toObject()),
+      {
+        excludeExtraneousValues: true,
+      },
+    );
 
     const paginatedResult: Pagination<OrderClientOutputDto> = {
       items: publicOrders,
@@ -515,8 +550,6 @@ export class OrdersService {
       filters.status = { $in: activeStatuses };
     }
 
-    console.log(filters);
-
     const totalItems = await this.orderModel.countDocuments(filters);
     const orders = await this.orderModel
       .find(filters)
@@ -526,9 +559,13 @@ export class OrdersService {
       .exec();
 
     const totalPages = Math.ceil(totalItems / limit) || 1;
-    const publicOrders = plainToInstance(OrderRestaurantOutputDto, orders, {
-      excludeExtraneousValues: true,
-    });
+    const publicOrders = plainToInstance(
+      OrderRestaurantOutputDto,
+      orders.map((order) => order.toObject()),
+      {
+        excludeExtraneousValues: true,
+      },
+    );
 
     const paginatedResult: Pagination<OrderRestaurantOutputDto> = {
       items: publicOrders,
@@ -702,41 +739,7 @@ export class OrdersService {
       excludeExtraneousValues: true,
     });
 
-    try {
-      const client = await this.clientModel.findOne({
-        _id: new Types.ObjectId(order.client.toString()),
-      });
-      const userId = client?.user.toString();
-
-      if (!userId) {
-        this.logger.warn(
-          `[cancelOrderRestaurant] No user ID found for client ${order.client} to send notification`,
-        );
-        return;
-      }
-      this.logger.log(`[cancelOrderRestaurant] User ID to notify: ${userId}`);
-
-      const orderToSendToClient = plainToInstance(
-        OrderClientOutputDto,
-        orderObject,
-        {
-          excludeExtraneousValues: true,
-        },
-      );
-      const notification: INotification<OrderClientOutputDto> = {
-        type: EnumNotificationType.ORDER_STATUS_CHANGED,
-        data: orderToSendToClient,
-      };
-      this.eventsGateway.emitToUser({
-        userId,
-        event: EnumWebSocketEventType.CLIENT_APPLICATION,
-        data: notification,
-      });
-    } catch (error) {
-      this.logger.error(
-        `[cancelOrderRestaurant] Failed to emit order created event: ${error.message}`,
-      );
-    }
+    this.notifyOrderStatusChanged(order, orderObject);
 
     return OrchestrationResult.Success<OrderRestaurantOutputDto>({
       statusCode: EnumStatusCode.CANCELLED_SUCCESSFULLY,
@@ -822,38 +825,11 @@ export class OrdersService {
       excludeExtraneousValues: true,
     });
 
-    try {
-      const userId = order.createdBy?.toString();
-
-      if (!userId) {
-        this.logger.warn(
-          `[updateOrderStatus] No user ID found for order creator ${order.createdBy} to send notification`,
-        );
-        return;
-      }
-      this.logger.log(`[updateOrderStatus] User ID to notify: ${userId}`);
-
-      const orderToSendToClient = plainToInstance(
-        OrderClientOutputDto,
-        orderObject,
-        {
-          excludeExtraneousValues: true,
-        },
-      );
-      const notification: INotification<OrderClientOutputDto> = {
-        type: EnumNotificationType.ORDER_STATUS_CHANGED,
-        data: orderToSendToClient,
-      };
-      this.eventsGateway.emitToUser({
-        userId: userId,
-        event: EnumWebSocketEventType.CLIENT_APPLICATION,
-        data: notification,
-      });
-    } catch (error) {
+    this.notifyOrderStatusChanged(order, orderObject).catch((error) => {
       this.logger.error(
-        `[updateOrderStatus] Failed to emit order created event: ${error.message}`,
+        `[notifyOrderStatusChanged] Unexpected error: ${error.message}`,
       );
-    }
+    });
 
     return OrchestrationResult.Success<OrderRestaurantOutputDto>({
       statusCode: EnumStatusCode.UPDATED_SUCCESSFULLY,
@@ -1083,7 +1059,7 @@ export class OrdersService {
       customizations: {
         title: 'Chopme',
       },
-      redirect_url: `${env.flutterWaveRedirectUrl}/${order.id}`,
+      redirect_url: `${env.clientFrontendUrl}/orders/${order.id}`,
       meta: {
         orderId: order.id.toString(),
       },
@@ -1112,5 +1088,89 @@ export class OrdersService {
       },
       message: 'Payment flow initialized',
     });
+  }
+
+  private async notifyOrderStatusChanged(
+    order: OrderDocument,
+    orderObject: Record<string, any>,
+  ): Promise<void> {
+    const userId = order.createdBy?.toString();
+
+    if (!userId) {
+      this.logger.warn(
+        `[notifyOrderStatusChanged] No user ID found for order creator ${order.createdBy} to notify`,
+      );
+      return;
+    }
+
+    try {
+      this.logger.log(
+        `[notifyOrderStatusChanged] User ID to notify via websocket: ${userId}`,
+      );
+
+      const orderToSendToClient = plainToInstance(
+        OrderClientOutputDto,
+        orderObject,
+        {
+          excludeExtraneousValues: true,
+        },
+      );
+      const notification: INotification<OrderClientOutputDto> = {
+        type: EnumNotificationType.ORDER_STATUS_CHANGED,
+        data: orderToSendToClient,
+      };
+      this.eventsGateway.emitToUser({
+        userId: userId,
+        event: EnumWebSocketEventType.CLIENT_APPLICATION,
+        data: notification,
+      });
+    } catch (error) {
+      this.logger.error(
+        `[notifyOrderStatusChanged] Failed to emit order status event: ${error.message}`,
+      );
+    }
+
+    try {
+      const installations = await this.fcmTokenModel
+        .find({ user: new Types.ObjectId(userId) })
+        .populate<{ user: User }>('user')
+        .lean();
+
+      if (installations.length === 0) {
+        this.logger.log(
+          `[notifyOrderStatusChanged] No FCM installations registered for user id=${userId}`,
+        );
+        return;
+      }
+
+      const language = installations[0].user?.language ?? EnumUserLanguage.FR;
+      const notificationType = this.getOrderStatusNotificationI18nType(
+        order.status,
+      );
+      const { title, body } = getNotificationMessage(
+        notificationType,
+        language,
+      );
+      const installationIds = installations.map(
+        (installation) => installation.installationId,
+      );
+
+      const fcmResults = await this.fcmService.sendToDevices(installationIds, {
+        title,
+        body,
+        data: {
+          orderId: order._id.toString(),
+          status: order.status,
+          click_action: `${env.clientFrontendUrl}/orders/${order._id.toString()}`,
+        },
+      });
+      this.logger.log(
+        `[notifyOrderStatusChanged] FCM results: ${JSON.stringify(fcmResults)}`,
+      );
+    } catch (error) {
+      this.logger.error(
+        `[notifyOrderStatusChanged] Failed to send FCM notification: ${error.message}`,
+      );
+    }
   }
 }

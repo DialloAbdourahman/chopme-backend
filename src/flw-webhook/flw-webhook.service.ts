@@ -26,6 +26,16 @@ import { plainToInstance } from 'class-transformer';
 import { RestaurantMember } from 'src/restaurant-members/entities/restaurant-member.entity';
 import { EnumNotificationType } from 'src/common/enums/notification-type';
 import { INotification } from 'src/common/interfaces/notification';
+import { FcmService } from 'src/fcm/fcm.service';
+import {
+  FcmToken,
+  FcmTokenDocument,
+} from 'src/fcm-tokens/entities/fcm-token.entity';
+import { User } from 'src/users/entities/user.entity';
+import { EnumUserLanguage } from 'src/common/enums/user-language';
+import { EnumNotificationI18nType } from 'src/common/enums/notification-internationalization-type';
+import { getNotificationMessage } from 'src/common/utils/get-fcm-notification-message';
+import { env } from 'src/config/env';
 
 @Injectable()
 export class FlwWebhookService {
@@ -38,6 +48,9 @@ export class FlwWebhookService {
     private readonly orderModel: Model<OrderDocument>,
     @InjectModel(RestaurantMember.name)
     private readonly restaurantMemberModel: Model<RestaurantMember>,
+    private readonly fcmService: FcmService,
+    @InjectModel(FcmToken.name)
+    private readonly fcmTokenModel: Model<FcmTokenDocument>,
   ) {}
 
   async processWebhook(webhook: FlutterwaveWebhook<unknown>) {
@@ -159,84 +172,6 @@ export class FlwWebhookService {
     });
   }
 
-  private async notifyPaymentSuccess(order: OrderDocument) {
-    this.logger.log(
-      `[FlwWebhookService] Emitting order created event for order: id=${order._id}`,
-    );
-
-    const orderObject = order.toObject();
-
-    try {
-      this.logger.log(
-        `[FlwWebhookService] Finding restaurant members for restaurant: ${order.restaurant}`,
-      );
-      const usersToSend = await this.restaurantMemberModel
-        .find({
-          restaurant: order.restaurant,
-        })
-        .select('user');
-      this.logger.log(
-        `[FlwWebhookService] Found ${usersToSend.length} users to notify `,
-      );
-      const restaurantMemberUserIds = usersToSend.map((item) =>
-        item.user.toString(),
-      );
-      this.logger.log(
-        `[FlwWebhookService] Restaurant member user IDs to notify: ${restaurantMemberUserIds.join(', ')}`,
-      );
-
-      const orderToSendToRestaurant = plainToInstance(
-        OrderRestaurantOutputDto,
-        orderObject,
-        {
-          excludeExtraneousValues: true,
-        },
-      );
-      const notification: INotification<OrderRestaurantOutputDto> = {
-        type: EnumNotificationType.ORDER_STATUS_CHANGED,
-        data: orderToSendToRestaurant,
-      };
-      this.eventsGateway.emitToUsers({
-        userIds: restaurantMemberUserIds,
-        event: EnumWebSocketEventType.RESTAURANT_APPLICATION,
-        data: notification,
-      });
-    } catch (error) {
-      this.logger.error(
-        `[FlwWebhookService] Failed to emit restaurant member notification: ${error.message}`,
-      );
-    }
-
-    if (order.createdBy) {
-      try {
-        const clientId = order.createdBy.toString();
-        this.logger.log(
-          `[FlwWebhookService] Notifying order creator: ${clientId}`,
-        );
-        const orderToSendToClient = plainToInstance(
-          OrderClientOutputDto,
-          orderObject,
-          {
-            excludeExtraneousValues: true,
-          },
-        );
-        const notification: INotification<OrderClientOutputDto> = {
-          type: EnumNotificationType.ORDER_STATUS_CHANGED,
-          data: orderToSendToClient,
-        };
-        this.eventsGateway.emitToUser({
-          userId: clientId,
-          event: EnumWebSocketEventType.CLIENT_APPLICATION,
-          data: notification,
-        });
-      } catch (error) {
-        this.logger.error(
-          `[FlwWebhookService] Failed to emit client notification: ${error.message}`,
-        );
-      }
-    }
-  }
-
   private async processFailedPayment(webhookData: PaymentWebhookData) {
     this.logger.log(
       `[FlwWebhookService] Processing failed payment for tx_ref: ${webhookData.tx_ref}, amount: ${webhookData.amount} ${webhookData.currency}`,
@@ -297,6 +232,194 @@ export class FlwWebhookService {
     });
   }
 
+  private async notifyPaymentSuccess(order: OrderDocument) {
+    this.logger.log(
+      `[FlwWebhookService] Emitting order created event for order: id=${order._id}`,
+    );
+
+    const orderObject = order.toObject();
+
+    let restaurantMemberUserIds: string[] = [];
+    try {
+      this.logger.log(
+        `[FlwWebhookService] Finding restaurant members for restaurant: ${order.restaurant}`,
+      );
+      const usersToSend = await this.restaurantMemberModel
+        .find({
+          restaurant: order.restaurant,
+        })
+        .select('user');
+      this.logger.log(
+        `[FlwWebhookService] Found ${usersToSend.length} users to notify `,
+      );
+      restaurantMemberUserIds = usersToSend.map((item) => item.user.toString());
+      this.logger.log(
+        `[FlwWebhookService] Restaurant member user IDs to notify: ${restaurantMemberUserIds.join(', ')}`,
+      );
+    } catch (error) {
+      this.logger.error(
+        `[FlwWebhookService] Failed to find restaurant members: ${error.message}`,
+      );
+    }
+
+    try {
+      const orderToSendToRestaurant = plainToInstance(
+        OrderRestaurantOutputDto,
+        orderObject,
+        {
+          excludeExtraneousValues: true,
+        },
+      );
+      const notification: INotification<OrderRestaurantOutputDto> = {
+        type: EnumNotificationType.ORDER_STATUS_CHANGED,
+        data: orderToSendToRestaurant,
+      };
+      this.eventsGateway.emitToUsers({
+        userIds: restaurantMemberUserIds,
+        event: EnumWebSocketEventType.RESTAURANT_APPLICATION,
+        data: notification,
+      });
+    } catch (error) {
+      this.logger.error(
+        `[FlwWebhookService] Failed to emit restaurant member notification: ${error.message}`,
+      );
+    }
+
+    try {
+      if (restaurantMemberUserIds.length === 0) {
+        this.logger.log(
+          `[FlwWebhookService] No restaurant members to send FCM for order: id=${order._id}`,
+        );
+      } else {
+        const installations = await this.fcmTokenModel
+          .find({
+            user: {
+              $in: restaurantMemberUserIds.map((id) => new Types.ObjectId(id)),
+            },
+          })
+          .populate<{ user: User }>('user')
+          .lean();
+
+        if (installations.length === 0) {
+          this.logger.log(
+            `[FlwWebhookService] No FCM installations for restaurant members of order: id=${order._id}`,
+          );
+        } else {
+          const languageGroups = new Map<EnumUserLanguage, string[]>();
+
+          for (const installation of installations) {
+            const language = installation.user?.language ?? EnumUserLanguage.FR;
+            const ids = languageGroups.get(language) ?? [];
+            ids.push(installation.installationId);
+            languageGroups.set(language, ids);
+          }
+
+          const orderId = order._id.toString();
+
+          for (const [language, installationIds] of languageGroups) {
+            const { title, body } = getNotificationMessage(
+              EnumNotificationI18nType.ORDER_PAID_RESTAURANT,
+              language,
+            );
+            const fcmResults = await this.fcmService.sendToDevices(
+              installationIds,
+              {
+                title,
+                body,
+                data: {
+                  orderId,
+                  status: order.status,
+                  click_action: `${env.restaurantFrontendUrl}/orders/${orderId}`,
+                },
+              },
+            );
+            this.logger.log(
+              `[FlwWebhookService] Restaurant FCM results for language ${language}: ${JSON.stringify(fcmResults)}`,
+            );
+          }
+        }
+      }
+    } catch (error) {
+      this.logger.error(
+        `[FlwWebhookService] Failed to send FCM notification to restaurant members: ${error.message}`,
+      );
+    }
+
+    if (order.createdBy) {
+      try {
+        const clientId = order.createdBy.toString();
+        this.logger.log(
+          `[FlwWebhookService] Notifying order creator: ${clientId}`,
+        );
+        const orderToSendToClient = plainToInstance(
+          OrderClientOutputDto,
+          orderObject,
+          {
+            excludeExtraneousValues: true,
+          },
+        );
+        const notification: INotification<OrderClientOutputDto> = {
+          type: EnumNotificationType.ORDER_STATUS_CHANGED,
+          data: orderToSendToClient,
+        };
+        this.eventsGateway.emitToUser({
+          userId: clientId,
+          event: EnumWebSocketEventType.CLIENT_APPLICATION,
+          data: notification,
+        });
+      } catch (error) {
+        this.logger.error(
+          `[FlwWebhookService] Failed to emit client notification: ${error.message}`,
+        );
+      }
+
+      try {
+        const clientId = order.createdBy.toString();
+        const installations = await this.fcmTokenModel
+          .find({ user: new Types.ObjectId(clientId) })
+          .populate<{ user: User }>('user')
+          .lean();
+
+        if (installations.length === 0) {
+          this.logger.log(
+            `[FlwWebhookService] No FCM installations for order creator: id=${order._id}`,
+          );
+        } else {
+          const language =
+            installations[0].user?.language ?? EnumUserLanguage.FR;
+          const { title, body } = getNotificationMessage(
+            EnumNotificationI18nType.ORDER_PAID_CLIENT,
+            language,
+          );
+          const installationIds = installations.map(
+            (installation) => installation.installationId,
+          );
+          const orderId = order._id.toString();
+
+          const fcmResults = await this.fcmService.sendToDevices(
+            installationIds,
+            {
+              title,
+              body,
+              data: {
+                orderId,
+                status: order.status,
+                click_action: `${env.clientFrontendUrl}/orders/${orderId}`,
+              },
+            },
+          );
+          this.logger.log(
+            `[FlwWebhookService] Client FCM results: ${JSON.stringify(fcmResults)}`,
+          );
+        }
+      } catch (error) {
+        this.logger.error(
+          `[FlwWebhookService] Failed to send FCM notification to client: ${error.message}`,
+        );
+      }
+    }
+  }
+
   private async notifyPaymentFailure(order: OrderDocument) {
     if (!order.createdBy) {
       return;
@@ -327,6 +450,50 @@ export class FlwWebhookService {
     } catch (error) {
       this.logger.error(
         `[FlwWebhookService] Failed to emit client notification for failed payment: ${error.message}`,
+      );
+    }
+
+    try {
+      const clientId = order.createdBy.toString();
+      const installations = await this.fcmTokenModel
+        .find({ user: new Types.ObjectId(clientId) })
+        .populate<{ user: User }>('user')
+        .lean();
+
+      if (installations.length === 0) {
+        this.logger.log(
+          `[FlwWebhookService] No FCM installations for order creator: id=${order._id}`,
+        );
+      } else {
+        const language = installations[0].user?.language ?? EnumUserLanguage.FR;
+        const { title, body } = getNotificationMessage(
+          EnumNotificationI18nType.ORDER_PAYMENT_FAILED_CLIENT,
+          language,
+        );
+        const installationIds = installations.map(
+          (installation) => installation.installationId,
+        );
+        const orderId = order._id.toString();
+
+        const fcmResults = await this.fcmService.sendToDevices(
+          installationIds,
+          {
+            title,
+            body,
+            data: {
+              orderId,
+              status: order.status,
+              click_action: `${env.clientFrontendUrl}/orders/${orderId}`,
+            },
+          },
+        );
+        this.logger.log(
+          `[FlwWebhookService] Payment failure client FCM results: ${JSON.stringify(fcmResults)}`,
+        );
+      }
+    } catch (error) {
+      this.logger.error(
+        `[FlwWebhookService] Failed to send FCM notification to client for failed payment: ${error.message}`,
       );
     }
   }

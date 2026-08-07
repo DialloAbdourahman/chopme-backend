@@ -9,6 +9,10 @@ import {
   RestaurantMember,
   RestaurantMemberSchema,
 } from 'src/restaurant-members/entities/restaurant-member.entity';
+import {
+  FcmToken,
+  FcmTokenSchema,
+} from 'src/fcm-tokens/entities/fcm-token.entity';
 
 @Module({
   imports: [
@@ -16,6 +20,7 @@ import {
       { name: Order.name, schema: OrderSchema },
       { name: Menu.name, schema: MenuSchema },
       { name: RestaurantMember.name, schema: RestaurantMemberSchema },
+      { name: FcmToken.name, schema: FcmTokenSchema },
     ]),
     WebSocketModule,
   ],

@@ -9,6 +9,10 @@ import {
   Restaurant,
   RestaurantSchema,
 } from 'src/restaurants/entities/restaurant.entity';
+import {
+  FcmToken,
+  FcmTokenSchema,
+} from 'src/fcm-tokens/entities/fcm-token.entity';
 
 @Module({
   imports: [
@@ -17,6 +21,7 @@ import {
       { name: Menu.name, schema: MenuSchema },
       { name: Client.name, schema: MenuSchema },
       { name: Restaurant.name, schema: RestaurantSchema },
+      { name: FcmToken.name, schema: FcmTokenSchema },
     ]),
   ],
   controllers: [OrdersController],

@@ -16,6 +16,8 @@ import { RestaurantMembersModule } from './restaurant-members/restaurant-members
 import { CategoriesModule } from './categories/categories.module';
 import { WebSocketModule } from './web-socket/web-socket.module';
 import { WebSocketService } from './web-socket/web-socket-service';
+import { FcmModule } from './fcm/fcm.module';
+import { FcmTokensModule } from './fcm-tokens/fcm-tokens.module';
 import { FlutterwaveModule } from './common/flutterwave/flutterwave.module';
 import { FlwWebhookModule } from './flw-webhook/flw-webhook.module';
 import { RestaurantRatingsModule } from './restaurant-ratings/restaurant-ratings.module';
@@ -52,6 +54,8 @@ import { StartupService } from './startup';
     RestaurantMembersModule,
     CategoriesModule,
     WebSocketModule,
+    FcmModule,
+    FcmTokensModule,
     FlutterwaveModule.forRoot({
       baseUrl: env.flutterWaveUrl,
       secretKey: env.flutterWaveClientSecretKey,

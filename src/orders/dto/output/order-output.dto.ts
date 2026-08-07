@@ -134,6 +134,12 @@ abstract class OrderOutputDto {
   orderCancelReason?: string;
 
   @Expose()
+  clientLocation: {
+    type: 'Point';
+    coordinates: [number, number];
+  };
+
+  @Expose()
   createdAt: Date;
 }
 

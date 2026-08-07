@@ -285,7 +285,7 @@ export class UsersService {
         code,
         googleClientId: env.googleClientId,
         googleClientSecret: env.googleClientSecret,
-        googleRedirectLink: env.googleRedirectLink,
+        googleRedirectLink: env.clientFrontendUrl,
       });
 
       if (!googleUser || !googleUser.email || !googleUser.name) {

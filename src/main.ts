@@ -3,7 +3,6 @@ import { AppModule } from './app.module';
 import { WINSTON_MODULE_NEST_PROVIDER } from 'nest-winston';
 import { OrchestrationExceptionFilter } from './common/filters/exception.filter';
 import { env } from './config/env';
-import { stringToArray } from './common/utils/string-to-array';
 import { createValidationPipe } from './common/pipes/validation-pipe';
 import { LogUserRequestInterceptor } from './common/interceptors/log-user-request.interceptor';
 
@@ -12,7 +11,7 @@ async function bootstrap() {
 
   app.setGlobalPrefix('api');
   app.enableCors({
-    origin: stringToArray(env.allowedOrigins),
+    origin: [env.clientFrontendUrl, env.restaurantFrontendUrl],
     credentials: true,
   });
   app.useLogger(app.get(WINSTON_MODULE_NEST_PROVIDER));

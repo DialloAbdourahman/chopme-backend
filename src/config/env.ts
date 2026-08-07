@@ -3,7 +3,8 @@ import 'dotenv/config';
 export interface EnvConfig {
   mongodbUri: string;
   port: number;
-  allowedOrigins: string;
+  clientFrontendUrl: string;
+  restaurantFrontendUrl: string;
 
   adminEmail: string;
   adminPassword: string;
@@ -16,7 +17,6 @@ export interface EnvConfig {
 
   googleClientId: string;
   googleClientSecret: string;
-  googleRedirectLink: string;
 
   s3PublicBucketName: string;
   s3PublicBucketRegion: string;
@@ -34,18 +34,20 @@ export interface EnvConfig {
   flutterWaveUrl: string;
   flutterWaveClientSecretKey: string;
   flutterWaveClientPublicKey: string;
-  flutterWaveRedirectUrl: string;
   flutterWaveMaxPaymentLinkValidityInHr: number;
   flutterWaveWebhookSecretHash: string;
 
   platformMobileMoneyAccountNumber: string;
   platformMobileMoneyNetworkType: string;
+
+  firebaseServiceAccountJson: string;
 }
 
 export const env: EnvConfig = {
   mongodbUri: process.env.MONGODB_URI!,
   port: Number(process.env.PORT ?? 3000),
-  allowedOrigins: process.env.ALLOWED_ORIGINS!,
+  clientFrontendUrl: process.env.CLIENT_FRONTEND_URL!,
+  restaurantFrontendUrl: process.env.RESTAURANT_FRONTEND_URL!,
 
   adminEmail: process.env.ADMIN_EMAIL!,
   adminPassword: process.env.ADMIN_PASSWORD!,
@@ -58,7 +60,6 @@ export const env: EnvConfig = {
 
   googleClientId: process.env.GOOGLE_CLIENT_ID!,
   googleClientSecret: process.env.GOOGLE_CLIENT_SECRET!,
-  googleRedirectLink: process.env.GOOGLE_REDIRECT_LINK!,
 
   s3PublicBucketName: process.env.S3_PUBLIC_BUCKET_NAME!,
   s3PublicBucketRegion: process.env.S3_PRIVATE_BUCKET_REGION!,
@@ -78,7 +79,6 @@ export const env: EnvConfig = {
   flutterWaveUrl: process.env.FLUTTER_WAVE_URL!,
   flutterWaveClientPublicKey: process.env.FLUTTER_WAVE_CLIENT_PUBLIC!,
   flutterWaveClientSecretKey: process.env.FLUTTER_WAVE_CLIENT_SECRET!,
-  flutterWaveRedirectUrl: process.env.FLUTTER_WAVE_REDIRECT_URL!,
   flutterWaveMaxPaymentLinkValidityInHr: Number(
     process.env.FLUTTER_WAVE_MAX_PAYMENT_LINK_VALIDITY_IN_HR!,
   ),
@@ -88,4 +88,6 @@ export const env: EnvConfig = {
     process.env.PLATFORM_MOBILE_MONEY_ACCOUNT_NUMBER!,
   platformMobileMoneyNetworkType:
     process.env.PLATFORM_MOBILE_MONEY_NETWORK_TYPE!,
+
+  firebaseServiceAccountJson: process.env.FIREBASE_SERVICE_ACCOUNT_JSON!,
 };
