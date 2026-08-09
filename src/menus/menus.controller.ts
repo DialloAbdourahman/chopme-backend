@@ -71,6 +71,22 @@ export class MenusController {
     });
   }
 
+  @Get('restaurant/order-stats')
+  @HttpCode(HttpStatus.OK)
+  @UseGuards(AuthGuard, RoleGuard, RestaurantRoleGuard)
+  @Roles(EnumUserRole.RESTAURANT_MEMBER)
+  getMenuOrderStats(
+    @CurrentUser() user: ILoggedInUserTokenData,
+    @Query('startDate') startDate: string,
+    @Query('endDate') endDate: string,
+  ) {
+    return this.menusService.getMenuOrderStats({
+      user,
+      startDate,
+      endDate,
+    });
+  }
+
   @Get('restaurant/search')
   @HttpCode(HttpStatus.OK)
   @UseGuards(AuthGuard, RoleGuard, RestaurantRoleGuard)

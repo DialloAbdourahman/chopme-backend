@@ -11,6 +11,7 @@ import {
   Restaurant,
   RestaurantSchema,
 } from 'src/restaurants/entities/restaurant.entity';
+import { Order, OrderSchema } from 'src/orders/entities/order.entity';
 
 @Module({
   imports: [
@@ -18,6 +19,7 @@ import {
       { name: Menu.name, schema: MenuSchema },
       { name: Category.name, schema: CategorySchema },
       { name: Restaurant.name, schema: RestaurantSchema },
+      { name: Order.name, schema: OrderSchema },
     ]),
   ],
   controllers: [MenusController],

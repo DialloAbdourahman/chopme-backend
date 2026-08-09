@@ -19,6 +19,8 @@ import { CurrentUser } from 'src/common/decorators/current-user.decorator';
 import type { ILoggedInUserTokenData } from 'src/common/interfaces/loggedin-user-token-data';
 import { CancelOrderDto } from './dto/input/cancel-order.dto';
 import { EnumOrderStatus } from 'src/common/enums/order-status';
+import { EnumRestaurantMemberRole } from 'src/common/enums/restaurant-member-role';
+import { RestaurantRoles } from 'src/common/guards/restaurant-role.guard';
 
 @Controller('orders')
 export class OrdersController {
@@ -126,6 +128,40 @@ export class OrdersController {
       status,
       page: parsedPage,
       limit: parsedLimit,
+    });
+  }
+
+  @Get('restaurant-orders/count')
+  @HttpCode(HttpStatus.OK)
+  @UseGuards(AuthGuard, RoleGuard)
+  @Roles(EnumUserRole.RESTAURANT_MEMBER)
+  countRestaurantOrders(
+    @CurrentUser() user: ILoggedInUserTokenData,
+    @Query('status') status: EnumOrderStatus,
+  ) {
+    return this.ordersService.countRestaurantOrders({
+      user,
+      status,
+    });
+  }
+
+  @Get('restaurant-orders/sum-amount')
+  @HttpCode(HttpStatus.OK)
+  @UseGuards(AuthGuard, RoleGuard)
+  @Roles(EnumUserRole.RESTAURANT_MEMBER)
+  @RestaurantRoles(EnumRestaurantMemberRole.OWNER)
+  sumRestaurantOrdersAmount(
+    @CurrentUser() user: ILoggedInUserTokenData,
+    @Query('statuses') statuses: string,
+    @Query('excludeTransferred') excludeTransferred?: string,
+  ) {
+    const parsedStatuses = (statuses ? statuses.split(',') : []).map(
+      (status) => status.trim() as EnumOrderStatus,
+    );
+    return this.ordersService.sumRestaurantOrdersAmount({
+      user,
+      statuses: parsedStatuses,
+      excludeTransferred: excludeTransferred === 'true',
     });
   }
 

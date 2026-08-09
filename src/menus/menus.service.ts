@@ -24,6 +24,8 @@ import {
   Restaurant,
   RestaurantDocument,
 } from 'src/restaurants/entities/restaurant.entity';
+import { Order, OrderDocument } from 'src/orders/entities/order.entity';
+import { EnumOrderStatus } from 'src/common/enums/order-status';
 
 @Injectable()
 export class MenusService {
@@ -37,6 +39,8 @@ export class MenusService {
     private readonly categoryModel: Model<CategoryDocument>,
     @InjectModel(Restaurant.name)
     private readonly restaurantModel: Model<RestaurantDocument>,
+    @InjectModel(Order.name)
+    private readonly orderModel: Model<OrderDocument>,
   ) {
     this.s3Helper = new AwsS3Helper({
       bucketName: env.s3PublicBucketName,
@@ -800,6 +804,86 @@ export class MenusService {
       statusCode: EnumStatusCode.DELETED_SUCCESSFULLY,
       data: publicMenu,
       message: 'Cover image deleted successfully',
+    });
+  }
+
+  async getMenuOrderStats({
+    user,
+    startDate,
+    endDate,
+  }: {
+    user: ILoggedInUserTokenData;
+    startDate: string;
+    endDate: string;
+  }) {
+    this.logger.log(
+      `[getMenuOrderStats] Getting menu order stats for restaurantId=${user.restaurantId}, startDate=${startDate}, endDate=${endDate}`,
+    );
+
+    const restaurantId = new Types.ObjectId(user.restaurantId);
+
+    const parsedStartDate = startDate ? new Date(startDate) : undefined;
+    const parsedEndDate = endDate ? new Date(endDate) : undefined;
+
+    if (
+      (parsedStartDate && isNaN(parsedStartDate.getTime())) ||
+      (parsedEndDate && isNaN(parsedEndDate.getTime()))
+    ) {
+      this.logger.warn(
+        `[getMenuOrderStats] Invalid date range: startDate=${startDate}, endDate=${endDate}`,
+      );
+      throw new OrchestrationException({
+        statusCode: EnumStatusCode.INVALID_REQUEST,
+        message: 'Invalid startDate or endDate',
+        code: 400,
+      });
+    }
+
+    const paidAtFilter: Record<string, Date> = {};
+    if (parsedStartDate) paidAtFilter.$gte = parsedStartDate;
+    if (parsedEndDate) paidAtFilter.$lt = parsedEndDate;
+
+    const match: Record<string, unknown> = {
+      restaurant: restaurantId,
+      status: { $ne: EnumOrderStatus.CANCELLED_BY_RESTAURANT },
+      paidAt: { $ne: null, ...paidAtFilter },
+    };
+
+    const stats = await this.orderModel.aggregate([
+      { $match: match },
+      { $unwind: '$items' },
+      {
+        $group: {
+          _id: '$items.product',
+          totalQuantity: { $sum: '$items.quantity' },
+        },
+      },
+    ]);
+
+    const menus = await this.menuModel
+      .find({ restaurant: restaurantId, deleted: false })
+      .exec();
+
+    const statsMap = new Map(
+      stats.map((stat) => [stat._id.toString(), stat.totalQuantity]),
+    );
+
+    const result = menus.map((menu) => ({
+      menuId: menu._id.toString(),
+      menuName: menu.name,
+      totalOrders: statsMap.get(menu._id.toString()) ?? 0,
+    }));
+
+    this.logger.log(
+      `[getMenuOrderStats] Computed stats for ${result.length} menus`,
+    );
+
+    return OrchestrationResult.Success<
+      { menuId: string; menuName: string; totalOrders: number }[]
+    >({
+      statusCode: EnumStatusCode.RECOVERED_SUCCESSFULLY,
+      data: result,
+      message: 'Menu order stats fetched successfully',
     });
   }
 }

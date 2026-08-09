@@ -62,289 +62,21 @@ export class OrdersService {
   ];
 
   constructor(
-    @InjectModel(Menu.name) private readonly menuModel: Model<MenuDocument>,
+    @InjectModel(Menu.name)
+    private readonly menuModel: Model<MenuDocument>,
     @InjectModel(Client.name)
     private readonly clientModel: Model<ClientDocument>,
     @InjectModel(Restaurant.name)
     private readonly restaurantModel: Model<RestaurantDocument>,
     @InjectModel(Order.name)
     private readonly orderModel: Model<OrderDocument>,
+    @InjectModel(FcmToken.name)
+    private readonly fcmTokenModel: Model<FcmTokenDocument>,
+
     private readonly flutterwaveService: FlutterwaveService,
     private readonly eventsGateway: WebSocketService,
     private readonly fcmService: FcmService,
-    @InjectModel(FcmToken.name)
-    private readonly fcmTokenModel: Model<FcmTokenDocument>,
   ) {}
-
-  private getOrderStatusNotificationI18nType(
-    status: EnumOrderStatus,
-  ): EnumNotificationI18nType {
-    const statusToType: Partial<
-      Record<EnumOrderStatus, EnumNotificationI18nType>
-    > = {
-      [EnumOrderStatus.CANCELLED_BY_RESTAURANT]:
-        EnumNotificationI18nType.ORDER_CANCELLED_BY_RESTAURANT,
-      [EnumOrderStatus.PREPARING_ORDER]:
-        EnumNotificationI18nType.ORDER_PREPARING_ORDER,
-      [EnumOrderStatus.IN_DELIVERY]: EnumNotificationI18nType.ORDER_IN_DELIVERY,
-      [EnumOrderStatus.DELIVERED]: EnumNotificationI18nType.ORDER_DELIVERED,
-    };
-
-    return (
-      statusToType[status] ?? EnumNotificationI18nType.ORDER_STATUS_CHANGED
-    );
-  }
-
-  private async ensureCanOrder({
-    user,
-    createOrderDto,
-  }: {
-    createOrderDto: CreateOrderDto;
-    user: ILoggedInUserTokenData;
-  }): Promise<{
-    deliveryTier: {
-      from: number;
-      to: number;
-      price: number;
-    };
-    orders: { menu: MenuDocument; quantity: number }[];
-    maxTimeToPayOrder: Date;
-    distanceKm: number;
-    clientLocation: {
-      type: string;
-      coordinates: number[];
-    };
-    createOrderDto?: CreateOrderDto;
-  }> {
-    const productIds = createOrderDto.items.map((item) => item.productId);
-    this.logger.log(
-      `[ensureCanOrder] Starting validation for clientId=${user.clientId}, restaurantId=${createOrderDto.restaurantId}, items=${productIds.length}`,
-    );
-
-    // Make sure that the restaurant exists
-    const restaurant = await this.restaurantModel.findOne({
-      _id: new Types.ObjectId(createOrderDto.restaurantId),
-      deleted: false,
-    });
-
-    if (!restaurant) {
-      this.logger.warn(
-        `[ensureCanOrder] Restaurant not found: restaurantId=${createOrderDto.restaurantId}`,
-      );
-      throw new OrchestrationException({
-        statusCode: EnumStatusCode.RESTAURANT_NOT_FOUND,
-        message: 'Restaurant not found',
-        code: 404,
-      });
-    }
-    this.logger.log(
-      `[ensureCanOrder] Restaurant found: id=${restaurant._id}, name=${restaurant.name}`,
-    );
-
-    // Make sure restaurant is not manually closed
-    if (restaurant.isClosed) {
-      this.logger.warn(
-        `[ensureCanOrder] Restaurant is manually closed: restaurantId=${restaurant._id}`,
-      );
-      throw new OrchestrationException({
-        statusCode: EnumStatusCode.RESTAURANT_CLOSED,
-        message: 'Restaurant is closed',
-        code: 400,
-      });
-    }
-
-    // Make sure that restaurant is opened currently
-    const now = new Date();
-    const maxTimeToPayOrder = new Date(
-      now.getTime() + env.maxTimeToPayOrderInMins * 60 * 1000,
-    );
-    const cameroonLocale = { timeZone: 'Africa/Douala' };
-    const dayName = now.toLocaleDateString('en-US', {
-      weekday: 'long',
-      ...cameroonLocale,
-    });
-    const currentTime = now.toLocaleTimeString('en-GB', {
-      hour: '2-digit',
-      minute: '2-digit',
-      hour12: false,
-      ...cameroonLocale,
-    });
-
-    const todaySchedule = restaurant.availability.find(
-      (a) => a.day === dayName,
-    );
-
-    if (
-      !todaySchedule ||
-      currentTime < todaySchedule.openTime ||
-      currentTime > todaySchedule.closeTime
-    ) {
-      this.logger.warn(
-        `[ensureCanOrder] Restaurant not open: day=${dayName}, currentTime=${currentTime}, schedule=${JSON.stringify(todaySchedule)}`,
-      );
-      throw new OrchestrationException({
-        statusCode: EnumStatusCode.RESTAURANT_CLOSED,
-        message: 'Restaurant is not open at this time',
-        code: 400,
-      });
-    }
-    this.logger.log(
-      `[ensureCanOrder] Restaurant is open: day=${dayName}, currentTime=${currentTime}, openTime=${todaySchedule.openTime}, closeTime=${todaySchedule.closeTime}`,
-    );
-
-    // Make sure that the client exists
-    const client = await this.clientModel.findOne({
-      _id: new Types.ObjectId(user.clientId),
-      deleted: false,
-    });
-
-    if (!client) {
-      this.logger.warn(
-        `[ensureCanOrder] Client not found: clientId=${user.clientId}`,
-      );
-      throw new OrchestrationException({
-        statusCode: EnumStatusCode.CLIENT_NOT_FOUND,
-        message: 'Client not found',
-        code: 404,
-      });
-    }
-    this.logger.log(`[ensureCanOrder] Client found: id=${client._id}`);
-
-    // Make sure that the client has entered all the required information before ordering
-    if (
-      !client.address?.longitude ||
-      !client.address?.latitude ||
-      !client.phoneNumber
-    ) {
-      this.logger.warn(
-        `[ensureCanOrder] Client information incomplete: clientId=${client._id}, hasAddress=${!!client.address}, hasPhone=${!!client.phoneNumber}`,
-      );
-      throw new OrchestrationException({
-        statusCode: EnumStatusCode.CLIENT_INFORMATION_INCOMPLETE,
-        message: 'Client information incomplete',
-        code: 400,
-      });
-    }
-
-    // Make sure that the client is not too far from the restaurant.
-    const clientLocation: {
-      type: 'Point';
-      coordinates: [number, number];
-    } = {
-      type: 'Point',
-      coordinates: [client.address.longitude, client.address.latitude],
-    };
-    const [restaurantWithDistance] = await this.restaurantModel.aggregate<{
-      distance: number;
-    }>([
-      {
-        $geoNear: {
-          near: clientLocation,
-          spherical: true,
-          distanceField: 'distance',
-          query: {
-            _id: restaurant._id,
-            deleted: false,
-          },
-        },
-      },
-      { $limit: 1 },
-    ]);
-
-    if (!restaurantWithDistance) {
-      throw new OrchestrationException({
-        statusCode: EnumStatusCode.RESTAURANT_NOT_FOUND,
-        message: 'Restaurant not found',
-        code: 404,
-      });
-    }
-
-    const distanceKm =
-      Math.round((restaurantWithDistance.distance / 1000) * 100) / 100;
-    const deliveryTier = restaurant.deliveryPricingKm.find(
-      (tier) => distanceKm >= tier.from && distanceKm <= tier.to,
-    );
-
-    this.logger.log(
-      `[ensureCanOrder] Distance to restaurant: ${distanceKm.toFixed(2)}km`,
-    );
-
-    if (!deliveryTier) {
-      this.logger.warn(
-        `[ensureCanOrder] Client too far: distance=${distanceKm.toFixed(2)}km, clientId=${client._id}, restaurantId=${restaurant._id}`,
-      );
-      throw new OrchestrationException({
-        statusCode: EnumStatusCode.TOO_FAR,
-        message: 'Delivery is not available for your location',
-        code: 400,
-      });
-    }
-    this.logger.log(
-      `[ensureCanOrder] Delivery tier matched: from=${deliveryTier.from}km, to=${deliveryTier.to}km, price=${deliveryTier.price}`,
-    );
-
-    // Make sure that that the menus exists
-    const menus = await this.menuModel
-      .find({ _id: { $in: productIds }, deleted: false })
-      .exec();
-
-    if (menus.length !== productIds.length) {
-      this.logger.warn(
-        `[ensureCanOrder] Menu mismatch: requested=${productIds.length}, found=${menus.length}`,
-      );
-      throw new OrchestrationException({
-        statusCode: EnumStatusCode.ONE_OF_THE_MENUS_DOES_NOT_EXIST,
-        message: 'One or more products were not found',
-        code: 404,
-      });
-    }
-    this.logger.log(`[ensureCanOrder] All ${menus.length} menu item(s) found`);
-
-    // Make sure that the menus belong to the same restaurant
-    const allBelongToRestaurant = menus.every(
-      (menu) => menu.restaurant.toString() === createOrderDto.restaurantId,
-    );
-
-    if (!allBelongToRestaurant) {
-      this.logger.warn(
-        `[ensureCanOrder] Menu items do not all belong to restaurantId=${createOrderDto.restaurantId}`,
-      );
-      throw new OrchestrationException({
-        statusCode: EnumStatusCode.NOT_FROM_SAME_RESTAURANT,
-        message: 'All products must belong to the same restaurant',
-        code: 400,
-      });
-    }
-
-    // Make sure that the menu is available.
-    const notAvailableMenu = menus.find((menu) => menu.available === false);
-
-    if (notAvailableMenu) {
-      this.logger.warn(
-        `[ensureCanOrder] Menu item not available: menuId=${notAvailableMenu._id}, name=${notAvailableMenu.name}`,
-      );
-      throw new OrchestrationException({
-        statusCode: EnumStatusCode.ONE_OF_THE_MENUS_IS_NOT_AVAILABLE,
-        message: 'One or more products are not available',
-        code: 400,
-      });
-    }
-
-    this.logger.log(
-      `[ensureCanOrder] All validations passed for clientId=${user.clientId}, restaurantId=${createOrderDto.restaurantId}`,
-    );
-
-    return {
-      orders: createOrderDto.items.map((item) => ({
-        menu: menus.find((m) => m._id.toString() === item.productId)!,
-        quantity: item.quantity,
-      })),
-      deliveryTier,
-      maxTimeToPayOrder,
-      distanceKm,
-      clientLocation,
-    };
-  }
 
   async create(createOrderDto: CreateOrderDto, user: ILoggedInUserTokenData) {
     this.logger.log(
@@ -579,6 +311,108 @@ export class OrdersService {
       statusCode: EnumStatusCode.RECOVERED_SUCCESSFULLY,
       data: paginatedResult,
       message: 'Restaurant orders fetched successfully',
+    });
+  }
+
+  async countRestaurantOrders({
+    user,
+    status,
+  }: {
+    user: ILoggedInUserTokenData;
+    status: EnumOrderStatus;
+  }) {
+    this.logger.log(
+      `[countRestaurantOrders] Counting orders for restaurantId=${user.restaurantId}, status=${status}`,
+    );
+
+    const restaurantId = new Types.ObjectId(user.restaurantId);
+    const activeStatuses = this.restaurantOrderStatuses;
+
+    if (!status || !activeStatuses.includes(status)) {
+      this.logger.warn(`[countRestaurantOrders] Invalid status: ${status}`);
+      throw new OrchestrationException({
+        statusCode: EnumStatusCode.CANNOT_FILTER_WITH_STATUS,
+        message: `Cannot count orders with status ${status}`,
+        code: 400,
+      });
+    }
+
+    const total = await this.orderModel.countDocuments({
+      restaurant: restaurantId,
+      status,
+    });
+
+    this.logger.log(
+      `[countRestaurantOrders] Total orders with status ${status}: ${total}`,
+    );
+
+    return OrchestrationResult.Success<{ total: number }>({
+      statusCode: EnumStatusCode.RECOVERED_SUCCESSFULLY,
+      data: { total },
+      message: 'Restaurant orders counted successfully',
+    });
+  }
+
+  async sumRestaurantOrdersAmount({
+    user,
+    statuses,
+    excludeTransferred,
+  }: {
+    user: ILoggedInUserTokenData;
+    statuses: EnumOrderStatus[];
+    excludeTransferred?: boolean;
+  }) {
+    this.logger.log(
+      `[sumRestaurantOrdersAmount] Summing orders for restaurantId=${user.restaurantId}, statuses=${statuses}, excludeTransferred=${excludeTransferred}`,
+    );
+
+    const restaurantId = new Types.ObjectId(user.restaurantId);
+    const activeStatuses = this.restaurantOrderStatuses;
+
+    if (
+      !statuses ||
+      statuses.length === 0 ||
+      statuses.some((status) => !activeStatuses.includes(status))
+    ) {
+      this.logger.warn(
+        `[sumRestaurantOrdersAmount] Invalid statuses: ${statuses}`,
+      );
+      throw new OrchestrationException({
+        statusCode: EnumStatusCode.CANNOT_FILTER_WITH_STATUS,
+        message: `Cannot sum orders with statuses ${statuses}`,
+        code: 400,
+      });
+    }
+
+    const match: Record<string, unknown> = {
+      restaurant: restaurantId,
+      status: { $in: statuses },
+    };
+
+    if (excludeTransferred) {
+      match.transfer = { $exists: false };
+    }
+
+    const result = await this.orderModel.aggregate([
+      { $match: match },
+      {
+        $group: {
+          _id: null,
+          total: { $sum: '$pricing.restaurantAmountWithDelivery' },
+        },
+      },
+    ]);
+
+    const total = result[0]?.total ?? 0;
+
+    this.logger.log(
+      `[sumRestaurantOrdersAmount] Total amount for statuses ${statuses}: ${total}`,
+    );
+
+    return OrchestrationResult.Success<{ total: number }>({
+      statusCode: EnumStatusCode.RECOVERED_SUCCESSFULLY,
+      data: { total },
+      message: 'Restaurant orders amount summed successfully',
     });
   }
 
@@ -1172,5 +1006,275 @@ export class OrdersService {
         `[notifyOrderStatusChanged] Failed to send FCM notification: ${error.message}`,
       );
     }
+  }
+
+  private getOrderStatusNotificationI18nType(
+    status: EnumOrderStatus,
+  ): EnumNotificationI18nType {
+    const statusToType: Partial<
+      Record<EnumOrderStatus, EnumNotificationI18nType>
+    > = {
+      [EnumOrderStatus.CANCELLED_BY_RESTAURANT]:
+        EnumNotificationI18nType.ORDER_CANCELLED_BY_RESTAURANT,
+      [EnumOrderStatus.PREPARING_ORDER]:
+        EnumNotificationI18nType.ORDER_PREPARING_ORDER,
+      [EnumOrderStatus.IN_DELIVERY]: EnumNotificationI18nType.ORDER_IN_DELIVERY,
+      [EnumOrderStatus.DELIVERED]: EnumNotificationI18nType.ORDER_DELIVERED,
+    };
+
+    return (
+      statusToType[status] ?? EnumNotificationI18nType.ORDER_STATUS_CHANGED
+    );
+  }
+
+  private async ensureCanOrder({
+    user,
+    createOrderDto,
+  }: {
+    createOrderDto: CreateOrderDto;
+    user: ILoggedInUserTokenData;
+  }): Promise<{
+    deliveryTier: {
+      from: number;
+      to: number;
+      price: number;
+    };
+    orders: { menu: MenuDocument; quantity: number }[];
+    maxTimeToPayOrder: Date;
+    distanceKm: number;
+    clientLocation: {
+      type: string;
+      coordinates: number[];
+    };
+    createOrderDto?: CreateOrderDto;
+  }> {
+    const productIds = createOrderDto.items.map((item) => item.productId);
+    this.logger.log(
+      `[ensureCanOrder] Starting validation for clientId=${user.clientId}, restaurantId=${createOrderDto.restaurantId}, items=${productIds.length}`,
+    );
+
+    // Make sure that the restaurant exists
+    const restaurant = await this.restaurantModel.findOne({
+      _id: new Types.ObjectId(createOrderDto.restaurantId),
+      deleted: false,
+    });
+
+    if (!restaurant) {
+      this.logger.warn(
+        `[ensureCanOrder] Restaurant not found: restaurantId=${createOrderDto.restaurantId}`,
+      );
+      throw new OrchestrationException({
+        statusCode: EnumStatusCode.RESTAURANT_NOT_FOUND,
+        message: 'Restaurant not found',
+        code: 404,
+      });
+    }
+    this.logger.log(
+      `[ensureCanOrder] Restaurant found: id=${restaurant._id}, name=${restaurant.name}`,
+    );
+
+    // Make sure restaurant is not manually closed
+    if (restaurant.isClosed) {
+      this.logger.warn(
+        `[ensureCanOrder] Restaurant is manually closed: restaurantId=${restaurant._id}`,
+      );
+      throw new OrchestrationException({
+        statusCode: EnumStatusCode.RESTAURANT_CLOSED,
+        message: 'Restaurant is closed',
+        code: 400,
+      });
+    }
+
+    // Make sure that restaurant is opened currently
+    const now = new Date();
+    const maxTimeToPayOrder = new Date(
+      now.getTime() + env.maxTimeToPayOrderInMins * 60 * 1000,
+    );
+    const cameroonLocale = { timeZone: 'Africa/Douala' };
+    const dayName = now.toLocaleDateString('en-US', {
+      weekday: 'long',
+      ...cameroonLocale,
+    });
+    const currentTime = now.toLocaleTimeString('en-GB', {
+      hour: '2-digit',
+      minute: '2-digit',
+      hour12: false,
+      ...cameroonLocale,
+    });
+
+    const todaySchedule = restaurant.availability.find(
+      (a) => a.day === dayName,
+    );
+
+    if (
+      !todaySchedule ||
+      currentTime < todaySchedule.openTime ||
+      currentTime > todaySchedule.closeTime
+    ) {
+      this.logger.warn(
+        `[ensureCanOrder] Restaurant not open: day=${dayName}, currentTime=${currentTime}, schedule=${JSON.stringify(todaySchedule)}`,
+      );
+      throw new OrchestrationException({
+        statusCode: EnumStatusCode.RESTAURANT_CLOSED,
+        message: 'Restaurant is not open at this time',
+        code: 400,
+      });
+    }
+    this.logger.log(
+      `[ensureCanOrder] Restaurant is open: day=${dayName}, currentTime=${currentTime}, openTime=${todaySchedule.openTime}, closeTime=${todaySchedule.closeTime}`,
+    );
+
+    // Make sure that the client exists
+    const client = await this.clientModel.findOne({
+      _id: new Types.ObjectId(user.clientId),
+      deleted: false,
+    });
+
+    if (!client) {
+      this.logger.warn(
+        `[ensureCanOrder] Client not found: clientId=${user.clientId}`,
+      );
+      throw new OrchestrationException({
+        statusCode: EnumStatusCode.CLIENT_NOT_FOUND,
+        message: 'Client not found',
+        code: 404,
+      });
+    }
+    this.logger.log(`[ensureCanOrder] Client found: id=${client._id}`);
+
+    // Make sure that the client has entered all the required information before ordering
+    if (
+      !client.address?.longitude ||
+      !client.address?.latitude ||
+      !client.phoneNumber
+    ) {
+      this.logger.warn(
+        `[ensureCanOrder] Client information incomplete: clientId=${client._id}, hasAddress=${!!client.address}, hasPhone=${!!client.phoneNumber}`,
+      );
+      throw new OrchestrationException({
+        statusCode: EnumStatusCode.CLIENT_INFORMATION_INCOMPLETE,
+        message: 'Client information incomplete',
+        code: 400,
+      });
+    }
+
+    // Make sure that the client is not too far from the restaurant.
+    const clientLocation: {
+      type: 'Point';
+      coordinates: [number, number];
+    } = {
+      type: 'Point',
+      coordinates: [client.address.longitude, client.address.latitude],
+    };
+    const [restaurantWithDistance] = await this.restaurantModel.aggregate<{
+      distance: number;
+    }>([
+      {
+        $geoNear: {
+          near: clientLocation,
+          spherical: true,
+          distanceField: 'distance',
+          query: {
+            _id: restaurant._id,
+            deleted: false,
+          },
+        },
+      },
+      { $limit: 1 },
+    ]);
+
+    if (!restaurantWithDistance) {
+      throw new OrchestrationException({
+        statusCode: EnumStatusCode.RESTAURANT_NOT_FOUND,
+        message: 'Restaurant not found',
+        code: 404,
+      });
+    }
+
+    const distanceKm =
+      Math.round((restaurantWithDistance.distance / 1000) * 100) / 100;
+    const deliveryTier = restaurant.deliveryPricingKm.find(
+      (tier) => distanceKm >= tier.from && distanceKm <= tier.to,
+    );
+
+    this.logger.log(
+      `[ensureCanOrder] Distance to restaurant: ${distanceKm.toFixed(2)}km`,
+    );
+
+    if (!deliveryTier) {
+      this.logger.warn(
+        `[ensureCanOrder] Client too far: distance=${distanceKm.toFixed(2)}km, clientId=${client._id}, restaurantId=${restaurant._id}`,
+      );
+      throw new OrchestrationException({
+        statusCode: EnumStatusCode.TOO_FAR,
+        message: 'Delivery is not available for your location',
+        code: 400,
+      });
+    }
+    this.logger.log(
+      `[ensureCanOrder] Delivery tier matched: from=${deliveryTier.from}km, to=${deliveryTier.to}km, price=${deliveryTier.price}`,
+    );
+
+    // Make sure that that the menus exists
+    const menus = await this.menuModel
+      .find({ _id: { $in: productIds }, deleted: false })
+      .exec();
+
+    if (menus.length !== productIds.length) {
+      this.logger.warn(
+        `[ensureCanOrder] Menu mismatch: requested=${productIds.length}, found=${menus.length}`,
+      );
+      throw new OrchestrationException({
+        statusCode: EnumStatusCode.ONE_OF_THE_MENUS_DOES_NOT_EXIST,
+        message: 'One or more products were not found',
+        code: 404,
+      });
+    }
+    this.logger.log(`[ensureCanOrder] All ${menus.length} menu item(s) found`);
+
+    // Make sure that the menus belong to the same restaurant
+    const allBelongToRestaurant = menus.every(
+      (menu) => menu.restaurant.toString() === createOrderDto.restaurantId,
+    );
+
+    if (!allBelongToRestaurant) {
+      this.logger.warn(
+        `[ensureCanOrder] Menu items do not all belong to restaurantId=${createOrderDto.restaurantId}`,
+      );
+      throw new OrchestrationException({
+        statusCode: EnumStatusCode.NOT_FROM_SAME_RESTAURANT,
+        message: 'All products must belong to the same restaurant',
+        code: 400,
+      });
+    }
+
+    // Make sure that the menu is available.
+    const notAvailableMenu = menus.find((menu) => menu.available === false);
+
+    if (notAvailableMenu) {
+      this.logger.warn(
+        `[ensureCanOrder] Menu item not available: menuId=${notAvailableMenu._id}, name=${notAvailableMenu.name}`,
+      );
+      throw new OrchestrationException({
+        statusCode: EnumStatusCode.ONE_OF_THE_MENUS_IS_NOT_AVAILABLE,
+        message: 'One or more products are not available',
+        code: 400,
+      });
+    }
+
+    this.logger.log(
+      `[ensureCanOrder] All validations passed for clientId=${user.clientId}, restaurantId=${createOrderDto.restaurantId}`,
+    );
+
+    return {
+      orders: createOrderDto.items.map((item) => ({
+        menu: menus.find((m) => m._id.toString() === item.productId)!,
+        quantity: item.quantity,
+      })),
+      deliveryTier,
+      maxTimeToPayOrder,
+      distanceKm,
+      clientLocation,
+    };
   }
 }
