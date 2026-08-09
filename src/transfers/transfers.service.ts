@@ -1,5 +1,4 @@
 import { Injectable, Logger } from '@nestjs/common';
-import { CreateTransferDto } from './dto/input/create-transfer.dto';
 import type { ILoggedInUserTokenData } from 'src/common/interfaces/loggedin-user-token-data';
 import { InjectConnection, InjectModel } from '@nestjs/mongoose';
 import { Transfer, TransferDocument } from './entities/transfer.entity';
@@ -25,6 +24,7 @@ import {
   FlutterwaveTransfer,
 } from 'src/common/interfaces/flutterwave/transfer';
 import { EnumTransferStatuses } from 'src/common/enums/transfer-statuses';
+import { Pagination } from 'src/common/interfaces/pagination';
 
 @Injectable()
 export class TransfersService {
@@ -45,24 +45,16 @@ export class TransfersService {
     private readonly connection: Connection,
   ) {}
 
-  async create({
-    user,
-    createTransferDto,
-  }: {
-    user: ILoggedInUserTokenData;
-    createTransferDto: CreateTransferDto;
-  }) {
+  async create(user: ILoggedInUserTokenData) {
     this.logger.log(
-      `[createTransfer] Initiating transfer creation by userId=${user.id}, restaurantId=${createTransferDto.restaurantId}`,
+      `[createTransfer] Initiating transfer creation by userId=${user.id}, restaurantId=${user.restaurantId}`,
     );
 
-    const restaurant = await this.restaurantModel.findById(
-      createTransferDto.restaurantId,
-    );
+    const restaurant = await this.restaurantModel.findById(user.restaurantId);
 
     if (!restaurant?.wallet || !restaurant.wallet?.mobileData) {
       this.logger.log(
-        `[createTransfer] Restaurant wallet or mobile data not found for restaurantId=${createTransferDto.restaurantId}`,
+        `[createTransfer] Restaurant wallet or mobile data not found for restaurantId=${user.restaurantId}`,
       );
       throw new OrchestrationException({
         statusCode: EnumStatusCode.NO_WALLET,
@@ -71,10 +63,10 @@ export class TransfersService {
       });
     }
 
-    const restaurantId = new Types.ObjectId(createTransferDto.restaurantId);
+    const restaurantId = new Types.ObjectId(user.restaurantId);
 
     this.logger.log(
-      `[createTransfer] Fetching delivered orders without transfer for restaurantId=${createTransferDto.restaurantId}`,
+      `[createTransfer] Fetching delivered orders without transfer for restaurantId=${user.restaurantId}`,
     );
 
     const orders = await this.orderModel
@@ -91,7 +83,7 @@ export class TransfersService {
 
     if (orders.length === 0) {
       this.logger.warn(
-        `[createTransfer] No eligible orders found for restaurantId=${createTransferDto.restaurantId}`,
+        `[createTransfer] No eligible orders found for restaurantId=${user.restaurantId}`,
       );
       throw new OrchestrationException({
         statusCode: EnumStatusCode.UNABLE_TO_CREATE_TRANSFER,
@@ -129,7 +121,7 @@ export class TransfersService {
       await transfer.save({ session });
 
       this.logger.log(
-        `[createTransfer] Transfer document saved: id=${transfer._id}, restaurantId=${createTransferDto.restaurantId}`,
+        `[createTransfer] Transfer document saved: id=${transfer._id}, restaurantId=${user.restaurantId}`,
       );
 
       const orderIds = orders.map((o) => o._id);
@@ -206,6 +198,71 @@ export class TransfersService {
       statusCode: EnumStatusCode.CREATED_SUCCESSFULLY,
       data: publicTransfer,
       message: 'Transfer created successfully',
+    });
+  }
+
+  async getRestaurantTransfers({
+    user,
+    page,
+    limit,
+    status,
+  }: {
+    user: ILoggedInUserTokenData;
+    page: number;
+    limit: number;
+    status?: EnumTransferStatuses;
+  }) {
+    this.logger.log(
+      `[getRestaurantTransfers] Fetching transfers for restaurantId=${user.restaurantId}, page=${page}, limit=${limit}, status=${status}`,
+    );
+
+    if (status && !Object.values(EnumTransferStatuses).includes(status)) {
+      this.logger.warn(`[getRestaurantTransfers] Invalid status: ${status}`);
+      throw new OrchestrationException({
+        statusCode: EnumStatusCode.CANNOT_FILTER_WITH_STATUS,
+        message: `Cannot filter with status ${status}`,
+        code: 400,
+      });
+    }
+
+    const restaurantId = new Types.ObjectId(user.restaurantId);
+    const filters: {
+      restaurant: Types.ObjectId;
+      status?: EnumTransferStatuses;
+      deleted: boolean;
+    } = { restaurant: restaurantId, deleted: false };
+
+    if (status) {
+      filters.status = status;
+    }
+
+    const totalItems = await this.transferModel.countDocuments(filters);
+    const transfers = await this.transferModel
+      .find(filters)
+      .sort({ createdAt: -1 })
+      .skip((page - 1) * limit)
+      .limit(limit)
+      .exec();
+
+    const totalPages = Math.ceil(totalItems / limit) || 1;
+    const publicTransfers = plainToInstance(
+      TransferPublicOutputDto,
+      transfers.map((transfer) => transfer.toObject()),
+      { excludeExtraneousValues: true },
+    );
+
+    const paginatedResult: Pagination<TransferPublicOutputDto> = {
+      items: publicTransfers,
+      page,
+      totalPages,
+      totalItems,
+      itemsPerPage: limit,
+    };
+
+    return OrchestrationResult.Success<Pagination<TransferPublicOutputDto>>({
+      statusCode: EnumStatusCode.RECOVERED_SUCCESSFULLY,
+      data: paginatedResult,
+      message: 'Restaurant transfers fetched successfully',
     });
   }
 

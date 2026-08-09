@@ -1,19 +1,24 @@
 import {
   Controller,
   Post,
-  Body,
+  Get,
   HttpCode,
   UseGuards,
   HttpStatus,
   Param,
+  Query,
+  ParseIntPipe,
+  DefaultValuePipe,
 } from '@nestjs/common';
 import { TransfersService } from './transfers.service';
-import { CreateTransferDto } from './dto/input/create-transfer.dto';
 import { CurrentUser } from 'src/common/decorators/current-user.decorator';
 import type { ILoggedInUserTokenData } from 'src/common/interfaces/loggedin-user-token-data';
 import { RoleGuard, Roles } from 'src/common/guards/role.guard';
 import { EnumUserRole } from 'src/common/enums/user-roles';
 import { AuthGuard } from 'src/common/guards/auth.guard';
+import { EnumRestaurantMemberRole } from 'src/common/enums/restaurant-member-role';
+import { RestaurantRoles } from 'src/common/guards/restaurant-role.guard';
+import { EnumTransferStatuses } from 'src/common/enums/transfer-statuses';
 
 @Controller('transfers')
 export class TransfersController {
@@ -22,12 +27,29 @@ export class TransfersController {
   @Post()
   @HttpCode(HttpStatus.CREATED)
   @UseGuards(AuthGuard, RoleGuard)
-  @Roles(EnumUserRole.ADMIN)
-  create(
+  @Roles(EnumUserRole.RESTAURANT_MEMBER)
+  @RestaurantRoles(EnumRestaurantMemberRole.OWNER)
+  create(@CurrentUser() user: ILoggedInUserTokenData) {
+    return this.transfersService.create(user);
+  }
+
+  @Get('restaurant-transfers')
+  @HttpCode(HttpStatus.OK)
+  @UseGuards(AuthGuard, RoleGuard)
+  @Roles(EnumUserRole.RESTAURANT_MEMBER)
+  @RestaurantRoles(EnumRestaurantMemberRole.OWNER)
+  getRestaurantTransfers(
     @CurrentUser() user: ILoggedInUserTokenData,
-    @Body() createTransferDto: CreateTransferDto,
+    @Query('page', new DefaultValuePipe(1), ParseIntPipe) page: number,
+    @Query('limit', new DefaultValuePipe(10), ParseIntPipe) limit: number,
+    @Query('status') status?: EnumTransferStatuses,
   ) {
-    return this.transfersService.create({ createTransferDto, user });
+    return this.transfersService.getRestaurantTransfers({
+      user,
+      page,
+      limit,
+      status,
+    });
   }
 
   @Post(':transferId/start-transfer')
