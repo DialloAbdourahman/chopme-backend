@@ -44,6 +44,7 @@ import { User } from 'src/users/entities/user.entity';
 import { EnumUserLanguage } from 'src/common/enums/user-language';
 import { EnumNotificationI18nType } from 'src/common/enums/notification-internationalization-type';
 import { getNotificationMessage } from '../common/utils/get-fcm-notification-message';
+import { RestaurantPublicOutputDto } from 'src/restaurants/dto/output/restaurant-output.dto';
 
 @Injectable()
 export class OrdersService {
@@ -595,6 +596,22 @@ export class OrdersService {
       `[updateOrderStatus] Order status update request by restaurantId=${user.restaurantId} for orderId=${orderId}, status=${status}`,
     );
 
+    const restaurant = await this.restaurantModel.findOne({
+      _id: new Types.ObjectId(user.restaurantId),
+      deleted: false,
+    });
+
+    if (!restaurant) {
+      this.logger.warn(
+        `[updateOrderStatus] Restaurant not found or is deleted: restaurantId=${user.restaurantId}`,
+      );
+      throw new OrchestrationException({
+        statusCode: EnumStatusCode.RESTAURANT_NOT_FOUND,
+        message: 'Restaurant not found',
+        code: 404,
+      });
+    }
+
     const validOrderTransitions = [
       [EnumOrderStatus.PAID, EnumOrderStatus.PREPARING_ORDER],
       [EnumOrderStatus.PAID, EnumOrderStatus.IN_DELIVERY],
@@ -820,6 +837,69 @@ export class OrdersService {
     });
   }
 
+  async getRestaurantOfOrder(orderId: string, user: ILoggedInUserTokenData) {
+    this.logger.log(
+      `[getRestaurantOfOrder] Fetching orderId=${orderId}, clientId=${user.clientId}`,
+    );
+
+    if (!Types.ObjectId.isValid(orderId)) {
+      throw new OrchestrationException({
+        statusCode: EnumStatusCode.ORDER_NOT_FOUND,
+        message: 'Order not found',
+        code: 404,
+      });
+    }
+
+    const order = await this.orderModel
+      .findOne({
+        _id: new Types.ObjectId(orderId),
+        client: new Types.ObjectId(user.clientId),
+      })
+      .lean();
+
+    if (!order) {
+      this.logger.warn(
+        `[getRestaurantOfOrder] Order not found or access denied: orderId=${orderId}, clientId=${user.clientId}`,
+      );
+      throw new OrchestrationException({
+        statusCode: EnumStatusCode.ORDER_NOT_FOUND,
+        message: 'Order not found',
+        code: 404,
+      });
+    }
+
+    const restaurant = await this.restaurantModel.findOne({
+      _id: order.restaurant.toString(),
+    });
+
+    if (!restaurant) {
+      this.logger.warn(
+        `[getRestaurantOfOrder] Restaurant not found or access denied: orderId=${orderId}, restaurantId=${order.restaurant.toString()}`,
+      );
+      throw new OrchestrationException({
+        statusCode: EnumStatusCode.RESTAURANT_NOT_FOUND,
+        message: 'Restaurant not found',
+        code: 404,
+      });
+    }
+
+    const restaurantObject = restaurant.toObject();
+
+    const publicRestaurant = plainToInstance(
+      RestaurantPublicOutputDto,
+      restaurantObject,
+      {
+        excludeExtraneousValues: true,
+      },
+    );
+
+    return OrchestrationResult.Success<RestaurantPublicOutputDto>({
+      statusCode: EnumStatusCode.RECOVERED_SUCCESSFULLY,
+      data: publicRestaurant,
+      message: 'Restaurant fetched successfully',
+    });
+  }
+
   async pay(orderId: string, user: ILoggedInUserTokenData) {
     this.logger.log(
       `[pay] Payment request by clientId=${user.clientId} for orderId=${orderId}`,
@@ -874,6 +954,18 @@ export class OrdersService {
       );
       throw new OrchestrationException({
         statusCode: EnumStatusCode.CLIENT_NOT_FOUND,
+        message: 'Client does not exist.',
+        code: 404,
+      });
+    }
+
+    const restaurant = await this.restaurantModel.findById(order.restaurant);
+    if (!restaurant) {
+      this.logger.warn(
+        `[pay] Client with id ${order.restaurant.toString()} does not exist`,
+      );
+      throw new OrchestrationException({
+        statusCode: EnumStatusCode.RESTAURANT_NOT_FOUND,
         message: 'Client does not exist.',
         code: 404,
       });

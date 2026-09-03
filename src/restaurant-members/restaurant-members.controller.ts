@@ -16,7 +16,6 @@ import {
 } from '@nestjs/common';
 import { RestaurantMembersService } from './restaurant-members.service';
 import { CreateRestaurantMemberDto } from './dto/input/create-restaurant-member.dto';
-import { UpdateRestaurantMemberDto } from './dto/input/update-restaurant-member.dto';
 import { AuthGuard } from 'src/common/guards/auth.guard';
 import { RoleGuard, Roles } from 'src/common/guards/role.guard';
 import { EnumUserRole } from 'src/common/enums/user-roles';

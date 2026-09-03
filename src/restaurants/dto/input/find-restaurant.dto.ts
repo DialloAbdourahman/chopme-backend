@@ -40,6 +40,4 @@ export class FindRestaurantDto {
   // @IsOptional()
   // @Type(() => Boolean)
   // onlyOpened?: boolean;
-
-
 }

@@ -50,7 +50,21 @@ export class TransfersService {
       `[createTransfer] Initiating transfer creation by userId=${user.id}, restaurantId=${user.restaurantId}`,
     );
 
-    const restaurant = await this.restaurantModel.findById(user.restaurantId);
+    const restaurant = await this.restaurantModel.findOne({
+      _id: new Types.ObjectId(user.restaurantId),
+      deleted: false,
+    });
+
+    if (!restaurant) {
+      this.logger.warn(
+        `[createTransfer] Restaurant not found or is deleted: restaurantId=${user.restaurantId}`,
+      );
+      throw new OrchestrationException({
+        statusCode: EnumStatusCode.RESTAURANT_NOT_FOUND,
+        message: 'Restaurant not found',
+        code: 404,
+      });
+    }
 
     if (!restaurant?.wallet || !restaurant.wallet?.mobileData) {
       this.logger.log(

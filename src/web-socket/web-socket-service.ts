@@ -15,7 +15,11 @@ import { INotification } from 'src/common/interfaces/notification';
 @Injectable()
 @WebSocketGateway({
   cors: {
-    origin: [env.clientFrontendUrl, env.restaurantFrontendUrl],
+    origin: [
+      env.clientFrontendUrl,
+      env.restaurantFrontendUrl,
+      env.adminFrontendUrl,
+    ],
     credentials: true,
   },
   transports: ['websocket'],

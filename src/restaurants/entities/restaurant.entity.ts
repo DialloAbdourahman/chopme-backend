@@ -127,7 +127,7 @@ export class Restaurant extends BaseSchema {
     price: number;
   }[];
 
-  @Prop({ type: Boolean, default: false })
+  @Prop({ type: Boolean, default: true })
   isClosed: boolean;
 
   @Prop({

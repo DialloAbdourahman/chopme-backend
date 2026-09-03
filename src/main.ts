@@ -11,7 +11,11 @@ async function bootstrap() {
 
   app.setGlobalPrefix('api');
   app.enableCors({
-    origin: [env.clientFrontendUrl, env.restaurantFrontendUrl],
+    origin: [
+      env.clientFrontendUrl,
+      env.restaurantFrontendUrl,
+      env.adminFrontendUrl,
+    ],
     credentials: true,
   });
   app.useLogger(app.get(WINSTON_MODULE_NEST_PROVIDER));

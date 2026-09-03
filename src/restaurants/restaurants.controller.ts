@@ -15,6 +15,7 @@ import {
   DefaultValuePipe,
   ParseIntPipe,
   ParseFloatPipe,
+  ParseBoolPipe,
 } from '@nestjs/common';
 import { FileInterceptor } from '@nestjs/platform-express';
 import { RestaurantsService } from './restaurants.service';
@@ -38,6 +39,7 @@ import { env } from 'src/config/env';
 import { OrchestrationException } from 'src/common/exceptions/orchestration.exception';
 import { EnumStatusCode } from 'src/common/enums/response-status-code';
 import { FindRestaurantDto } from './dto/input/find-restaurant.dto';
+import { EnumRestaurantType } from 'src/common/enums/restaurant-types';
 
 @Controller('restaurants')
 export class RestaurantsController {
@@ -68,6 +70,42 @@ export class RestaurantsController {
     @Query('limit', new DefaultValuePipe(10), ParseIntPipe) limit: number,
   ) {
     return this.restaurantsService.findAll(filters, page, limit);
+  }
+
+  @Get('admin')
+  @HttpCode(HttpStatus.OK)
+  @UseGuards(AuthGuard, RoleGuard)
+  @Roles(EnumUserRole.ADMIN)
+  findAllForAdmin(
+    @Query('page', new DefaultValuePipe(1), ParseIntPipe) page: number,
+    @Query('limit', new DefaultValuePipe(10), ParseIntPipe) limit: number,
+    @Query('search') search?: string,
+    @Query('type') type?: EnumRestaurantType,
+    @Query('deleted', new DefaultValuePipe(false), ParseBoolPipe)
+    deleted?: boolean,
+    @Query('sortBy') sortBy?: string,
+    @Query('sortOrder') sortOrder?: 'asc' | 'desc',
+  ) {
+    return this.restaurantsService.findAllForAdmin({
+      search,
+      type,
+      page,
+      limit,
+      deleted,
+      sortBy,
+      sortOrder,
+    });
+  }
+
+  @Get('admin/:idOrSlug')
+  @HttpCode(HttpStatus.OK)
+  @UseGuards(AuthGuard, RoleGuard)
+  @Roles(EnumUserRole.ADMIN)
+  findOneForAdmin(
+    @Param('idOrSlug') idOrSlug: string,
+    @CurrentUser() user: ILoggedInUserTokenData,
+  ) {
+    return this.restaurantsService.findOnePrivate(idOrSlug, user);
   }
 
   @Get('member/:idOrSlug')

@@ -5,6 +5,7 @@ export interface EnvConfig {
   port: number;
   clientFrontendUrl: string;
   restaurantFrontendUrl: string;
+  adminFrontendUrl: string;
 
   adminEmail: string;
   adminPassword: string;
@@ -48,6 +49,7 @@ export const env: EnvConfig = {
   port: Number(process.env.PORT ?? 3000),
   clientFrontendUrl: process.env.CLIENT_FRONTEND_URL!,
   restaurantFrontendUrl: process.env.RESTAURANT_FRONTEND_URL!,
+  adminFrontendUrl: process.env.ADMIN_FRONTEND_URL!,
 
   adminEmail: process.env.ADMIN_EMAIL!,
   adminPassword: process.env.ADMIN_PASSWORD!,

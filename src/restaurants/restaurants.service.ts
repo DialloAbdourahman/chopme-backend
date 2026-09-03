@@ -387,6 +387,76 @@ export class RestaurantsService {
     });
   }
 
+  async findAllForAdmin(filters: {
+    search?: string;
+    type?: string;
+    page: number;
+    limit: number;
+    deleted?: boolean;
+    sortBy?: string;
+    sortOrder?: 'asc' | 'desc';
+  }) {
+    this.logger.log(`[findAllForAdmin] Finding restaurants for admin`, filters);
+
+    const { search, type, page, limit, deleted, sortBy, sortOrder } = filters;
+
+    const query: any = {
+      deleted: deleted ?? false,
+    };
+
+    if (search) {
+      query.$or = [
+        { name: { $regex: search, $options: 'i' } },
+        { description: { $regex: search, $options: 'i' } },
+        { slogan: { $regex: search, $options: 'i' } },
+      ];
+    }
+
+    if (type) {
+      query.type = type;
+    }
+
+    const totalItems = await this.restaurantModel.countDocuments(query);
+
+    const sort: any = {};
+    if (sortBy) {
+      sort[sortBy] = sortOrder === 'asc' ? 1 : -1;
+    } else {
+      sort.createdAt = -1;
+    }
+
+    const restaurants = await this.restaurantModel
+      .find(query)
+      .sort(sort)
+      .skip((page - 1) * limit)
+      .limit(limit)
+      .lean();
+
+    const totalPages = Math.ceil(totalItems / limit);
+
+    const privateRestaurants = plainToInstance(
+      RestaurantPrivateOutputDto,
+      restaurants,
+      {
+        excludeExtraneousValues: true,
+      },
+    );
+
+    const paginatedResult: Pagination<RestaurantPrivateOutputDto> = {
+      items: privateRestaurants,
+      page,
+      totalPages,
+      totalItems,
+      itemsPerPage: limit,
+    };
+
+    return OrchestrationResult.Success<Pagination<RestaurantPrivateOutputDto>>({
+      statusCode: EnumStatusCode.RECOVERED_SUCCESSFULLY,
+      data: paginatedResult,
+      message: 'Restaurants retrieved successfully',
+    });
+  }
+
   async findOne(idOrSlug: string, longitude?: number, latitude?: number) {
     this.logger.log(`[findOne] Finding restaurant by idOrSlug=${idOrSlug}`);
 
@@ -1082,7 +1152,6 @@ export class RestaurantsService {
 
     const restaurant = await this.restaurantModel.findOne({
       _id: new Types.ObjectId(restaurantId),
-      deleted: false,
     });
 
     if (!restaurant) {
@@ -1164,7 +1233,6 @@ export class RestaurantsService {
 
     const restaurant = await this.restaurantModel.findOne({
       _id: new Types.ObjectId(restaurantId),
-      deleted: false,
     });
 
     if (!restaurant) {
@@ -1218,7 +1286,6 @@ export class RestaurantsService {
 
     const restaurant = await this.restaurantModel.findOne({
       _id: new Types.ObjectId(restaurantId),
-      deleted: false,
     });
 
     if (!restaurant) {
