@@ -105,7 +105,11 @@ export class RestaurantsController {
     @Param('idOrSlug') idOrSlug: string,
     @CurrentUser() user: ILoggedInUserTokenData,
   ) {
-    return this.restaurantsService.findOnePrivate(idOrSlug, user);
+    return this.restaurantsService.findOnePrivate({
+      idOrSlug,
+      user,
+      considerDelete: true,
+    });
   }
 
   @Get('member/:idOrSlug')
@@ -120,7 +124,10 @@ export class RestaurantsController {
     @Param('idOrSlug') idOrSlug: string,
     @CurrentUser() user: ILoggedInUserTokenData,
   ) {
-    return this.restaurantsService.findOnePrivate(idOrSlug, user);
+    return this.restaurantsService.findOnePrivate({
+      idOrSlug,
+      user,
+    });
   }
 
   @Get(':idOrSlug')
@@ -150,6 +157,17 @@ export class RestaurantsController {
     EnumRestaurantMemberRole.MANAGER,
   )
   toggleClosed(
+    @Param('id') id: string,
+    @CurrentUser() user: ILoggedInUserTokenData,
+  ) {
+    return this.restaurantsService.toggleClosed(id, user);
+  }
+
+  @Patch('admin/:id/toggle-closed')
+  @HttpCode(HttpStatus.OK)
+  @UseGuards(AuthGuard, RoleGuard)
+  @Roles(EnumUserRole.ADMIN)
+  adminToggleClosed(
     @Param('id') id: string,
     @CurrentUser() user: ILoggedInUserTokenData,
   ) {

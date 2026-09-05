@@ -516,16 +516,28 @@ export class RestaurantsService {
     });
   }
 
-  async findOnePrivate(idOrSlug: string, user: ILoggedInUserTokenData) {
+  async findOnePrivate({
+    idOrSlug,
+    user,
+    considerDelete = false,
+  }: {
+    idOrSlug: string;
+    user: ILoggedInUserTokenData;
+    considerDelete?: boolean;
+  }) {
     this.logger.log(
       `[findOnePrivate] Finding restaurant by idOrSlug=${idOrSlug}`,
     );
 
     const isObjectId = Types.ObjectId.isValid(idOrSlug);
 
-    const query = isObjectId
-      ? { _id: new Types.ObjectId(idOrSlug), deleted: false }
-      : { slug: idOrSlug, deleted: false };
+    const query: Record<string, any> = isObjectId
+      ? { _id: new Types.ObjectId(idOrSlug) }
+      : { slug: idOrSlug };
+
+    if (!considerDelete) {
+      query.deleted = false;
+    }
 
     const restaurant = await this.restaurantModel.findOne(query);
 
