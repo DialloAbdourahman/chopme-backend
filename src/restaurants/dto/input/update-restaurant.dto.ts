@@ -74,4 +74,17 @@ export class AdminUpdateRestaurantDto {
   @ValidateNested()
   @Type(() => RestaurantLocationDto)
   location?: RestaurantLocationDto;
+
+  @IsOptional()
+  @IsArray()
+  @ValidateNested({ each: true })
+  @Validate(DeliveryPricingKmArrayValidator)
+  @Type(() => DeliveryPricingKmDto)
+  deliveryPricingKm?: DeliveryPricingKmDto[];
+
+  @IsOptional()
+  @IsArray()
+  @ValidateNested({ each: true })
+  @Type(() => AvailabilityDto)
+  availability?: AvailabilityDto[];
 }

@@ -717,7 +717,8 @@ export class RestaurantsService {
       });
     }
 
-    const { name, address, location, type } = adminUpdateRestaurantDto;
+    const { name, address, location, type, availability, deliveryPricingKm } =
+      adminUpdateRestaurantDto;
 
     if (name !== undefined) {
       restaurant.name = name.trim();
@@ -730,6 +731,12 @@ export class RestaurantsService {
     }
     if (type !== undefined) {
       restaurant.type = type;
+    }
+    if (availability !== undefined) {
+      restaurant.availability = availability;
+    }
+    if (deliveryPricingKm !== undefined) {
+      restaurant.deliveryPricingKm = deliveryPricingKm;
     }
 
     const session = await this.connection.startSession();
