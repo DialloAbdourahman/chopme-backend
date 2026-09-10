@@ -8,6 +8,7 @@ import {
   Min,
   ValidateNested,
 } from 'class-validator';
+import { RestaurantLocationDto } from 'src/restaurants/dto/input/create-restaurant.dto';
 
 export class OrderItemDto {
   @IsString()
@@ -28,4 +29,8 @@ export class CreateOrderDto {
   @ValidateNested({ each: true })
   @Type(() => OrderItemDto)
   items: OrderItemDto[];
+
+  @ValidateNested()
+  @Type(() => RestaurantLocationDto)
+  clientLocation: RestaurantLocationDto;
 }

@@ -1235,13 +1235,9 @@ export class OrdersService {
     this.logger.log(`[ensureCanOrder] Client found: id=${client._id}`);
 
     // Make sure that the client has entered all the required information before ordering
-    if (
-      !client.address?.longitude ||
-      !client.address?.latitude ||
-      !client.phoneNumber
-    ) {
+    if (!client.phoneNumber) {
       this.logger.warn(
-        `[ensureCanOrder] Client information incomplete: clientId=${client._id}, hasAddress=${!!client.address}, hasPhone=${!!client.phoneNumber}`,
+        `[ensureCanOrder] Client information incomplete: clientId=${client._id}, hasPhone=${!!client.phoneNumber}`,
       );
       throw new OrchestrationException({
         statusCode: EnumStatusCode.CLIENT_INFORMATION_INCOMPLETE,
@@ -1256,7 +1252,10 @@ export class OrdersService {
       coordinates: [number, number];
     } = {
       type: 'Point',
-      coordinates: [client.address.longitude, client.address.latitude],
+      coordinates: [
+        createOrderDto.clientLocation.coordinates[0],
+        createOrderDto.clientLocation.coordinates[1],
+      ],
     };
     const [restaurantWithDistance] = await this.restaurantModel.aggregate<{
       distance: number;

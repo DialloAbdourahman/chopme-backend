@@ -8,7 +8,6 @@ import { OrchestrationException } from 'src/common/exceptions/orchestration.exce
 import { ILoggedInUserTokenData } from 'src/common/interfaces/loggedin-user-token-data';
 import { ClientPublicOutputDto } from './dto/output/client-output.dto';
 import { plainToInstance } from 'class-transformer';
-import { UpdateAddressDto } from './dto/input/update-address.dto';
 import { UpdateClientInformationDto } from './dto/input/update-client-information.dto';
 
 @Injectable()
@@ -50,52 +49,6 @@ export class ClientsService {
       statusCode: EnumStatusCode.RECOVERED_SUCCESSFULLY,
       data: publicClient,
       message: 'Client profile fetched successfully',
-    });
-  }
-
-  async updateMyClientLocation(
-    user: ILoggedInUserTokenData,
-    updateClientDto: UpdateAddressDto,
-  ) {
-    this.logger.log(
-      `[updateMyClientLocation] Updating client location for user id=${user.id}`,
-    );
-
-    const client = await this.clientModel.findOne({
-      user: new Types.ObjectId(user.id),
-    });
-
-    if (!client) {
-      this.logger.log(
-        `[updateMyClientLocation] Client not found for user id=${user.id}`,
-      );
-      throw new OrchestrationException({
-        statusCode: EnumStatusCode.NOT_FOUND,
-        message: 'Client not found',
-        code: 404,
-      });
-    }
-
-    const currentAddress = client.address || ({} as any);
-
-    currentAddress.longitude = Number(updateClientDto.longitude);
-    currentAddress.latitude = Number(updateClientDto.latitude);
-    currentAddress.country = updateClientDto.country;
-    currentAddress.city = updateClientDto.city;
-
-    client.address = currentAddress;
-    await client.save();
-
-    const clientObject = client.toObject();
-
-    const publicClient = plainToInstance(ClientPublicOutputDto, clientObject, {
-      excludeExtraneousValues: true,
-    });
-
-    return OrchestrationResult.Success<ClientPublicOutputDto>({
-      statusCode: EnumStatusCode.UPDATED_SUCCESSFULLY,
-      data: publicClient,
-      message: 'Client profile updated successfully',
     });
   }
 

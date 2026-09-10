@@ -13,22 +13,22 @@ export class Client extends BaseSchema {
   @Prop({ type: Types.ObjectId, ref: User.name, required: true })
   user: Types.ObjectId | User;
 
-  @Prop({
-    type: {
-      longitude: { type: Number, required: true },
-      latitude: { type: Number, required: true },
-      country: { type: String, required: false },
-      city: { type: String, required: false },
-    },
-    _id: false,
-    required: false,
-  })
-  address?: {
-    longitude: number;
-    latitude: number;
-    country: string;
-    city: string;
-  };
+  // @Prop({
+  //   type: {
+  //     longitude: { type: Number, required: true },
+  //     latitude: { type: Number, required: true },
+  //     country: { type: String, required: false },
+  //     city: { type: String, required: false },
+  //   },
+  //   _id: false,
+  //   required: false,
+  // })
+  // address?: {
+  //   longitude: number;
+  //   latitude: number;
+  //   country: string;
+  //   city: string;
+  // };
 }
 
 export const ClientSchema = SchemaFactory.createForClass(Client);

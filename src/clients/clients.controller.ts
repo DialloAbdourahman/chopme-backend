@@ -8,7 +8,6 @@ import {
   UseGuards,
 } from '@nestjs/common';
 import { ClientsService } from './clients.service';
-import { UpdateAddressDto } from './dto/input/update-address.dto';
 import { UpdateClientInformationDto } from './dto/input/update-client-information.dto';
 import { AuthGuard } from 'src/common/guards/auth.guard';
 import { CurrentUser } from 'src/common/decorators/current-user.decorator';
@@ -26,17 +25,6 @@ export class ClientsController {
   @Roles(EnumUserRole.CLIENT)
   me(@CurrentUser() user: ILoggedInUserTokenData) {
     return this.clientsService.getMyClientProfile(user);
-  }
-
-  @Patch('me/location')
-  @HttpCode(HttpStatus.OK)
-  @UseGuards(AuthGuard, RoleGuard)
-  @Roles(EnumUserRole.CLIENT)
-  updateMe(
-    @CurrentUser() user: ILoggedInUserTokenData,
-    @Body() updateClientDto: UpdateAddressDto,
-  ) {
-    return this.clientsService.updateMyClientLocation(user, updateClientDto);
   }
 
   @Patch('me')
