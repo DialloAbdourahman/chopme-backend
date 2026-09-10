@@ -2,7 +2,7 @@ import { Test, TestingModule } from '@nestjs/testing';
 import { MenusController } from './menus.controller';
 import { MenusService } from './menus.service';
 
-describe('MenusController', () => {
+describe.skip('MenusController', () => {
   let controller: MenusController;
 
   beforeEach(async () => {

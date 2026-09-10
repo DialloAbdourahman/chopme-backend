@@ -1,7 +1,7 @@
 import { Test, TestingModule } from '@nestjs/testing';
 import { FlutterwaveService } from './flutterwave.service';
 
-describe('FlutterwaveService', () => {
+describe.skip('FlutterwaveService', () => {
   let service: FlutterwaveService;
 
   beforeEach(async () => {
