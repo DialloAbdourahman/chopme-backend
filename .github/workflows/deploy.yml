@@ -44,38 +44,6 @@ jobs:
             TAG="$IMAGE_TAG"
           fi
 
-          docker build \
-            --build-arg MONGODB_URI="${{ secrets.MONGODB_URI }}" \
-            --build-arg ACCESS_TOKEN_SECRET="${{ secrets.ACCESS_TOKEN_SECRET }}" \
-            --build-arg REFRESH_TOKEN_SECRET="${{ secrets.REFRESH_TOKEN_SECRET }}" \
-            --build-arg ACCESS_TOKEN_DURATION_MINS="${{ vars.ACCESS_TOKEN_DURATION_MINS }}" \
-            --build-arg REFRESH_TOKEN_DURATION_MINS="${{ vars.REFRESH_TOKEN_DURATION_MINS }}" \
-            --build-arg PORT="${{ vars.PORT }}" \
-            --build-arg GOOGLE_CLIENT_ID="${{ secrets.GOOGLE_CLIENT_ID }}" \
-            --build-arg GOOGLE_CLIENT_SECRET="${{ secrets.GOOGLE_CLIENT_SECRET }}" \
-            --build-arg S3_PUBLIC_BUCKET_NAME="${{ vars.S3_PUBLIC_BUCKET_NAME }}" \
-            --build-arg S3_PUBLIC_BUCKET_REGION="${{ vars.S3_PUBLIC_BUCKET_REGION }}" \
-            --build-arg MAX_RESTAURANT_IMAGES="${{ vars.MAX_RESTAURANT_IMAGES }}" \
-            --build-arg MAX_RESTAURANT_IMAGE_SIZE_IN_MB="${{ vars.MAX_RESTAURANT_IMAGE_SIZE_IN_MB }}" \
-            --build-arg PLATFORM_PERCENTAGE="${{ vars.PLATFORM_PERCENTAGE }}" \
-            --build-arg COLLECTION_PERCENTAGE="${{ vars.COLLECTION_PERCENTAGE }}" \
-            --build-arg DISBURSEMENT_PERCENTAGE="${{ vars.DISBURSEMENT_PERCENTAGE }}" \
-            --build-arg ROUND_TO_NEAREST_FCFA="${{ vars.ROUND_TO_NEAREST_FCFA }}" \
-            --build-arg MAX_TIME_TO_PAY_ORDER_IN_MINS="${{ vars.MAX_TIME_TO_PAY_ORDER_IN_MINS }}" \
-            --build-arg FLUTTER_WAVE_URL="${{ vars.FLUTTER_WAVE_URL }}" \
-            --build-arg FLUTTER_WAVE_CLIENT_PUBLIC="${{ secrets.FLUTTER_WAVE_CLIENT_PUBLIC }}" \
-            --build-arg FLUTTER_WAVE_CLIENT_SECRET="${{ secrets.FLUTTER_WAVE_CLIENT_SECRET }}" \
-            --build-arg FLUTTER_WAVE_MAX_PAYMENT_LINK_VALIDITY_IN_HR="${{ vars.FLUTTER_WAVE_MAX_PAYMENT_LINK_VALIDITY_IN_HR }}" \
-            --build-arg FLUTTER_WAVE_WEBHOOK_SECRET_HASH="${{ secrets.FLUTTER_WAVE_WEBHOOK_SECRET_HASH }}" \
-            --build-arg PLATFORM_MOBILE_MONEY_ACCOUNT_NUMBER="${{ secrets.PLATFORM_MOBILE_MONEY_ACCOUNT_NUMBER }}" \
-            --build-arg PLATFORM_MOBILE_MONEY_NETWORK_TYPE="${{ vars.PLATFORM_MOBILE_MONEY_NETWORK_TYPE }}" \
-            --build-arg ADMIN_EMAIL="${{ secrets.ADMIN_EMAIL }}" \
-            --build-arg ADMIN_PASSWORD="${{ secrets.ADMIN_PASSWORD }}" \
-            --build-arg FIREBASE_SERVICE_ACCOUNT_JSON="${{ secrets.FIREBASE_SERVICE_ACCOUNT_JSON }}" \
-            --build-arg CLIENT_FRONTEND_URL="${{ vars.CLIENT_FRONTEND_URL }}" \
-            --build-arg RESTAURANT_FRONTEND_URL="${{ vars.RESTAURANT_FRONTEND_URL }}" \
-            --build-arg ADMIN_FRONTEND_URL="${{ vars.ADMIN_FRONTEND_URL }}" \
-            -t $ECR_REGISTRY/$ECR_REPOSITORY:$TAG \
-            .
+          docker build -t $ECR_REGISTRY/$ECR_REPOSITORY:$TAG .
 
           docker push $ECR_REGISTRY/$ECR_REPOSITORY:$TAG
