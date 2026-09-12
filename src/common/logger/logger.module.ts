@@ -12,24 +12,27 @@ import DailyRotateFile from 'winston-daily-rotate-file';
         new winston.transports.Console({
           format: winston.format.combine(
             winston.format.timestamp(),
-            winston.format.colorize(),
-            winston.format.simple(),
+            winston.format.json(),
+
+            // winston.format.timestamp(),
+            // winston.format.colorize(),
+            // winston.format.simple(),
           ),
         }),
 
         // Daily rotated file — one file per date, good for CloudWatch
-        new DailyRotateFile({
-          dirname: 'logs',
-          filename: '%DATE%.log', // e.g. 2026-05-09.log
-          datePattern: 'YYYY-MM-DD',
-          zippedArchive: true,
-          maxSize: '20m',
-          maxFiles: '14d',
-          format: winston.format.combine(
-            winston.format.timestamp(),
-            winston.format.json(),
-          ),
-        }),
+        // new DailyRotateFile({
+        //   dirname: 'logs',
+        //   filename: '%DATE%.log', // e.g. 2026-05-09.log
+        //   datePattern: 'YYYY-MM-DD',
+        //   zippedArchive: true,
+        //   maxSize: '20m',
+        //   maxFiles: '14d',
+        //   format: winston.format.combine(
+        //     winston.format.timestamp(),
+        //     winston.format.json(),
+        //   ),
+        // }),
       ],
     }),
   ],

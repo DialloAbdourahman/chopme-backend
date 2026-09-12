@@ -64,7 +64,7 @@ export const env: EnvConfig = {
   googleClientSecret: process.env.GOOGLE_CLIENT_SECRET!,
 
   s3PublicBucketName: process.env.S3_PUBLIC_BUCKET_NAME!,
-  s3PublicBucketRegion: process.env.S3_PRIVATE_BUCKET_REGION!,
+  s3PublicBucketRegion: process.env.S3_PUBLIC_BUCKET_REGION!,
 
   maxRestaurantImages: Number(process.env.MAX_RESTAURANT_IMAGES),
   maxRestaurantImageSizeInMb: Number(
