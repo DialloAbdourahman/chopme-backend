@@ -27,7 +27,7 @@ import { INotification } from 'src/common/interfaces/notification';
 export class WebSocketService
   implements OnGatewayConnection, OnGatewayDisconnect, OnModuleInit
 {
-  private readonly logger = new Logger(WebSocket.name);
+  private readonly logger = new Logger(WebSocketService.name);
 
   @WebSocketServer()
   server: Server;
