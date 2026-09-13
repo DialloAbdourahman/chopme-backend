@@ -35,7 +35,7 @@ jobs:
       - name: Build and Push Image
         env:
           ECR_REGISTRY: ${{ steps.login-ecr.outputs.registry }}
-          ECR_REPOSITORY: ${{ vars.ERC_REPO_NAME }}
+          ECR_REPOSITORY: ${{ vars.ECR_REPO_NAME }}
           IMAGE_TAG: ${{ github.sha }}
         run: |
           if [ "${{ github.ref_name }}" = "develop" ]; then
@@ -79,9 +79,9 @@ jobs:
 
           docker push $ECR_REGISTRY/$ECR_REPOSITORY:$TAG
 
-      # - name: Deploy to ECS
-      #   run: |
-      #     aws ecs update-service \
-      #       --cluster "${{ vars.ECS_CLUSTER_NAME }}" \
-      #       --service "${{ vars.ECS_SERVICE_NAME }}" \
-      #       --force-new-deployment
+      - name: Deploy to ECS
+        run: |
+          aws ecs update-service \
+            --cluster "${{ vars.ECS_CLUSTER_NAME }}" \
+            --service "${{ vars.ECS_SERVICE_NAME }}" \
+            --force-new-deployment
