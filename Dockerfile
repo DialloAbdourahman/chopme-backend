@@ -29,6 +29,9 @@ RUN npm prune --omit=dev
 
 COPY --from=builder /app/dist ./dist
 
+# AWS DocumentDB TLS CA bundle (required when MONGODB_URI uses tls=true&tlsCAFile=...)
+ADD https://truststore.pki.rds.amazonaws.com/global/global-bundle.pem /app/global-bundle.pem
+
 # Build args: set at build time with --build-arg
 ARG MONGODB_URI
 ARG ACCESS_TOKEN_SECRET
