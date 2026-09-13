@@ -78,3 +78,10 @@ jobs:
             -t $ECR_REGISTRY/$ECR_REPOSITORY:$TAG .
 
           docker push $ECR_REGISTRY/$ECR_REPOSITORY:$TAG
+
+      # - name: Deploy to ECS
+      #   run: |
+      #     aws ecs update-service \
+      #       --cluster "${{ vars.ECS_CLUSTER_NAME }}" \
+      #       --service "${{ vars.ECS_SERVICE_NAME }}" \
+      #       --force-new-deployment
