@@ -247,6 +247,10 @@ export class RestaurantsService {
     });
   }
 
+  async getIndexes() {
+    return this.restaurantModel.collection.getIndexes();
+  }
+
   async findAll(filters: FindRestaurantDto, page: number, limit: number) {
     this.logger.log(`[findAll] Finding restaurants with filters`, filters);
 
