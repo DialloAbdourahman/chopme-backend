@@ -62,6 +62,12 @@ export class RestaurantsController {
     return this.restaurantsService.checkName(name);
   }
 
+  @Get('indexes')
+  @HttpCode(HttpStatus.OK)
+  getIndexes() {
+    return this.restaurantsService.getIndexes();
+  }
+
   @Post('search')
   @HttpCode(HttpStatus.OK)
   findAll(
