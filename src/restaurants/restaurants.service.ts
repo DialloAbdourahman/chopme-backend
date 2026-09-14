@@ -251,6 +251,10 @@ export class RestaurantsService {
     return this.restaurantModel.collection.getIndexes();
   }
 
+  async createIndexes() {
+    return this.restaurantModel.createIndexes();
+  }
+
   async findAll(filters: FindRestaurantDto, page: number, limit: number) {
     this.logger.log(`[findAll] Finding restaurants with filters`, filters);
 
