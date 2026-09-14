@@ -18,7 +18,27 @@ export class StartupService implements OnModuleInit {
 
   async onModuleInit() {
     this.logger.log('Application started');
+    await this.ensureCollections();
     await this.seedAdmin();
+  }
+
+  private async ensureCollections() {
+    const existing = await this.connection
+      .db!.listCollections({}, { nameOnly: true })
+      .toArray();
+    const existingNames = new Set(existing.map((c) => c.name));
+
+    for (const modelName of this.connection.modelNames()) {
+      const model = this.connection.model(modelName);
+      const collectionName = model.collection.name;
+
+      if (existingNames.has(collectionName)) {
+        continue;
+      }
+
+      await model.createCollection();
+      this.logger.log(`Created collection ${collectionName}`);
+    }
   }
 
   private async seedAdmin() {
