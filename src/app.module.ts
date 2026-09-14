@@ -29,7 +29,10 @@ import { StartupService } from './startup';
     LoggerModule,
     GlobalJwtModule,
     UsersModule,
-    MongooseModule.forRoot(env.mongodbUri),
+    MongooseModule.forRoot(env.mongodbUri, {
+      autoIndex: true,
+      autoCreate: true,
+    }),
     ThrottlerModule.forRoot([
       {
         name: 'short',
