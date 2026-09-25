@@ -97,7 +97,9 @@ export class FcmService {
       }));
     }
 
-    const messages = installationIds.map((fid) =>
+    const uniqueInstallationIds = [...new Set(installationIds)];
+
+    const messages = uniqueInstallationIds.map((fid) =>
       this.buildMessage(payload, { fid }),
     );
 
@@ -109,7 +111,7 @@ export class FcmService {
         error: item.error ? item.error.message : undefined,
         errorCode: item.error ? item.error.code : undefined,
       }));
-      await this.cleanupStaleInstallations(installationIds, results);
+      await this.cleanupStaleInstallations(uniqueInstallationIds, results);
       return results;
     } catch (error) {
       return [this.handleError('sendToDevices', error)];
@@ -120,13 +122,19 @@ export class FcmService {
     payload: IFcmNotificationPayload,
     target: { fid?: string },
   ): Message {
+    // Send a data-only payload: when the FCM message contains a top-level
+    // `notification` field, the Firebase service-worker SDK auto-displays it
+    // AND still invokes onBackgroundMessage — resulting in two notifications.
+    // Moving title/body into `data` keeps the service worker (which reads
+    // data.title/data.body) as the single display path and preserves the
+    // click_action deep-link.
     return {
       ...target,
-      notification: {
+      data: {
+        ...payload.data,
         title: payload.title,
         body: payload.body,
       },
-      data: payload.data,
     } as Message;
   }
 
