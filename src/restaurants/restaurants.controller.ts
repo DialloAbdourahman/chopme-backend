@@ -160,7 +160,7 @@ export class RestaurantsController {
     @Param('id') id: string,
     @CurrentUser() user: ILoggedInUserTokenData,
   ) {
-    return this.restaurantsService.toggleClosed(id, user);
+    return this.restaurantsService.memberToggleClosed(id, user);
   }
 
   @Patch('admin/:id/toggle-closed')
@@ -171,7 +171,7 @@ export class RestaurantsController {
     @Param('id') id: string,
     @CurrentUser() user: ILoggedInUserTokenData,
   ) {
-    return this.restaurantsService.toggleClosed(id, user);
+    return this.restaurantsService.adminToggleClosed(id, user);
   }
 
   @Patch(':id/restore')
