@@ -70,3 +70,5 @@ export class Menu extends BaseSchema {
 }
 
 export const MenuSchema = SchemaFactory.createForClass(Menu);
+
+MenuSchema.index({ location: '2dsphere' });

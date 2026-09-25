@@ -793,12 +793,27 @@ export class RestaurantsService {
     });
   }
 
-  async toggleClosed(restaurantId: string, user: ILoggedInUserTokenData) {
-    this.logger.log(
-      `[toggleClosed] Toggling isClosed for restaurant id=${restaurantId} by user id=${user.id}`,
+  async memberToggleClosed(restaurantId: string, user: ILoggedInUserTokenData) {
+    this.ensureUserCanManageRestaurant(
+      restaurantId,
+      user,
+      'memberToggleClosed',
     );
+    return this.applyToggleClosed(restaurantId, user, 'memberToggleClosed');
+  }
 
-    this.ensureUserCanManageRestaurant(restaurantId, user, 'toggleClosed');
+  async adminToggleClosed(restaurantId: string, user: ILoggedInUserTokenData) {
+    return this.applyToggleClosed(restaurantId, user, 'adminToggleClosed');
+  }
+
+  private async applyToggleClosed(
+    restaurantId: string,
+    user: ILoggedInUserTokenData,
+    context: string,
+  ) {
+    this.logger.log(
+      `[${context}] Toggling isClosed for restaurant id=${restaurantId} by user id=${user.id}`,
+    );
 
     const restaurant = await this.restaurantModel.findOne({
       _id: new Types.ObjectId(restaurantId),
@@ -806,7 +821,7 @@ export class RestaurantsService {
     });
 
     if (!restaurant) {
-      this.logger.log(`[toggleClosed] Restaurant not found id=${restaurantId}`);
+      this.logger.log(`[${context}] Restaurant not found id=${restaurantId}`);
       throw new OrchestrationException({
         statusCode: EnumStatusCode.NOT_FOUND,
         message: 'Restaurant not found',
@@ -814,7 +829,46 @@ export class RestaurantsService {
       });
     }
 
-    restaurant.isClosed = !restaurant.isClosed;
+    const newIsClosed = !restaurant.isClosed;
+
+    if (newIsClosed) {
+      // Closing: remember who closed it.
+      restaurant.closedBy = new Types.ObjectId(user.id);
+      restaurant.isClosed = true;
+    } else {
+      // Opening: only the same side that closed it may reopen it.
+      if (restaurant.closedBy) {
+        const closingUser = await this.userModel
+          .findById(restaurant.closedBy)
+          .select('role')
+          .lean();
+
+        if (closingUser) {
+          const closedByAdmin = closingUser.role === EnumUserRole.ADMIN;
+          const requesterIsAdmin = user.role === EnumUserRole.ADMIN;
+
+          if (closedByAdmin !== requesterIsAdmin) {
+            this.logger.log(
+              `[${context}] Restaurant id=${restaurantId} was closed by ${closingUser.role} id=${closingUser._id} — cannot be opened by ${user.role} id=${user.id}`,
+            );
+            throw new OrchestrationException({
+              statusCode: EnumStatusCode.CANNOT_OPEN_RESTAURANT,
+              message:
+                'This restaurant cannot be reopened from this account because it was closed by a different role',
+              code: 403,
+            });
+          }
+        } else {
+          this.logger.warn(
+            `[${context}] closedBy user id=${restaurant.closedBy} not found for restaurant id=${restaurantId} — allowing open`,
+          );
+        }
+      }
+
+      restaurant.closedBy = null;
+      restaurant.isClosed = false;
+    }
+
     await restaurant.save();
 
     const restaurantObject = restaurant.toObject();
