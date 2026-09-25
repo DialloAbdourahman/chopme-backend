@@ -1,9 +1,10 @@
 import { Prop, Schema, SchemaFactory } from '@nestjs/mongoose';
-import { HydratedDocument } from 'mongoose';
+import { HydratedDocument, Types } from 'mongoose';
 import { EnumNetwork } from 'src/common/enums/networks';
 import { EnumRestaurantType } from 'src/common/enums/restaurant-types';
 import { EnumWalletTypes } from 'src/common/enums/wallet-types';
 import { BaseSchema } from 'src/common/schemas/base.schema';
+import { User } from 'src/users/entities/user.entity';
 
 export type RestaurantDocument = HydratedDocument<Restaurant>;
 
@@ -129,6 +130,9 @@ export class Restaurant extends BaseSchema {
 
   @Prop({ type: Boolean, default: true })
   isClosed: boolean;
+
+  @Prop({ type: Types.ObjectId, ref: User.name, default: null })
+  closedBy?: Types.ObjectId | User | null;
 
   @Prop({
     type: [
