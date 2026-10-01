@@ -112,6 +112,7 @@ export class RestaurantMembersService {
         '[create] Restaurant member creation transaction committed',
       );
 
+      member.$session(null);
       await member.populate('restaurant');
       await member.populate('user');
       const memberObject = member.toObject();
@@ -364,6 +365,7 @@ export class RestaurantMembersService {
         `[restore] Restaurant member id=${memberId} restored successfully`,
       );
 
+      member.$session(null);
       await member.populate('restaurant');
       await member.populate('user');
       const memberObject = member.toObject();
