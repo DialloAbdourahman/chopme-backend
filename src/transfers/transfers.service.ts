@@ -160,7 +160,9 @@ export class TransfersService {
         `[createTransfer] Transaction committed successfully: transferId=${transfer._id}`,
       );
     } catch (error) {
-      await session.abortTransaction();
+      if (session.inTransaction()) {
+        await session.abortTransaction();
+      }
       this.logger.error(
         `[createTransfer] Error during transfer creation: ${error?.message}`,
         error?.stack,

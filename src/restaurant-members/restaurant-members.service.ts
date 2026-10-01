@@ -130,7 +130,9 @@ export class RestaurantMembersService {
         message: 'Restaurant member created successfully',
       });
     } catch (error) {
-      await session.abortTransaction();
+      if (session.inTransaction()) {
+        await session.abortTransaction();
+      }
       this.logger.error(
         `[create] Error during restaurant member creation: ${error?.message}`,
         error?.stack,
@@ -380,7 +382,9 @@ export class RestaurantMembersService {
         message: 'Restaurant member restored successfully',
       });
     } catch (error) {
-      await session.abortTransaction();
+      if (session.inTransaction()) {
+        await session.abortTransaction();
+      }
       this.logger.error(
         `[restore] Error during restaurant member restore: ${error?.message}`,
         error?.stack,
@@ -552,7 +556,9 @@ export class RestaurantMembersService {
         message: 'Restaurant member deleted successfully',
       });
     } catch (error) {
-      await session.abortTransaction();
+      if (session.inTransaction()) {
+        await session.abortTransaction();
+      }
       this.logger.error(
         `[remove] Error during restaurant member deletion: ${error?.message}`,
         error?.stack,
