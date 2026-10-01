@@ -159,7 +159,9 @@ export class UsersService {
         '[create] Client signup transaction committed successfully',
       );
     } catch (error) {
-      await session.abortTransaction();
+      if (session.inTransaction()) {
+        await session.abortTransaction();
+      }
       this.logger.error(
         `[create] Error during client signup: ${error?.message}`,
         error?.stack,
@@ -385,7 +387,9 @@ export class UsersService {
 
         await session.commitTransaction();
       } catch (error) {
-        await session.abortTransaction();
+        if (session.inTransaction()) {
+          await session.abortTransaction();
+        }
         this.logger.error(
           `[googleLogin] Error during client signup: ${error?.message}`,
           error?.stack,
