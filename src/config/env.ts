@@ -13,8 +13,8 @@ export interface EnvConfig {
   accessTokenSecret: string;
   refreshTokenSecret: string;
 
-  accessTokenDurationMins: number;
-  refreshTokenDurationMins: number;
+  accessTokenDurationHours: number;
+  refreshTokenDurationHours: number;
 
   googleClientId: string;
   googleClientSecret: string;
@@ -57,8 +57,8 @@ export const env: EnvConfig = {
   accessTokenSecret: process.env.ACCESS_TOKEN_SECRET!,
   refreshTokenSecret: process.env.REFRESH_TOKEN_SECRET!,
 
-  accessTokenDurationMins: Number(process.env.ACCESS_TOKEN_DURATION_MINS),
-  refreshTokenDurationMins: Number(process.env.REFRESH_TOKEN_DURATION_MINS),
+  accessTokenDurationHours: Number(process.env.ACCESS_TOKEN_DURATION_HOURS),
+  refreshTokenDurationHours: Number(process.env.REFRESH_TOKEN_DURATION_HOURS),
 
   googleClientId: process.env.GOOGLE_CLIENT_ID!,
   googleClientSecret: process.env.GOOGLE_CLIENT_SECRET!,
