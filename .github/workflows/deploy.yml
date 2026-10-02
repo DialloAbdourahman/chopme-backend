@@ -48,8 +48,8 @@ jobs:
             --build-arg MONGODB_URI="${{ secrets.MONGODB_URI }}" \
             --build-arg ACCESS_TOKEN_SECRET="${{ secrets.ACCESS_TOKEN_SECRET }}" \
             --build-arg REFRESH_TOKEN_SECRET="${{ secrets.REFRESH_TOKEN_SECRET }}" \
-            --build-arg ACCESS_TOKEN_DURATION_MINS="${{ vars.ACCESS_TOKEN_DURATION_MINS }}" \
-            --build-arg REFRESH_TOKEN_DURATION_MINS="${{ vars.REFRESH_TOKEN_DURATION_MINS }}" \
+            --build-arg ACCESS_TOKEN_DURATION_HOURS="${{ vars.ACCESS_TOKEN_DURATION_HOURS }}" \
+            --build-arg REFRESH_TOKEN_DURATION_HOURS="${{ vars.REFRESH_TOKEN_DURATION_HOURS }}" \
             --build-arg PORT="${{ vars.PORT }}" \
             --build-arg GOOGLE_CLIENT_ID="${{ secrets.GOOGLE_CLIENT_ID }}" \
             --build-arg GOOGLE_CLIENT_SECRET="${{ secrets.GOOGLE_CLIENT_SECRET }}" \

@@ -241,12 +241,12 @@ export class UsersService {
 
     const accessToken = await this.jwtService.signAsync(tokenPayload, {
       secret: env.accessTokenSecret,
-      expiresIn: `${env.accessTokenDurationMins}m`,
+      expiresIn: `${env.accessTokenDurationHours}h`,
     });
 
     const refreshToken = await this.jwtService.signAsync(tokenPayload, {
       secret: env.refreshTokenSecret,
-      expiresIn: `${env.refreshTokenDurationMins}m`,
+      expiresIn: `${env.refreshTokenDurationHours}h`,
     });
 
     user.tokens.push(refreshToken);
@@ -411,12 +411,12 @@ export class UsersService {
 
     const accessToken = await this.jwtService.signAsync(tokenPayload, {
       secret: env.accessTokenSecret,
-      expiresIn: `${env.accessTokenDurationMins}m`,
+      expiresIn: `${env.accessTokenDurationHours}h`,
     });
 
     const refreshToken = await this.jwtService.signAsync(tokenPayload, {
       secret: env.refreshTokenSecret,
-      expiresIn: `${env.refreshTokenDurationMins}m`,
+      expiresIn: `${env.refreshTokenDurationHours}h`,
     });
 
     user.tokens.push(refreshToken);
@@ -494,12 +494,12 @@ export class UsersService {
 
     const accessToken = await this.jwtService.signAsync(tokenPayload, {
       secret: env.accessTokenSecret,
-      expiresIn: `${env.accessTokenDurationMins}m`,
+      expiresIn: `${env.accessTokenDurationHours}h`,
     });
 
     const refreshToken = await this.jwtService.signAsync(tokenPayload, {
       secret: env.refreshTokenSecret,
-      expiresIn: `${env.refreshTokenDurationMins}m`,
+      expiresIn: `${env.refreshTokenDurationHours}h`,
     });
 
     user.tokens = user.tokens.filter((t) => t !== token);
