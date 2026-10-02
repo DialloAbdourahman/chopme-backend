@@ -219,6 +219,17 @@ export class UsersService {
       });
     }
 
+    if (user.role !== emailPasswordLoginDto.role) {
+      this.logger.log(
+        `[emailPasswordLogin] Role mismatch for email=${normalizedEmail} (expected=${emailPasswordLoginDto.role}, actual=${user.role})`,
+      );
+      throw new OrchestrationException({
+        statusCode: EnumStatusCode.INVALID_CREDENTIALS,
+        message: 'Invalid credentials',
+        code: 401,
+      });
+    }
+
     const isPasswordValid = await bcrypt.compare(
       emailPasswordLoginDto.password,
       user.password,
