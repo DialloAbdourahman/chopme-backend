@@ -79,7 +79,8 @@ jobs:
 
           docker push $ECR_REGISTRY/$ECR_REPOSITORY:$TAG
 
-      - name: Deploy to ECS
+      - name: Deploy to ECS (Develop Only)
+        if: github.ref_name == 'develop'
         run: |
           aws ecs update-service \
             --cluster "${{ vars.ECS_CLUSTER_NAME }}" \
