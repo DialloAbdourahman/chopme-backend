@@ -1,5 +1,5 @@
 import { Expose, Transform, Type } from 'class-transformer';
-import { UserPublicOutputDto } from 'src/users/dto/output/user-output.dto';
+import { UserOutputDto } from 'src/users/dto/output/user-output.dto';
 
 export class ClientPublicOutputDto {
   @Expose()
@@ -26,8 +26,8 @@ export class ClientPublicOutputDto {
 
 export class ClientPublicWithUserOutputDto extends ClientPublicOutputDto {
   @Expose()
-  @Type(() => UserPublicOutputDto)
-  user: UserPublicOutputDto;
+  @Type(() => UserOutputDto)
+  user: UserOutputDto;
 }
 
 export class ClientPrivateOutputDto extends ClientPublicOutputDto {

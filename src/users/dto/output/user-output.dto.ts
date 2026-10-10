@@ -3,7 +3,7 @@ import { EnumAuthType } from 'src/common/enums/auth-types';
 import { EnumUserLanguage } from 'src/common/enums/user-language';
 import { EnumUserRole } from 'src/common/enums/user-roles';
 
-export class UserPublicOutputDto {
+export class UserOutputDto {
   @Expose()
   @Transform(({ obj }) => obj._id?.toString())
   id: string;
@@ -30,10 +30,19 @@ export class UserPublicOutputDto {
   updatedAt: Date;
 }
 
-export class UserPrivateOutputDto extends UserPublicOutputDto {
+export class UserPrivateOutputDto extends UserOutputDto {
   @Expose()
   deletedAt: Date | null;
 
   @Expose()
   deleted: Boolean;
+
+  @Expose()
+  active: Boolean;
+
+  @Expose()
+  lastLoginAt: Date;
+
+  @Expose()
+  lastTokenRefreshedAt: Date;
 }

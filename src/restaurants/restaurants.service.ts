@@ -31,6 +31,7 @@ import { AwsS3Helper } from 'src/common/aws/s3';
 import { env } from 'src/config/env';
 import type { Pagination } from 'src/common/interfaces/pagination';
 import { FindRestaurantDto } from './dto/input/find-restaurant.dto';
+import { AdminRestaurantsQueryDto } from './dto/input/admin-restaurants-query.dto';
 import { AddRestaurantWalletDto } from './dto/input/restaurant-wallet.dto';
 import { CameroonPhoneUtils } from 'src/common/utils/cameroon-phone-utils';
 import { EnumWalletTypes } from 'src/common/enums/wallet-types';
@@ -389,52 +390,76 @@ export class RestaurantsService {
     });
   }
 
-  async findAllForAdmin(filters: {
-    search?: string;
-    type?: string;
+  async findAllForAdmin({
+    query,
+    page,
+    limit,
+  }: {
+    query: AdminRestaurantsQueryDto;
     page: number;
     limit: number;
-    deleted?: boolean;
-    sortBy?: string;
-    sortOrder?: 'asc' | 'desc';
   }) {
-    this.logger.log(`[findAllForAdmin] Finding restaurants for admin`, filters);
+    this.logger.log(
+      `[findAllForAdmin] Finding restaurants for admin with query: ${JSON.stringify(query)}`,
+    );
 
-    const { search, type, page, limit, deleted, sortBy, sortOrder } = filters;
+    const {
+      search,
+      type,
+      deleted,
+      isClosed,
+      sortBy = 'createdAt',
+      sortOrder = 'desc',
+    } = query;
 
-    const query: any = {
-      deleted: deleted ?? false,
-    };
+    const filter: Record<string, any> = {};
 
-    if (search) {
-      query.$or = [
-        { name: { $regex: search, $options: 'i' } },
-        { description: { $regex: search, $options: 'i' } },
-        { slogan: { $regex: search, $options: 'i' } },
-      ];
-    }
+    if (deleted !== undefined) filter.deleted = deleted;
+    if (isClosed !== undefined) filter.isClosed = isClosed;
 
     if (type) {
-      query.type = type;
+      filter.type = type;
     }
 
-    const totalItems = await this.restaurantModel.countDocuments(query);
+    if (search) {
+      const escaped = search.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+      const regex = new RegExp(escaped, 'i');
 
-    const sort: any = {};
-    if (sortBy) {
-      sort[sortBy] = sortOrder === 'asc' ? 1 : -1;
-    } else {
-      sort.createdAt = -1;
+      const orConditions: Record<string, unknown>[] = [
+        { name: { $regex: regex } },
+        { description: { $regex: regex } },
+        { slogan: { $regex: regex } },
+      ];
+
+      if (Types.ObjectId.isValid(search)) {
+        orConditions.push({ _id: new Types.ObjectId(search) });
+      }
+
+      filter.$or = orConditions;
     }
 
-    const restaurants = await this.restaurantModel
-      .find(query)
-      .sort(sort)
-      .skip((page - 1) * limit)
-      .limit(limit)
-      .lean();
+    this.logger.log(
+      `[findAllForAdmin] Filters: type=${type}, deleted=${deleted}, isClosed=${isClosed}, search=${search}, sortBy=${sortBy}, sortOrder=${sortOrder}, page=${page}, limit=${limit}`,
+    );
 
-    const totalPages = Math.ceil(totalItems / limit);
+    const skip = (page - 1) * limit;
+
+    const [restaurants, total] = await Promise.all([
+      this.restaurantModel
+        .find(filter)
+        .sort({ [sortBy]: sortOrder === 'asc' ? 1 : -1 })
+        .skip(skip)
+        .limit(limit)
+        .lean()
+        .exec(),
+      this.restaurantModel.countDocuments(filter).exec(),
+    ]);
+
+    const totalPages = Math.ceil(total / limit);
+
+    this.logger.log(
+      `[findAllForAdmin] Fetched ${restaurants.length} restaurants out of ${total} total`,
+    );
 
     const privateRestaurants = plainToInstance(
       RestaurantPrivateOutputDto,
@@ -448,9 +473,13 @@ export class RestaurantsService {
       items: privateRestaurants,
       page,
       totalPages,
-      totalItems,
+      totalItems: total,
       itemsPerPage: limit,
     };
+
+    this.logger.log(
+      `[findAllForAdmin] Returning page ${page} of ${totalPages}`,
+    );
 
     return OrchestrationResult.Success<Pagination<RestaurantPrivateOutputDto>>({
       statusCode: EnumStatusCode.RECOVERED_SUCCESSFULLY,

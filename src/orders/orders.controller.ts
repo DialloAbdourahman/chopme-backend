@@ -165,6 +165,19 @@ export class OrdersController {
     });
   }
 
+  @Get('admin')
+  @HttpCode(HttpStatus.OK)
+  @UseGuards(AuthGuard, RoleGuard)
+  @Roles(EnumUserRole.ADMIN)
+  findAllForAdmin(@Query('page') page: string, @Query('limit') limit: string) {
+    const parsedPage = page ? parseInt(page, 10) : 1;
+    const parsedLimit = limit ? parseInt(limit, 10) : 10;
+    return this.ordersService.findAllForAdmin({
+      page: parsedPage,
+      limit: parsedLimit,
+    });
+  }
+
   @Get(':orderId/get-client')
   @HttpCode(HttpStatus.OK)
   @UseGuards(AuthGuard, RoleGuard)

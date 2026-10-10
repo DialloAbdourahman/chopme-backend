@@ -16,6 +16,7 @@ import { Order, OrderDocument, OrderItem } from './entities/order.entity';
 import { computePriceWithPlatformPercentage } from 'src/common/utils/compute-price-with-platform-percentage';
 import { plainToInstance } from 'class-transformer';
 import {
+  OrderAdminOutputDto,
   OrderClientOutputDto,
   OrderRestaurantOutputDto,
 } from './dto/output/order-output.dto';
@@ -312,6 +313,46 @@ export class OrdersService {
       statusCode: EnumStatusCode.RECOVERED_SUCCESSFULLY,
       data: paginatedResult,
       message: 'Restaurant orders fetched successfully',
+    });
+  }
+
+  async findAllForAdmin({ page, limit }: { page: number; limit: number }) {
+    this.logger.log(
+      `[findAllForAdmin] Fetching orders for admin, page=${page}, limit=${limit}`,
+    );
+
+    const filters = {};
+
+    const totalItems = await this.orderModel.countDocuments(filters);
+    const orders = await this.orderModel
+      .find(filters)
+      .sort({ createdAt: -1 })
+      .skip((page - 1) * limit)
+      .limit(limit)
+      .lean()
+      .exec();
+
+    const totalPages = Math.ceil(totalItems / limit) || 1;
+    const publicOrders = plainToInstance(OrderAdminOutputDto, orders, {
+      excludeExtraneousValues: true,
+    });
+
+    const paginatedResult: Pagination<OrderAdminOutputDto> = {
+      items: publicOrders,
+      page,
+      totalPages,
+      totalItems,
+      itemsPerPage: limit,
+    };
+
+    this.logger.log(
+      `[findAllForAdmin] Fetched ${orders.length} orders out of ${totalItems} total`,
+    );
+
+    return OrchestrationResult.Success<Pagination<OrderAdminOutputDto>>({
+      statusCode: EnumStatusCode.RECOVERED_SUCCESSFULLY,
+      data: paginatedResult,
+      message: 'Orders fetched successfully',
     });
   }
 
