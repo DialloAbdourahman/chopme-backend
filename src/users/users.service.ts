@@ -1,7 +1,7 @@
 import { Injectable, Logger } from '@nestjs/common';
 
 import { InjectConnection, InjectModel } from '@nestjs/mongoose';
-import { Connection, Model } from 'mongoose';
+import { Connection, Model, Types } from 'mongoose';
 import * as bcrypt from 'bcrypt';
 import { plainToInstance } from 'class-transformer';
 import { User, UserDocument } from 'src/users/entities/user.entity';
@@ -16,12 +16,17 @@ import { OrchestrationException } from 'src/common/exceptions/orchestration.exce
 import { EmailPasswordLoginDto } from './dto/input/email-password-login.dto';
 import { GoogleLoginDto } from './dto/input/google-login.dto';
 import { UpdatePasswordDto } from './dto/input/update-password.dto';
+import { AdminUsersQueryDto } from './dto/input/admin-users-query.dto';
 import { EnumAuthType } from 'src/common/enums/auth-types';
 import { EnumUserRole } from 'src/common/enums/user-roles';
 import { EnumUserLanguage } from 'src/common/enums/user-language';
 import { env } from 'src/config/env';
-import { UserPublicOutputDto } from 'src/users/dto/output/user-output.dto';
+import {
+  UserPrivateOutputDto,
+  UserOutputDto,
+} from 'src/users/dto/output/user-output.dto';
 import { ILoggedInUserTokenData } from 'src/common/interfaces/loggedin-user-token-data';
+import { Pagination } from 'src/common/interfaces/pagination';
 import { JwtService } from '@nestjs/jwt';
 import { getUserFromGoogle } from 'src/common/utils/get-user-from-google';
 import type { IUserFromGoogle } from 'src/common/interfaces/user-from-google';
@@ -96,6 +101,10 @@ export class UsersService {
       payload.restaurantMemberRole = restaurantMember.role;
     }
 
+    this.logger.log(
+      `[buildTokenPayload] Token payload built for user id=${user._id}`,
+    );
+
     return payload;
   }
 
@@ -156,7 +165,10 @@ export class UsersService {
 
       await session.commitTransaction();
       this.logger.log(
-        '[create] Client signup transaction committed successfully',
+        `[create] Client signup transaction committed successfully`,
+      );
+      this.logger.log(
+        `[create] Client signup completed for user id=${user._id}`,
       );
     } catch (error) {
       if (session.inTransaction()) {
@@ -265,16 +277,19 @@ export class UsersService {
     user.lastTokenRefreshedAt = new Date();
     await user.save();
 
-    const publicUser = plainToInstance(UserPublicOutputDto, user, {
+    const publicUser = plainToInstance(UserOutputDto, user, {
       excludeExtraneousValues: true,
     });
 
     this.logger.log('[emailPasswordLogin] Tokens generated successfully');
+    this.logger.log(
+      `[emailPasswordLogin] Login successful for user id=${user._id}, role=${user.role}`,
+    );
 
     return OrchestrationResult.Success<{
       accessToken: string;
       refreshToken: string;
-      user: UserPublicOutputDto;
+      user: UserOutputDto;
     }>({
       statusCode: EnumStatusCode.LOGGED_IN_SUCCESSFULLY,
       data: {
@@ -435,16 +450,18 @@ export class UsersService {
     user.lastTokenRefreshedAt = new Date();
     await user.save();
 
-    const publicUser = plainToInstance(UserPublicOutputDto, user, {
+    const publicUser = plainToInstance(UserOutputDto, user, {
       excludeExtraneousValues: true,
     });
 
-    this.logger.log('[googleLogin] Google login successful');
+    this.logger.log(
+      `[googleLogin] Login successful for user id=${user._id}, role=${user.role}`,
+    );
 
     return OrchestrationResult.Success<{
       accessToken: string;
       refreshToken: string;
-      user: UserPublicOutputDto;
+      user: UserOutputDto;
     }>({
       statusCode: EnumStatusCode.LOGGED_IN_SUCCESSFULLY,
       data: {
@@ -518,16 +535,16 @@ export class UsersService {
     user.lastTokenRefreshedAt = new Date();
     await user.save();
 
-    const publicUser = plainToInstance(UserPublicOutputDto, user, {
+    const publicUser = plainToInstance(UserOutputDto, user, {
       excludeExtraneousValues: true,
     });
 
-    this.logger.log('[refreshToken] Tokens refreshed successfully');
+    this.logger.log(`[refreshToken] Token refreshed for user id=${user._id}`);
 
     return OrchestrationResult.Success<{
       accessToken: string;
       refreshToken: string;
-      user: UserPublicOutputDto;
+      user: UserOutputDto;
     }>({
       statusCode: EnumStatusCode.LOGGED_IN_SUCCESSFULLY,
       data: {
@@ -564,6 +581,10 @@ export class UsersService {
     }
     await dbUser.save();
 
+    this.logger.log(
+      `[logout] Tokens cleared for user id=${dbUser._id}, tokenProvided=${!!token}`,
+    );
+
     return OrchestrationResult.Success<string>({
       statusCode: EnumStatusCode.LOGGED_OUT_SUCCESSFULLY,
       data: 'Logged out',
@@ -591,11 +612,13 @@ export class UsersService {
       });
     }
 
-    const publicUser = plainToInstance(UserPublicOutputDto, dbUser, {
+    const publicUser = plainToInstance(UserOutputDto, dbUser, {
       excludeExtraneousValues: true,
     });
 
-    return OrchestrationResult.Success<UserPublicOutputDto>({
+    this.logger.log(`[getMyProfile] Profile fetched for user id=${dbUser._id}`);
+
+    return OrchestrationResult.Success<UserOutputDto>({
       statusCode: EnumStatusCode.RECOVERED_SUCCESSFULLY,
       data: publicUser,
       message: 'Profile fetched successfully',
@@ -631,11 +654,15 @@ export class UsersService {
     dbUser.language = updateUserDto.language || dbUser.language;
     await dbUser.save();
 
-    const publicUser = plainToInstance(UserPublicOutputDto, dbUser, {
+    this.logger.log(
+      `[updateMyProfile] Profile updated for user id=${dbUser._id}`,
+    );
+
+    const publicUser = plainToInstance(UserOutputDto, dbUser, {
       excludeExtraneousValues: true,
     });
 
-    return OrchestrationResult.Success<UserPublicOutputDto>({
+    return OrchestrationResult.Success<UserOutputDto>({
       statusCode: EnumStatusCode.UPDATED_SUCCESSFULLY,
       data: publicUser,
       message: 'Profile updated successfully',
@@ -719,14 +746,117 @@ export class UsersService {
 
     await dbUser.save();
 
-    const publicUser = plainToInstance(UserPublicOutputDto, dbUser, {
+    this.logger.log(
+      `[updatePassword] Password updated successfully for user id=${dbUser._id}`,
+    );
+
+    const publicUser = plainToInstance(UserOutputDto, dbUser, {
       excludeExtraneousValues: true,
     });
 
-    return OrchestrationResult.Success<UserPublicOutputDto>({
+    return OrchestrationResult.Success<UserOutputDto>({
       statusCode: EnumStatusCode.UPDATED_SUCCESSFULLY,
       data: publicUser,
       message: 'Password updated successfully',
+    });
+  }
+
+  async getAdminUsers({
+    query,
+    page,
+    limit,
+  }: {
+    query: AdminUsersQueryDto;
+    page: number;
+    limit: number;
+  }) {
+    this.logger.log(
+      `[getAdminUsers] Listing users with query: ${JSON.stringify(query)}`,
+    );
+
+    const {
+      role,
+      authType,
+      active,
+      deleted,
+      dateFrom,
+      dateTo,
+      sort = 'desc',
+      sortBy = 'createdAt',
+      search,
+    } = query;
+
+    const filter: Record<string, any> = {};
+
+    if (deleted !== undefined) filter.deleted = deleted;
+    if (active !== undefined) filter.active = active;
+
+    if (role) filter.role = role;
+    if (authType) filter.authType = authType;
+
+    if (dateFrom || dateTo) {
+      filter.createdAt = {};
+      if (dateFrom) filter.createdAt.$gte = dateFrom;
+      if (dateTo) filter.createdAt.$lte = dateTo;
+    }
+
+    if (search) {
+      const escaped = search.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+      const regex = new RegExp(escaped, 'i');
+
+      const orConditions: Record<string, unknown>[] = [
+        { fullName: { $regex: regex } },
+        { email: { $regex: regex } },
+      ];
+
+      if (Types.ObjectId.isValid(search)) {
+        orConditions.push({ _id: new Types.ObjectId(search) });
+      }
+
+      filter.$or = orConditions;
+    }
+
+    const skip = (page - 1) * limit;
+
+    this.logger.log(
+      `[getAdminUsers] Filters: role=${role}, authType=${authType}, active=${active}, deleted=${deleted}, dateFrom=${dateFrom}, dateTo=${dateTo}, search=${search}, sort=${sort}, sortBy=${sortBy}, page=${page}, limit=${limit}`,
+    );
+
+    const [users, total] = await Promise.all([
+      this.userModel
+        .find(filter)
+        .sort({ [sortBy]: sort === 'asc' ? 1 : -1 })
+        .skip(skip)
+        .limit(limit)
+        .lean()
+        .exec(),
+      this.userModel.countDocuments(filter).exec(),
+    ]);
+
+    const privateUsers = plainToInstance(UserPrivateOutputDto, users, {
+      excludeExtraneousValues: true,
+    });
+
+    const totalPages = Math.ceil(total / limit);
+
+    this.logger.log(
+      `[getAdminUsers] Fetched ${users.length} users out of ${total} total`,
+    );
+
+    const paginatedResult: Pagination<UserPrivateOutputDto> = {
+      items: privateUsers,
+      page,
+      totalPages,
+      totalItems: total,
+      itemsPerPage: limit,
+    };
+
+    this.logger.log(`[getAdminUsers] Returning page ${page} of ${totalPages}`);
+
+    return OrchestrationResult.Success<Pagination<UserPrivateOutputDto>>({
+      statusCode: EnumStatusCode.RECOVERED_SUCCESSFULLY,
+      data: paginatedResult,
+      message: 'Users fetched successfully',
     });
   }
 }
