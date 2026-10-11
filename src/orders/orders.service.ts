@@ -46,6 +46,8 @@ import { EnumUserLanguage } from 'src/common/enums/user-language';
 import { EnumNotificationI18nType } from 'src/common/enums/notification-internationalization-type';
 import { getNotificationMessage } from '../common/utils/get-fcm-notification-message';
 import { RestaurantPublicOutputDto } from 'src/restaurants/dto/output/restaurant-output.dto';
+import { TranzakService } from 'src/common/tranzak/tranzak.service';
+import { EnumTranzakCurrency } from 'src/common/enums/tranzak/currency';
 
 @Injectable()
 export class OrdersService {
@@ -76,6 +78,7 @@ export class OrdersService {
     private readonly fcmTokenModel: Model<FcmTokenDocument>,
 
     private readonly flutterwaveService: FlutterwaveService,
+    private readonly tranzakService: TranzakService,
     private readonly eventsGateway: WebSocketService,
     private readonly fcmService: FcmService,
   ) {}
@@ -1013,6 +1016,20 @@ export class OrdersService {
     }
 
     this.logger.log(`[pay] Proceeding to create charge for order ${orderId}`);
+
+    const tranzakResponse = await this.tranzakService.createPayment({
+      amount: order.pricing.totalAmountCollectedWithDelivery,
+      description: JSON.stringify({
+        email: (client.user as UserDocument).email,
+        name: (client.user as UserDocument).fullName,
+      }),
+      currencyCode: EnumTranzakCurrency.XAF,
+      mchTransactionRef: order.id.toString(),
+      returnUrl: `${env.clientFrontendUrl}/orders/${order.id}`,
+      cancelUrl: `${env.clientFrontendUrl}/orders/${order.id}`,
+    });
+
+    console.log(tranzakResponse);
 
     const flutterwavePayment = await this.flutterwaveService.createPayment({
       tx_ref: order.id.toString(),

@@ -38,6 +38,10 @@ export interface EnvConfig {
   flutterWaveMaxPaymentLinkValidityInHr: number;
   flutterWaveWebhookSecretHash: string;
 
+  tranzakUrl: string;
+  tranzakAppId: string;
+  tranzakApiKey: string;
+
   platformMobileMoneyAccountNumber: string;
   platformMobileMoneyNetworkType: string;
 
@@ -85,6 +89,10 @@ export const env: EnvConfig = {
     process.env.FLUTTER_WAVE_MAX_PAYMENT_LINK_VALIDITY_IN_HR!,
   ),
   flutterWaveWebhookSecretHash: process.env.FLUTTER_WAVE_WEBHOOK_SECRET_HASH!,
+
+  tranzakUrl: process.env.TRANZAK_URL!,
+  tranzakAppId: process.env.TRANZAK_APP_ID!,
+  tranzakApiKey: process.env.TRANZAK_API_KEY!,
 
   platformMobileMoneyAccountNumber:
     process.env.PLATFORM_MOBILE_MONEY_ACCOUNT_NUMBER!,

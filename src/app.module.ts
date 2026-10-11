@@ -23,6 +23,7 @@ import { FlwWebhookModule } from './flw-webhook/flw-webhook.module';
 import { RestaurantRatingsModule } from './restaurant-ratings/restaurant-ratings.module';
 import { TransfersModule } from './transfers/transfers.module';
 import { StartupService } from './startup';
+import { TranzakModule } from './common/tranzak/tranzak.module';
 
 @Module({
   imports: [
@@ -62,6 +63,11 @@ import { StartupService } from './startup';
     FlutterwaveModule.forRoot({
       baseUrl: env.flutterWaveUrl,
       secretKey: env.flutterWaveClientSecretKey,
+    }),
+    TranzakModule.forRoot({
+      baseUrl: env.tranzakUrl,
+      appId: env.tranzakAppId,
+      apiKey: env.tranzakApiKey,
     }),
     FlwWebhookModule,
     RestaurantRatingsModule,
