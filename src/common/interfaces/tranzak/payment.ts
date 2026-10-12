@@ -8,6 +8,10 @@ export interface ITranzakCreatePaymentSessionRequestDto {
   mchTransactionRef: string;
   returnUrl: string;
   cancelUrl: string;
+  customization?: {
+    logoUrl?: string;
+    title?: string;
+  };
 }
 
 export interface ITranzakCreatePaymentSessionResponseData {
