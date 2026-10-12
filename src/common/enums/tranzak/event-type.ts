@@ -1,0 +1,4 @@
+export enum EnumTranzakEventType {
+  REQUEST_COMPLETED = 'REQUEST.COMPLETED',
+  REFUND_COMPLETED = 'REFUND.COMPLETED',
+}

@@ -44,7 +44,8 @@ export class MetaData {
 
 export class PaymentDetails {
   link: string;
-  validUntil: Date;
+  requestId: string;
+  appId: string;
 }
 
 export class PaymentWebhookDetails {
@@ -181,10 +182,13 @@ export class Order extends BaseSchema {
         type: String,
         required: true,
       },
-      validUntil: {
-        type: Date,
+      requestId: {
+        type: String,
         required: true,
-        default: Date.now,
+      },
+      appId: {
+        type: String,
+        required: true,
       },
     },
     _id: false,

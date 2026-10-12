@@ -1017,44 +1017,49 @@ export class OrdersService {
 
     this.logger.log(`[pay] Proceeding to create charge for order ${orderId}`);
 
+    const language =
+      (client.user as UserDocument).language ?? EnumUserLanguage.FR;
+    const itemCount = order.items.reduce((sum, item) => sum + item.quantity, 0);
+    const description =
+      language === EnumUserLanguage.FR
+        ? `${itemCount} article${itemCount > 1 ? 's' : ''} commandé${itemCount > 1 ? 's' : ''} chez ${restaurant.name}`
+        : `${itemCount} item${itemCount > 1 ? 's' : ''} ordered at ${restaurant.name}`;
+
     const tranzakResponse = await this.tranzakService.createPayment({
       amount: order.pricing.totalAmountCollectedWithDelivery,
-      description: JSON.stringify({
-        email: (client.user as UserDocument).email,
-        name: (client.user as UserDocument).fullName,
-      }),
+      description,
       currencyCode: EnumTranzakCurrency.XAF,
       mchTransactionRef: order.id.toString(),
       returnUrl: `${env.clientFrontendUrl}/orders/${order.id}`,
       cancelUrl: `${env.clientFrontendUrl}/orders/${order.id}`,
-    });
-
-    console.log(tranzakResponse);
-
-    const flutterwavePayment = await this.flutterwaveService.createPayment({
-      tx_ref: order.id.toString(),
-      session_duration: env.flutterWaveMaxPaymentLinkValidityInHr * 60,
-      amount: order.pricing.totalAmountCollectedWithDelivery.toString(),
-      currency: EnumCurrency.XAF,
-      customer: {
-        email: (client.user as UserDocument).email,
-        name: (client.user as UserDocument).fullName,
-      },
-      customizations: {
+      customization: {
         title: 'Chopme',
       },
-      redirect_url: `${env.clientFrontendUrl}/orders/${order.id}`,
-      meta: {
-        orderId: order.id.toString(),
-      },
     });
+
+    // const flutterwavePayment = await this.flutterwaveService.createPayment({
+    //   tx_ref: order.id.toString(),
+    //   session_duration: env.flutterWaveMaxPaymentLinkValidityInHr * 60,
+    //   amount: order.pricing.totalAmountCollectedWithDelivery.toString(),
+    //   currency: EnumCurrency.XAF,
+    //   customer: {
+    //     email: (client.user as UserDocument).email,
+    //     name: (client.user as UserDocument).fullName,
+    //   },
+    //   customizations: {
+    //     title: 'Chopme',
+    //   },
+    //   redirect_url: `${env.clientFrontendUrl}/orders/${order.id}`,
+    //   meta: {
+    //     orderId: order.id.toString(),
+    //   },
+    // });
 
     order.status = EnumOrderStatus.PAYMENT_INITIATED;
     order.paymentDetails = {
-      link: flutterwavePayment.link,
-      validUntil: new Date(
-        Date.now() + env.flutterWaveMaxPaymentLinkValidityInHr * 60 * 60 * 1000,
-      ),
+      link: tranzakResponse.links.paymentAuthUrl,
+      requestId: tranzakResponse.requestId,
+      appId: tranzakResponse.appId,
     };
     order.statusTransitions = [
       ...order.statusTransitions,
@@ -1068,7 +1073,7 @@ export class OrdersService {
     }>({
       statusCode: EnumStatusCode.PAYMENT_INITIATED,
       data: {
-        url: flutterwavePayment.link,
+        url: tranzakResponse.links.paymentAuthUrl,
       },
       message: 'Payment flow initialized',
     });

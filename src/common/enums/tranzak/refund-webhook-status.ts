@@ -1,0 +1,9 @@
+export enum EnumTranzakWebhookRefundStatus {
+  PENDING = 'PENDING',
+  APPROVED = 'APPROVED',
+  REJECTED = 'REJECTED',
+  ON_HOLD = 'ON_HOLD',
+  SUCCESSFUL = 'SUCCESSFUL',
+  CANCELLED = 'CANCELLED',
+  FAILED = 'FAILED',
+}
