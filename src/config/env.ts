@@ -41,6 +41,7 @@ export interface EnvConfig {
   tranzakUrl: string;
   tranzakAppId: string;
   tranzakApiKey: string;
+  tranzakWebhookAuthKey: string;
 
   platformMobileMoneyAccountNumber: string;
   platformMobileMoneyNetworkType: string;
@@ -93,6 +94,7 @@ export const env: EnvConfig = {
   tranzakUrl: process.env.TRANZAK_URL!,
   tranzakAppId: process.env.TRANZAK_APP_ID!,
   tranzakApiKey: process.env.TRANZAK_API_KEY!,
+  tranzakWebhookAuthKey: process.env.TRANZAK_WEBHOOK_AUTH_KEY!,
 
   platformMobileMoneyAccountNumber:
     process.env.PLATFORM_MOBILE_MONEY_ACCOUNT_NUMBER!,

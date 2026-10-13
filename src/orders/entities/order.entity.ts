@@ -49,17 +49,24 @@ export class PaymentDetails {
 }
 
 export class PaymentWebhookDetails {
-  transactionId?: number;
+  requestId?: string;
+  transactionId?: string;
+  partnerTransactionId?: string;
+  mchTransactionRef?: string;
+  transactionTime?: Date;
   amount?: number;
-  appFee?: number;
-  chargedAmount?: number;
-  currency?: string;
-  ip?: string;
-  merchantFee?: number;
-  paymentType?: string;
+  currencyCode?: string;
   status?: string;
-  txRef?: string;
-  flwRef?: string;
+  transactionStatus?: string;
+  mobileWalletNumber?: string;
+  paymentMethod?: string;
+  payerName?: string;
+  payerFee?: number;
+  netAmountPaid?: number;
+  merchantFee?: number;
+  netAmountReceived?: number;
+  errorCode?: number;
+  errorMessage?: string;
 }
 
 export class RefundWebhookDetails {
@@ -198,17 +205,24 @@ export class Order extends BaseSchema {
 
   @Prop({
     type: {
-      transactionId: { type: Number, required: false },
+      requestId: { type: String, required: false },
+      transactionId: { type: String, required: false },
+      partnerTransactionId: { type: String, required: false },
+      mchTransactionRef: { type: String, required: false },
+      transactionTime: { type: Date, required: false },
       amount: { type: Number, required: false },
-      appFee: { type: Number, required: false },
-      chargedAmount: { type: Number, required: false },
-      currency: { type: String, required: false },
-      ip: { type: String, required: false },
-      merchantFee: { type: Number, required: false },
-      paymentType: { type: String, required: false },
+      currencyCode: { type: String, required: false },
       status: { type: String, required: false },
-      txRef: { type: String, required: false },
-      flwRef: { type: String, required: false },
+      transactionStatus: { type: String, required: false },
+      mobileWalletNumber: { type: String, required: false },
+      paymentMethod: { type: String, required: false },
+      payerName: { type: String, required: false },
+      payerFee: { type: Number, required: false },
+      netAmountPaid: { type: Number, required: false },
+      merchantFee: { type: Number, required: false },
+      netAmountReceived: { type: Number, required: false },
+      errorCode: { type: Number, required: false },
+      errorMessage: { type: String, required: false },
     },
     _id: false,
     required: false,

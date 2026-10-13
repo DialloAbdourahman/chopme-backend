@@ -1,4 +1,5 @@
-export enum EnumTranzakEventType {
+export enum EnumTranzakWebhookEventType {
   REQUEST_COMPLETED = 'REQUEST.COMPLETED',
   REFUND_COMPLETED = 'REFUND.COMPLETED',
+  TRANSFER_COMPLETED = 'TRANSFER.COMPLETED',
 }

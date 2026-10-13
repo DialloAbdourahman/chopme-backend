@@ -1022,8 +1022,8 @@ export class OrdersService {
     const itemCount = order.items.reduce((sum, item) => sum + item.quantity, 0);
     const description =
       language === EnumUserLanguage.FR
-        ? `${itemCount} article${itemCount > 1 ? 's' : ''} commandé${itemCount > 1 ? 's' : ''} chez ${restaurant.name}`
-        : `${itemCount} item${itemCount > 1 ? 's' : ''} ordered at ${restaurant.name}`;
+        ? `${itemCount} menu${itemCount > 1 ? 's' : ''} commandé${itemCount > 1 ? 's' : ''} chez ${restaurant.name}`
+        : `${itemCount} menu${itemCount > 1 ? 's' : ''} ordered at ${restaurant.name}`;
 
     const tranzakResponse = await this.tranzakService.createPayment({
       amount: order.pricing.totalAmountCollectedWithDelivery,

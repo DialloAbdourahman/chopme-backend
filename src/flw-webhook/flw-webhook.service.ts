@@ -528,17 +528,22 @@ export class FlwWebhookService {
     webhookData: PaymentWebhookData,
   ): PaymentWebhookDetails {
     return {
+      requestId: webhookData.flw_ref,
+      transactionId: webhookData.id.toString(),
+      mchTransactionRef: webhookData.tx_ref,
+      transactionTime: new Date(webhookData.created_at),
       amount: webhookData.amount,
-      appFee: webhookData.app_fee,
-      chargedAmount: webhookData.charged_amount,
-      currency: webhookData.currency,
-      ip: webhookData.ip,
-      merchantFee: webhookData.merchant_fee,
-      paymentType: webhookData.payment_type,
+      currencyCode: webhookData.currency,
       status: webhookData.status,
-      flwRef: webhookData.flw_ref,
-      txRef: webhookData.tx_ref,
-      transactionId: webhookData.id,
+      transactionStatus: webhookData.status,
+      mobileWalletNumber: webhookData.customer.phone_number ?? undefined,
+      paymentMethod: webhookData.payment_type,
+      payerName: webhookData.customer.name,
+      payerFee: webhookData.app_fee,
+      netAmountPaid: webhookData.charged_amount,
+      merchantFee: webhookData.merchant_fee,
+      netAmountReceived: webhookData.amount - webhookData.merchant_fee,
+      errorMessage: webhookData.processor_response,
     };
   }
 }

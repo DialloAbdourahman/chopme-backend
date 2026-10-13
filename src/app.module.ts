@@ -24,6 +24,7 @@ import { RestaurantRatingsModule } from './restaurant-ratings/restaurant-ratings
 import { TransfersModule } from './transfers/transfers.module';
 import { StartupService } from './startup';
 import { TranzakModule } from './common/tranzak/tranzak.module';
+import { TranzakWebhookModule } from './tranzak-webhook/tranzak-webhook.module';
 
 @Module({
   imports: [
@@ -70,6 +71,7 @@ import { TranzakModule } from './common/tranzak/tranzak.module';
       apiKey: env.tranzakApiKey,
     }),
     FlwWebhookModule,
+    TranzakWebhookModule,
     RestaurantRatingsModule,
     TransfersModule,
   ],

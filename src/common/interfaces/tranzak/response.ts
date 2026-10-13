@@ -1,4 +1,4 @@
-import { EnumTranzakEventType } from 'src/common/enums/tranzak/event-type';
+import { EnumTranzakWebhookEventType } from 'src/common/enums/tranzak/event-type';
 
 export interface ITranzakApiResponse<T> {
   data: T;
@@ -10,8 +10,8 @@ export interface ITranzakApiResponse<T> {
 export interface ITranzakWebhookResponse<T> {
   name: string;
   version: string;
-  eventType: EnumTranzakEventType;
-  merchantId: string;
+  eventType: EnumTranzakWebhookEventType;
+  merchantId?: string | null;
   appId: string;
   resourceId: string;
   resource: T;
