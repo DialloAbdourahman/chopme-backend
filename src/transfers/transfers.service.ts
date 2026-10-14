@@ -177,24 +177,6 @@ export class TransfersService {
       session.endSession();
     }
 
-    if (transfer) {
-      try {
-        this.logger.log(
-          `[createTransfer] Starting transfer initiation: transferId=${transfer._id}`,
-        );
-
-        await this.initiateTransfer(transfer, restaurant);
-      } catch (error) {
-        this.logger.error(
-          `[createTransfer] Failed to initiate transfer: ${error.message}`,
-        );
-      }
-    }
-
-    this.logger.log(
-      `[createTransfer] Transfer creation completed: transferId=${transfer?._id}`,
-    );
-
     if (!transfer) {
       this.logger.error('[createTransfer] Transfer is unexpectedly null');
       throw new OrchestrationException({
@@ -203,6 +185,22 @@ export class TransfersService {
         code: 500,
       });
     }
+
+    try {
+      this.logger.log(
+        `[createTransfer] Starting transfer initiation: transferId=${transfer._id}`,
+      );
+
+      await this.initiateTransfer(transfer, restaurant);
+    } catch (error) {
+      this.logger.error(
+        `[createTransfer] Failed to initiate transfer: ${error.message}`,
+      );
+    }
+
+    this.logger.log(
+      `[createTransfer] Transfer creation completed: transferId=${transfer?._id}`,
+    );
 
     const publicTransfer = plainToInstance(
       TransferPublicOutputDto,
