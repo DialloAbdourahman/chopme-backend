@@ -10,6 +10,10 @@ import {
   ITranzakCreatePaymentSessionRequestDto,
   ITranzakCreatePaymentSessionResponseData,
 } from '../interfaces/tranzak/payment';
+import {
+  ITranzakCreateRefundRequestDto,
+  ITranzakCreateRefundResponseData,
+} from '../interfaces/tranzak/refund';
 
 @Injectable()
 export class TranzakService implements OnModuleInit {
@@ -112,26 +116,41 @@ export class TranzakService implements OnModuleInit {
       throw error;
     }
   }
-}
 
-// {
-//   requestId: 'REQ2610111754A1A2Z67',
-//   amount: 2500,
-//   currencyCode: 'XAF',
-//   description: '{"email":"dialloabdourahmandev@gmail.com","name":"Diallo Abdourahman Dev"}',
-//   mobileWalletNumber: null,
-//   status: 'PENDING',
-//   transactionStatus: 'PENDING',
-//   createdAt: '2026-10-11T17:54:25+00:00',
-//   mchTransactionRef: '6acbcd4f2d337258eb7af6f0',
-//   appId: 'apr94h3whtlo8z',
-//   payerNote: '',
-//   serviceDiscountAmount: null,
-//   receivingEntityName: null,
-//   transactionTag: null,
-//   links: {
-//     returnUrl: 'http://localhost:5173/orders/6acbcd4f2d337258eb7af6f0',
-//     cancelUrl: 'http://localhost:5173/orders/6acbcd4f2d337258eb7af6f0',
-//     paymentAuthUrl: 'https://sandbox.pay.tranzak.me/?rid=REQ2610111754A1A2Z67'
-//   }
-// }
+  async createRefund(
+    data: ITranzakCreateRefundRequestDto,
+  ): Promise<ITranzakCreateRefundResponseData> {
+    try {
+      this.logger.log(
+        `[Tranzak] Creating refund for transaction ${data.refundedTransactionId}`,
+      );
+
+      const paymentToken = await this.getPaymentToken();
+
+      const response = await firstValueFrom(
+        this.httpService.post<
+          ITranzakApiResponse<ITranzakCreateRefundResponseData>
+        >(`${this.baseUrl}/xp021/v1/refund/create`, data, {
+          headers: {
+            Authorization: `Bearer ${paymentToken}`,
+          },
+          timeout: this.timeoutMs,
+        }),
+      );
+
+      if (!response.data.success) {
+        throw new Error(`Tranzak API error: ${response.data.errorMsg}`);
+      }
+
+      this.logger.log('[Tranzak] Refund created');
+
+      return response.data.data;
+    } catch (error) {
+      this.logger.error(
+        '[Tranzak] Error creating refund:',
+        error.response?.data || error.message,
+      );
+      throw error;
+    }
+  }
+}

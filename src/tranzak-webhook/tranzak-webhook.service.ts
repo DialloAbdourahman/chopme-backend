@@ -7,6 +7,7 @@ import {
   Order,
   OrderDocument,
   PaymentWebhookDetails,
+  RefundWebhookDetails,
 } from 'src/orders/entities/order.entity';
 import { EnumOrderStatus } from 'src/common/enums/order-status';
 import { WebSocketService } from 'src/web-socket/web-socket-service';
@@ -32,7 +33,10 @@ import { env } from 'src/config/env';
 import { ITranzakWebhookResponse } from 'src/common/interfaces/tranzak/response';
 import { EnumTranzakWebhookEventType } from 'src/common/enums/tranzak/event-type';
 import { ITranzakWebhookPaymentResponse } from 'src/common/interfaces/tranzak/payment';
+import { ITranzakWebhookRefundResponse } from 'src/common/interfaces/tranzak/refund';
 import { EnumTranzakPaymentStatus } from 'src/common/enums/tranzak/payment-status';
+import { EnumRefundStatus } from 'src/common/enums/refund-statuses';
+import { EnumTranzakWebhookRefundStatus } from 'src/common/enums/tranzak/refund-webhook-status';
 
 @Injectable()
 export class TranzakWebhookService {
@@ -66,11 +70,11 @@ export class TranzakWebhookService {
       if (
         typedWebhook.resource.status === EnumTranzakPaymentStatus.SUCCESSFUL
       ) {
-        await this.processSuccessfulPayment(typedWebhook.resource);
+        await this.processSuccessfulPayment(typedWebhook);
       } else if (
         typedWebhook.resource.status === EnumTranzakPaymentStatus.FAILED
       ) {
-        await this.processFailedPayment(typedWebhook.resource);
+        await this.processFailedPayment(typedWebhook);
       } else {
         this.logger.warn(
           `[TranzakWebhookService] Unhandled charge status: ${typedWebhook.resource.status}, tx_ref: ${typedWebhook.resource.mchTransactionRef}`,
@@ -88,12 +92,27 @@ export class TranzakWebhookService {
     } else if (
       webhook.eventType === EnumTranzakWebhookEventType.REFUND_COMPLETED
     ) {
-      // const typedWebhook: ITranzakWebhook<RefundWebhookData> =
-      //   webhook as FlutterwaveWebhook<RefundWebhookData>;
-      // this.logger.log(
-      //   '[TranzakWebhookService] Processing refund completed webhook',
-      //   typedWebhook.data,
-      // );
+      const typedWebhook: ITranzakWebhookResponse<ITranzakWebhookRefundResponse> =
+        webhook as ITranzakWebhookResponse<ITranzakWebhookRefundResponse>;
+      this.logger.log(
+        '[TranzakWebhookService] Processing refund completed webhook',
+        typedWebhook.resource,
+      );
+
+      if (
+        typedWebhook.resource.status ===
+        EnumTranzakWebhookRefundStatus.SUCCESSFUL
+      ) {
+        await this.processSuccessfulRefund(typedWebhook);
+      } else if (
+        typedWebhook.resource.status === EnumTranzakWebhookRefundStatus.FAILED
+      ) {
+        await this.processFailedRefund(typedWebhook);
+      } else {
+        this.logger.warn(
+          `[TranzakWebhookService] Unhandled refund status: ${typedWebhook.resource.status}, tx_ref: ${typedWebhook.resource.refundedTransactionId}`,
+        );
+      }
     } else {
       this.logger.warn(
         `[TranzakWebhookService] Ignoring unsupported webhook event: ${webhook.eventType}`,
@@ -105,8 +124,10 @@ export class TranzakWebhookService {
   }
 
   private async processSuccessfulPayment(
-    webhookData: ITranzakWebhookPaymentResponse,
+    webhook: ITranzakWebhookResponse<ITranzakWebhookPaymentResponse>,
   ) {
+    const webhookData: ITranzakWebhookPaymentResponse = webhook.resource;
+
     this.logger.log(
       `[TranzakWebhookService] Processing successful payment for mchTransactionRef: ${webhookData.mchTransactionRef}, amount: ${webhookData.amount} ${webhookData.currencyCode}`,
     );
@@ -146,7 +167,7 @@ export class TranzakWebhookService {
       },
     ];
     order.paidAt = new Date();
-    order.paymentWebhookDetails = this.buildPaymentWebhookDetails(webhookData);
+    order.paymentWebhookDetails = this.buildPaymentWebhookDetails(webhook);
 
     this.logger.log(
       `[TranzakWebhookService] Saving order after successful payment: id=${order._id}`,
@@ -178,8 +199,10 @@ export class TranzakWebhookService {
   }
 
   private async processFailedPayment(
-    webhookData: ITranzakWebhookPaymentResponse,
+    webhook: ITranzakWebhookResponse<ITranzakWebhookPaymentResponse>,
   ) {
+    const webhookData: ITranzakWebhookPaymentResponse = webhook.resource;
+
     this.logger.log(
       `[TranzakWebhookService] Processing failed payment for mchTransactionRef: ${webhookData.mchTransactionRef}, amount: ${webhookData.amount} ${webhookData.currencyCode}`,
     );
@@ -219,7 +242,7 @@ export class TranzakWebhookService {
       },
     ];
     order.failedPaymentAt = new Date();
-    order.paymentWebhookDetails = this.buildPaymentWebhookDetails(webhookData);
+    order.paymentWebhookDetails = this.buildPaymentWebhookDetails(webhook);
 
     this.logger.log(
       `[TranzakWebhookService] Saving order after failed payment: id=${order._id}`,
@@ -236,6 +259,137 @@ export class TranzakWebhookService {
         `[TranzakWebhookService] Failed to emit payment failure notification for order: id=${order._id}`,
         error.message,
       );
+    });
+  }
+
+  private async processSuccessfulRefund(
+    webhook: ITranzakWebhookResponse<ITranzakWebhookRefundResponse>,
+  ) {
+    const webhookData: ITranzakWebhookRefundResponse = webhook.resource;
+
+    this.logger.log(
+      `[TranzakWebhookService] Processing successful refund: refundId=${webhookData.refundId}, refundedTransactionId=${webhookData.refundedTransactionId}, amount=${webhookData.amount} ${webhookData.currencyCode}`,
+    );
+
+    const order = await this.findRefundOrder(webhookData);
+
+    if (!order) {
+      this.logger.error(
+        `[TranzakWebhookService] Order not found for refund: refundId=${webhookData.refundId}, merchantRefundRef=${webhookData.merchantRefundRef}, refundedTransactionId=${webhookData.refundedTransactionId}`,
+      );
+      throw new NotFoundException('Order not found');
+    }
+
+    this.logger.log(
+      `[TranzakWebhookService] Order found: id=${order._id}, refundStatus=${order.refundStatus}`,
+    );
+
+    if (order.refundStatus === EnumRefundStatus.SUCCESSFUL) {
+      this.logger.warn(
+        `[TranzakWebhookService] Refund already processed, skipping. id=${order._id}, refundStatus=${order.refundStatus}`,
+      );
+      return;
+    }
+
+    this.logger.log(
+      `[TranzakWebhookService] Updating order refund status to SUCCESSFUL: id=${order._id}`,
+    );
+
+    order.refundStatus = EnumRefundStatus.SUCCESSFUL;
+    order.refundWebhookDetails = this.buildRefundWebhookDetails(webhook);
+
+    this.logger.log(
+      `[TranzakWebhookService] Saving order after successful refund: id=${order._id}`,
+    );
+    await order.save();
+    this.logger.log(
+      `[TranzakWebhookService] Order saved successfully: id=${order._id}, refundStatus=${order.refundStatus}`,
+    );
+
+    // Fire-and-forget: notification is non-critical and should not delay
+    // the webhook response.
+    this.notifyRefundSuccess(order).catch((error) => {
+      this.logger.error(
+        `[TranzakWebhookService] Failed to emit refund success notification for order: id=${order._id}`,
+        error.message,
+      );
+    });
+  }
+
+  private async processFailedRefund(
+    webhook: ITranzakWebhookResponse<ITranzakWebhookRefundResponse>,
+  ) {
+    const webhookData: ITranzakWebhookRefundResponse = webhook.resource;
+
+    this.logger.log(
+      `[TranzakWebhookService] Processing failed refund: refundId=${webhookData.refundId}, refundedTransactionId=${webhookData.refundedTransactionId}, amount=${webhookData.amount} ${webhookData.currencyCode}`,
+    );
+
+    const order = await this.findRefundOrder(webhookData);
+
+    if (!order) {
+      this.logger.error(
+        `[TranzakWebhookService] Order not found for refund: refundId=${webhookData.refundId}, merchantRefundRef=${webhookData.merchantRefundRef}, refundedTransactionId=${webhookData.refundedTransactionId}`,
+      );
+      throw new NotFoundException('Order not found');
+    }
+
+    this.logger.log(
+      `[TranzakWebhookService] Order found: id=${order._id}, refundStatus=${order.refundStatus}`,
+    );
+
+    if (
+      order.refundStatus === EnumRefundStatus.FAILED ||
+      order.refundStatus === EnumRefundStatus.SUCCESSFUL
+    ) {
+      this.logger.warn(
+        `[TranzakWebhookService] Refund already processed, skipping. id=${order._id}, refundStatus=${order.refundStatus}`,
+      );
+      return;
+    }
+
+    this.logger.log(
+      `[TranzakWebhookService] Updating order refund status to FAILED: id=${order._id}`,
+    );
+
+    order.refundStatus = EnumRefundStatus.FAILED;
+    order.refundWebhookDetails = this.buildRefundWebhookDetails(webhook);
+
+    this.logger.log(
+      `[TranzakWebhookService] Saving order after failed refund: id=${order._id}`,
+    );
+    await order.save();
+    this.logger.log(
+      `[TranzakWebhookService] Order saved successfully: id=${order._id}, refundStatus=${order.refundStatus}`,
+    );
+
+    // Fire-and-forget: notification is non-critical and should not delay
+    // the webhook response.
+    this.notifyRefundFailure(order).catch((error) => {
+      this.logger.error(
+        `[TranzakWebhookService] Failed to emit refund failure notification for order: id=${order._id}`,
+        error.message,
+      );
+    });
+  }
+
+  private async findRefundOrder(
+    webhookData: ITranzakWebhookRefundResponse,
+  ): Promise<OrderDocument | null> {
+    // The merchantRefundRef is the order id we sent as merchantRefundNumber
+    // when initiating the refund — it can be null, so fall back to the
+    // refunded transaction id.
+    if (
+      webhookData.merchantRefundRef &&
+      Types.ObjectId.isValid(webhookData.merchantRefundRef)
+    ) {
+      return this.orderModel.findOne({
+        _id: new Types.ObjectId(webhookData.merchantRefundRef),
+      });
+    }
+
+    return this.orderModel.findOne({
+      'paymentWebhookDetails.transactionId': webhookData.refundedTransactionId,
     });
   }
 
@@ -505,6 +659,88 @@ export class TranzakWebhookService {
     }
   }
 
+  private async notifyRefundSuccess(order: OrderDocument) {
+    if (!order.createdBy) {
+      return;
+    }
+
+    try {
+      const clientId = order.createdBy.toString();
+      this.logger.log(
+        `[TranzakWebhookService] Notifying order creator of successful refund: ${clientId}`,
+      );
+      const orderObject = order.toObject();
+      const orderToSendToClient = plainToInstance(
+        OrderClientOutputDto,
+        orderObject,
+        {
+          excludeExtraneousValues: true,
+        },
+      );
+      const notification: INotification<OrderClientOutputDto> = {
+        type: EnumNotificationType.ORDER_REFUND_STATUS_CHANGED,
+        data: orderToSendToClient,
+      };
+      this.eventsGateway.emitToUser({
+        userId: clientId,
+        event: EnumWebSocketEventType.CLIENT_APPLICATION,
+        data: notification,
+      });
+    } catch (error) {
+      this.logger.error(
+        `[TranzakWebhookService] Failed to emit client notification for successful refund: ${error.message}`,
+      );
+    }
+
+    try {
+      const clientId = order.createdBy.toString();
+      const installations = await this.fcmTokenModel
+        .find({ user: new Types.ObjectId(clientId) })
+        .populate<{ user: User }>('user')
+        .lean();
+
+      if (installations.length === 0) {
+        this.logger.log(
+          `[TranzakWebhookService] No FCM installations for order creator: id=${order._id}`,
+        );
+      } else {
+        const language = installations[0].user?.language ?? EnumUserLanguage.FR;
+        const { title, body } = getNotificationMessage(
+          EnumNotificationI18nType.ORDER_REFUNDED_CLIENT,
+          language,
+        );
+        const installationIds = installations.map(
+          (installation) => installation.installationId,
+        );
+        const orderId = order._id.toString();
+
+        const fcmResults = await this.fcmService.sendToDevices(
+          installationIds,
+          {
+            title,
+            body,
+            data: {
+              orderId,
+              status: order.status,
+              click_action: `${env.clientFrontendUrl}/orders/${orderId}`,
+            },
+          },
+        );
+        this.logger.log(
+          `[TranzakWebhookService] Refund success client FCM results: ${JSON.stringify(fcmResults)}`,
+        );
+      }
+    } catch (error) {
+      this.logger.error(
+        `[TranzakWebhookService] Failed to send FCM notification to client for successful refund: ${error.message}`,
+      );
+    }
+  }
+
+  private async notifyRefundFailure(order: OrderDocument) {
+    // TODO: Maybe notify the admin and the client so further actions can be taken.
+  }
+
   private async incrementMenuOrdersCount(order: OrderDocument) {
     this.logger.log(
       `[TranzakWebhookService] Incrementing ordersCount for ${order.items.length} menu(s) from order: id=${order._id}`,
@@ -532,9 +768,13 @@ export class TranzakWebhookService {
   }
 
   private buildPaymentWebhookDetails(
-    webhookData: ITranzakWebhookPaymentResponse,
+    webhook: ITranzakWebhookResponse<ITranzakWebhookPaymentResponse>,
   ): PaymentWebhookDetails {
+    const webhookData = webhook.resource;
+    const webhookId = webhook.webhookId;
+
     return {
+      webhookId,
       requestId: webhookData.requestId,
       transactionId: webhookData.transactionId,
       partnerTransactionId: webhookData.partnerTransactionId,
@@ -555,6 +795,28 @@ export class TranzakWebhookService {
       netAmountReceived: webhookData.merchant?.netAmountReceived,
       errorCode: webhookData.errorCode,
       errorMessage: webhookData.errorMessage,
+    };
+  }
+
+  private buildRefundWebhookDetails(
+    webhook: ITranzakWebhookResponse<ITranzakWebhookRefundResponse>,
+  ): RefundWebhookDetails {
+    const webhookData = webhook.resource;
+    const webhookId = webhook.webhookId;
+
+    return {
+      webhookId,
+      refundId: webhookData.refundId,
+      refundedTransactionId: webhookData.refundedTransactionId,
+      amount: webhookData.amount,
+      currencyCode: webhookData.currencyCode,
+      status: webhookData.status,
+      merchantRefundRef: webhookData.merchantRefundRef ?? undefined,
+      note: webhookData.note,
+      reasonCode: webhookData.reasonCode,
+      reason: webhookData.reason,
+      createdAt: webhookData.createdAt,
+      approvedAt: webhookData.approvedAt,
     };
   }
 }

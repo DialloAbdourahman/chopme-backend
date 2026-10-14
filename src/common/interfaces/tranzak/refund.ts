@@ -1,13 +1,13 @@
 import { EnumRefundStatus } from 'src/common/enums/refund-statuses';
 import { EnumTranzakCurrency } from 'src/common/enums/tranzak/currency';
-import { EnumTranzakReasonCode } from 'src/common/enums/tranzak/reason';
+import { EnumTranzakRefundReasonCode } from 'src/common/enums/tranzak/refund-reason';
 import { EnumTranzakWebhookRefundStatus } from 'src/common/enums/tranzak/refund-webhook-status';
 
 export interface ITranzakCreateRefundRequestDto {
   refundedTransactionId: string;
-  reasonCode: EnumTranzakReasonCode;
+  reasonCode: EnumTranzakRefundReasonCode;
   merchantRefundNumber: string;
-  note?: string;
+  note: string;
   amount?: number;
 }
 
@@ -24,7 +24,7 @@ export interface ITranzakCreateRefundResponseData {
   isCancelledByText: string;
   isApprovedByText: string;
   note: string;
-  reasonCode: EnumTranzakReasonCode;
+  reasonCode: EnumTranzakRefundReasonCode;
   createdAt: string;
   approvedAt: string;
 }
@@ -43,7 +43,7 @@ export interface ITranzakWebhookRefundResponse {
   isCancelledByText: string | null;
   isApprovedByText: string;
   note: string;
-  reasonCode: EnumTranzakReasonCode;
+  reasonCode: EnumTranzakRefundReasonCode;
   reason: string;
   createdAt: string;
   approvedAt: string;

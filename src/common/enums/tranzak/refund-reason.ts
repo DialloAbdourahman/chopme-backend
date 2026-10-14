@@ -1,4 +1,4 @@
-export enum EnumTranzakReasonCode {
+export enum EnumTranzakRefundReasonCode {
   MUTUAL_AGREEMENT_BETWEEN_BUYER_AND_SELLER = 1,
   ORDER_DID_NOT_MATCH_TRANSACTION_AGREEMENT = 2,
   SUSPICIOUS_TRANSACTION = 3,

@@ -49,6 +49,7 @@ export class PaymentDetails {
 }
 
 export class PaymentWebhookDetails {
+  webhookId?: string;
   requestId?: string;
   transactionId?: string;
   partnerTransactionId?: string;
@@ -69,8 +70,32 @@ export class PaymentWebhookDetails {
   errorMessage?: string;
 }
 
+export class RefundDetails {
+  refundId?: string;
+  refundedTransactionId?: string;
+  amount?: number;
+  currencyCode?: string;
+  status?: string;
+  merchantRefundRef?: string;
+  note?: string;
+  reasonCode?: string;
+  createdAt?: string;
+  approvedAt?: string;
+}
+
 export class RefundWebhookDetails {
-  id?: number;
+  webhookId?: string;
+  refundId?: string;
+  refundedTransactionId?: string;
+  amount?: number;
+  currencyCode?: string;
+  status?: string;
+  merchantRefundRef?: string;
+  note?: string;
+  reasonCode?: number;
+  reason?: string;
+  createdAt?: string;
+  approvedAt?: string;
 }
 
 @Schema({ timestamps: true })
@@ -205,6 +230,7 @@ export class Order extends BaseSchema {
 
   @Prop({
     type: {
+      webhookId: { type: String, required: false },
       requestId: { type: String, required: false },
       transactionId: { type: String, required: false },
       partnerTransactionId: { type: String, required: false },
@@ -231,7 +257,36 @@ export class Order extends BaseSchema {
 
   @Prop({
     type: {
-      id: { type: Number, required: false },
+      refundId: { type: String, required: false },
+      refundedTransactionId: { type: String, required: false },
+      amount: { type: Number, required: false },
+      currencyCode: { type: String, required: false },
+      status: { type: String, required: false },
+      merchantRefundRef: { type: String, required: false },
+      note: { type: String, required: false },
+      reasonCode: { type: String, required: false },
+      createdAt: { type: String, required: false },
+      approvedAt: { type: String, required: false },
+    },
+    _id: false,
+    required: false,
+  })
+  refundDetails: RefundDetails;
+
+  @Prop({
+    type: {
+      webhookId: { type: String, required: false },
+      refundId: { type: String, required: false },
+      refundedTransactionId: { type: String, required: false },
+      amount: { type: Number, required: false },
+      currencyCode: { type: String, required: false },
+      status: { type: String, required: false },
+      merchantRefundRef: { type: String, required: false },
+      note: { type: String, required: false },
+      reasonCode: { type: Number, required: false },
+      reason: { type: String, required: false },
+      createdAt: { type: String, required: false },
+      approvedAt: { type: String, required: false },
     },
     _id: false,
     required: false,

@@ -24,7 +24,6 @@ import { OrchestrationResult } from 'src/common/utils/orchestration.result';
 import { EnumOrderStatus } from 'src/common/enums/order-status';
 import { FlutterwaveService } from 'src/common/flutterwave/flutterwave.service';
 import { UserDocument } from 'src/users/entities/user.entity';
-import { EnumCurrency } from 'src/common/enums/currencies';
 import { Pagination } from 'src/common/interfaces/pagination';
 import { ClientPublicWithUserOutputDto } from 'src/clients/dto/output/client-output.dto';
 import Flutterwave from 'flutterwave-node-v3';
@@ -48,6 +47,7 @@ import { getNotificationMessage } from '../common/utils/get-fcm-notification-mes
 import { RestaurantPublicOutputDto } from 'src/restaurants/dto/output/restaurant-output.dto';
 import { TranzakService } from 'src/common/tranzak/tranzak.service';
 import { EnumTranzakCurrency } from 'src/common/enums/tranzak/currency';
+import { EnumTranzakRefundReasonCode } from 'src/common/enums/tranzak/refund-reason';
 
 @Injectable()
 export class OrdersService {
@@ -593,21 +593,56 @@ export class OrdersService {
       `[cancelOrderRestaurant] Order cancelled successfully: id=${order._id}, status=${order.status} and initiating refund.`,
     );
 
-    // Initate refund logic here and update order
-    const response = (await this.flw.Transaction.refund({
-      id: order.paymentWebhookDetails.transactionId?.toString(),
-      amount: order.pricing.totalAmountCollectedWithDelivery,
-    })) as FlutterWaveResponse<FlutterwaveRefund>;
+    // // Initate refund logic here and update order
+    // const response = (await this.flw.Transaction.refund({
+    //   id: order.paymentWebhookDetails.transactionId?.toString(),
+    //   amount: order.pricing.totalAmountCollectedWithDelivery,
+    // })) as FlutterWaveResponse<FlutterwaveRefund>;
 
-    if (response.status === 'success' && response.data.status === 'completed') {
+    // if (response.status === 'success' && response.data.status === 'completed') {
+    //   this.logger.log(
+    //     `[cancelOrderRestaurant] Refund initiated successfully: id=${order._id}, refundId=${response.data.id}`,
+    //   );
+    //   order.refundStatus = EnumRefundStatus.INITIATED;
+    //   await order.save();
+    // } else {
+    //   this.logger.warn(
+    //     `[cancelOrderRestaurant] Refund initiation failed: id=${order._id}, status=${response.status}, message: '${response.message}', data=${JSON.stringify(response.data)}`,
+    //   );
+    //   order.refundStatus = EnumRefundStatus.FAILED_TO_INITIATE;
+    //   await order.save();
+    // }
+
+    try {
+      const tranzakResponse = await this.tranzakService.createRefund({
+        refundedTransactionId:
+          order?.paymentWebhookDetails?.transactionId?.toString() || '',
+        reasonCode: EnumTranzakRefundReasonCode.DEFICIENT_PRODUCT_OR_SERVICE,
+        merchantRefundNumber: order.id.toString(),
+        note: 'Order cancelled by restaurant',
+      });
+
       this.logger.log(
-        `[cancelOrderRestaurant] Refund initiated successfully: id=${order._id}, refundId=${response.data.id}`,
+        `[cancelOrderRestaurant] Refund initiated successfully: id=${order._id}, refundId=${tranzakResponse.refundId}`,
       );
       order.refundStatus = EnumRefundStatus.INITIATED;
+      order.refundDetails = {
+        refundId: tranzakResponse.refundId,
+        refundedTransactionId: tranzakResponse.refundedTransactionId,
+        amount: tranzakResponse.amount,
+        currencyCode: tranzakResponse.currencyCode,
+        status: tranzakResponse.status,
+        merchantRefundRef: tranzakResponse.merchantRefundRef,
+        note: tranzakResponse.note,
+        reasonCode: tranzakResponse.reasonCode.toString(),
+        createdAt: tranzakResponse.createdAt,
+        approvedAt: tranzakResponse.approvedAt,
+      };
       await order.save();
-    } else {
-      this.logger.warn(
-        `[cancelOrderRestaurant] Refund initiation failed: id=${order._id}, status=${response.status}, message: '${response.message}', data=${JSON.stringify(response.data)}`,
+    } catch (error) {
+      this.logger.error(
+        `[cancelOrderRestaurant] Tranzak refund creation failed: id=${order._id}`,
+        error.response?.data || error.message,
       );
       order.refundStatus = EnumRefundStatus.FAILED_TO_INITIATE;
       await order.save();
@@ -1036,24 +1071,6 @@ export class OrdersService {
         title: 'Chopme',
       },
     });
-
-    // const flutterwavePayment = await this.flutterwaveService.createPayment({
-    //   tx_ref: order.id.toString(),
-    //   session_duration: env.flutterWaveMaxPaymentLinkValidityInHr * 60,
-    //   amount: order.pricing.totalAmountCollectedWithDelivery.toString(),
-    //   currency: EnumCurrency.XAF,
-    //   customer: {
-    //     email: (client.user as UserDocument).email,
-    //     name: (client.user as UserDocument).fullName,
-    //   },
-    //   customizations: {
-    //     title: 'Chopme',
-    //   },
-    //   redirect_url: `${env.clientFrontendUrl}/orders/${order.id}`,
-    //   meta: {
-    //     orderId: order.id.toString(),
-    //   },
-    // });
 
     order.status = EnumOrderStatus.PAYMENT_INITIATED;
     order.paymentDetails = {
