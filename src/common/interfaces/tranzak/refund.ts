@@ -2,6 +2,7 @@ import { EnumRefundStatus } from 'src/common/enums/refund-statuses';
 import { EnumTranzakCurrency } from 'src/common/enums/tranzak/currency';
 import { EnumTranzakRefundReasonCode } from 'src/common/enums/tranzak/refund-reason';
 import { EnumTranzakWebhookRefundStatus } from 'src/common/enums/tranzak/refund-webhook-status';
+import { EnumTranzakWebhookStatus } from 'src/common/enums/tranzak/webhook-status';
 
 export interface ITranzakCreateRefundRequestDto {
   refundedTransactionId: string;
@@ -35,7 +36,7 @@ export interface ITranzakWebhookRefundResponse {
   serviceId: string;
   amount: number;
   currencyCode: EnumTranzakCurrency;
-  status: EnumTranzakWebhookRefundStatus;
+  status: EnumTranzakWebhookStatus;
   type: 'REFUND';
   merchantRefundRef: string | null;
   reasonDescription: string;

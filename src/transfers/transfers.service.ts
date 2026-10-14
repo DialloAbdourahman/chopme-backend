@@ -10,30 +10,19 @@ import { OrchestrationException } from 'src/common/exceptions/orchestration.exce
 import { EnumStatusCode } from 'src/common/enums/response-status-code';
 import { plainToInstance } from 'class-transformer';
 import { OrchestrationResult } from 'src/common/utils/orchestration.result';
-import Flutterwave from 'flutterwave-node-v3';
 import { env } from 'src/config/env';
-import { EnumCurrency } from 'src/common/enums/currencies';
 import {
   Restaurant,
   RestaurantDocument,
 } from 'src/restaurants/entities/restaurant.entity';
-import { FlutterWaveResponse } from 'src/common/interfaces/flutterwave/response';
-import {
-  FlutterwaveBulkTransfer,
-  FlutterwaveBulkTransferMetaData,
-  FlutterwaveTransfer,
-} from 'src/common/interfaces/flutterwave/transfer';
 import { EnumTransferStatuses } from 'src/common/enums/transfer-statuses';
 import { Pagination } from 'src/common/interfaces/pagination';
+import { TranzakService } from 'src/common/tranzak/tranzak.service';
+import { EnumTranzakCurrency } from 'src/common/enums/tranzak/currency';
 
 @Injectable()
 export class TransfersService {
   private readonly logger = new Logger(TransfersService.name);
-  private readonly flw = new Flutterwave(
-    env.flutterWaveClientPublicKey,
-    env.flutterWaveClientSecretKey,
-  );
-
   constructor(
     @InjectModel(Transfer.name)
     private readonly transferModel: Model<TransferDocument>,
@@ -43,6 +32,7 @@ export class TransfersService {
     private readonly restaurantModel: Model<RestaurantDocument>,
     @InjectConnection()
     private readonly connection: Connection,
+    private readonly tranzakService: TranzakService,
   ) {}
 
   async create(user: ILoggedInUserTokenData) {
@@ -337,55 +327,46 @@ export class TransfersService {
   ) {
     this.logger.log('[initiateTransfer] Starting transfer initiation');
 
-    const restaurantTransferMetaData: FlutterwaveBulkTransferMetaData = {
-      transferId: transfer._id.toString(),
-      direction: 'restaurant',
-    };
+    try {
+      const tranzakResponse = await this.tranzakService.createBulkTransfer({
+        title: `Payout for ${restaurant?.name || 'restaurant'}`,
+        description: `Order payouts for transfer ${transfer._id}`,
+        currencyCode: EnumTranzakCurrency.XAF,
+        customTransactionRef: transfer._id.toString(),
+        recipients: [
+          {
+            payeeAccountId: restaurant.wallet?.mobileData?.number || '',
+            mobileNumber: restaurant.wallet?.mobileData?.number || '',
+            payeeAccountName: restaurant?.name || '',
+            amount: transfer.totalRestaurantAmount,
+            payeeNote: 'Order earnings',
+            description: 'Order earnings payout',
+            customTransactionRef: `${transfer._id}-r`,
+          },
+          {
+            payeeAccountId: env.platformMobileMoneyAccountNumber,
+            mobileNumber: env.platformMobileMoneyAccountNumber,
+            payeeAccountName: 'ChopMe Platform',
+            amount: transfer.totalPlatformAmount,
+            payeeNote: 'Platform commission',
+            description: `Platform earnings from restaurant ${restaurant?.name || ''}`,
+            customTransactionRef: `${transfer._id}-p`,
+          },
+        ],
+      });
 
-    const platformTransferMetaData: FlutterwaveBulkTransferMetaData = {
-      transferId: transfer._id.toString(),
-      direction: 'platform',
-    };
+      this.logger.log(
+        `[initiateTransfer] Transfer initiated successfully: transferId=${transfer._id}, payoutId=${tranzakResponse.payoutId}, status=${tranzakResponse.status}`,
+      );
 
-    const details = {
-      title: 'Staff salary for April',
-      bulk_data: [
-        {
-          account_bank: restaurant.wallet?.mobileData?.network || '',
-          account_number: restaurant.wallet?.mobileData?.number || '',
-          amount: transfer.totalRestaurantAmount,
-          currency: EnumCurrency.XAF,
-          beneficiary_name: restaurant?.name || '',
-          meta: restaurantTransferMetaData,
-        },
-        {
-          account_bank: env.platformMobileMoneyNetworkType,
-          account_number: env.platformMobileMoneyAccountNumber,
-          amount: transfer.totalPlatformAmount,
-          currency: EnumCurrency.XAF,
-          beneficiary_name: `ChopMe Platform for restaurant ${restaurant?.name}`,
-          meta: platformTransferMetaData,
-        },
-      ],
-    };
-
-    const response = (await this.flw.Transfer.bulk(
-      details,
-    )) as FlutterWaveResponse<FlutterwaveBulkTransfer>;
-
-    this.logger.log(
-      `[initiateTransfer] Transfer response: ${JSON.stringify(response)}`,
-    );
-
-    if (response.status === 'success') {
-      this.logger.log('[initiateTransfer] Transfer initiated successfully');
-      transfer.transferId = response.data.id;
+      transfer.payoutId = tranzakResponse.payoutId;
       transfer.status = EnumTransferStatuses.INITIATED;
-      transfer.restaurantTransferStatus = EnumTransferStatuses.INITIATED;
-      transfer.platformTransferStatus = EnumTransferStatuses.INITIATED;
       await transfer.save();
-    } else {
-      this.logger.log('[initiateTransfer] Transfer failed to initiate');
+    } catch (error) {
+      this.logger.error(
+        `[initiateTransfer] Tranzak bulk transfer failed: transferId=${transfer._id}`,
+        error.response?.data || error.message,
+      );
       transfer.status = EnumTransferStatuses.FAILED_TO_INITIATE;
       await transfer.save();
     }

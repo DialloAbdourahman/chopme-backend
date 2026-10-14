@@ -593,26 +593,6 @@ export class OrdersService {
       `[cancelOrderRestaurant] Order cancelled successfully: id=${order._id}, status=${order.status} and initiating refund.`,
     );
 
-    // // Initate refund logic here and update order
-    // const response = (await this.flw.Transaction.refund({
-    //   id: order.paymentWebhookDetails.transactionId?.toString(),
-    //   amount: order.pricing.totalAmountCollectedWithDelivery,
-    // })) as FlutterWaveResponse<FlutterwaveRefund>;
-
-    // if (response.status === 'success' && response.data.status === 'completed') {
-    //   this.logger.log(
-    //     `[cancelOrderRestaurant] Refund initiated successfully: id=${order._id}, refundId=${response.data.id}`,
-    //   );
-    //   order.refundStatus = EnumRefundStatus.INITIATED;
-    //   await order.save();
-    // } else {
-    //   this.logger.warn(
-    //     `[cancelOrderRestaurant] Refund initiation failed: id=${order._id}, status=${response.status}, message: '${response.message}', data=${JSON.stringify(response.data)}`,
-    //   );
-    //   order.refundStatus = EnumRefundStatus.FAILED_TO_INITIATE;
-    //   await order.save();
-    // }
-
     try {
       const tranzakResponse = await this.tranzakService.createRefund({
         refundedTransactionId:

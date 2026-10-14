@@ -1,5 +1,6 @@
 import { EnumTranzakCurrency } from 'src/common/enums/tranzak/currency';
 import { EnumTranzakPaymentStatus } from 'src/common/enums/tranzak/payment-status';
+import { EnumTranzakWebhookStatus } from 'src/common/enums/tranzak/webhook-status';
 
 export interface ITranzakCreatePaymentSessionRequestDto {
   amount: number;
@@ -42,7 +43,7 @@ export interface ITranzakWebhookPaymentResponse {
   currencyCode?: EnumTranzakCurrency;
   description?: string;
   mobileWalletNumber?: string | null;
-  status?: EnumTranzakPaymentStatus;
+  status?: EnumTranzakWebhookStatus;
   transactionStatus?: EnumTranzakPaymentStatus;
   createdAt?: string;
   mchTransactionRef?: string;

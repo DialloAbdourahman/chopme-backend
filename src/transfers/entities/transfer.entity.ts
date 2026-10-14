@@ -31,19 +31,8 @@ export class Transfer extends BaseSchema {
   @Prop({ type: Number, required: false })
   transferId: number;
 
-  @Prop({
-    enum: EnumTransferStatuses,
-    type: String,
-    required: false,
-  })
-  platformTransferStatus?: EnumTransferStatuses;
-
-  @Prop({
-    enum: EnumTransferStatuses,
-    type: String,
-    required: false,
-  })
-  restaurantTransferStatus?: EnumTransferStatuses;
+  @Prop({ type: String, required: false })
+  payoutId?: string;
 }
 
 export const TransferSchema = SchemaFactory.createForClass(Transfer);

@@ -37,6 +37,7 @@ import { ITranzakWebhookRefundResponse } from 'src/common/interfaces/tranzak/ref
 import { EnumTranzakPaymentStatus } from 'src/common/enums/tranzak/payment-status';
 import { EnumRefundStatus } from 'src/common/enums/refund-statuses';
 import { EnumTranzakWebhookRefundStatus } from 'src/common/enums/tranzak/refund-webhook-status';
+import { EnumTranzakWebhookStatus } from 'src/common/enums/tranzak/webhook-status';
 
 @Injectable()
 export class TranzakWebhookService {
@@ -68,11 +69,11 @@ export class TranzakWebhookService {
         typedWebhook.resource,
       );
       if (
-        typedWebhook.resource.status === EnumTranzakPaymentStatus.SUCCESSFUL
+        typedWebhook.resource.status === EnumTranzakWebhookStatus.SUCCESSFUL
       ) {
         await this.processSuccessfulPayment(typedWebhook);
       } else if (
-        typedWebhook.resource.status === EnumTranzakPaymentStatus.FAILED
+        typedWebhook.resource.status === EnumTranzakWebhookStatus.FAILED
       ) {
         await this.processFailedPayment(typedWebhook);
       } else {
@@ -100,12 +101,11 @@ export class TranzakWebhookService {
       );
 
       if (
-        typedWebhook.resource.status ===
-        EnumTranzakWebhookRefundStatus.SUCCESSFUL
+        typedWebhook.resource.status === EnumTranzakWebhookStatus.SUCCESSFUL
       ) {
         await this.processSuccessfulRefund(typedWebhook);
       } else if (
-        typedWebhook.resource.status === EnumTranzakWebhookRefundStatus.FAILED
+        typedWebhook.resource.status === EnumTranzakWebhookStatus.FAILED
       ) {
         await this.processFailedRefund(typedWebhook);
       } else {

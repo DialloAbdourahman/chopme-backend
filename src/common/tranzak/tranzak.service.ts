@@ -14,6 +14,10 @@ import {
   ITranzakCreateRefundRequestDto,
   ITranzakCreateRefundResponseData,
 } from '../interfaces/tranzak/refund';
+import {
+  ITranzakCreateBulkTransferRequestDto,
+  ITranzakCreateBulkTransferResponseData,
+} from '../interfaces/tranzak/transfer';
 
 @Injectable()
 export class TranzakService implements OnModuleInit {
@@ -148,6 +152,43 @@ export class TranzakService implements OnModuleInit {
     } catch (error) {
       this.logger.error(
         '[Tranzak] Error creating refund:',
+        error.response?.data || error.message,
+      );
+      throw error;
+    }
+  }
+
+  async createBulkTransfer(
+    data: ITranzakCreateBulkTransferRequestDto,
+  ): Promise<ITranzakCreateBulkTransferResponseData> {
+    try {
+      this.logger.log(
+        `[Tranzak] Creating bulk transfer: title=${data.title}, recipients=${data.recipients.length}`,
+      );
+
+      const paymentToken = await this.getPaymentToken();
+
+      const response = await firstValueFrom(
+        this.httpService.post<
+          ITranzakApiResponse<ITranzakCreateBulkTransferResponseData>
+        >(`${this.baseUrl}/xp021/v1/payout/transfer-to-mobile-wallet`, data, {
+          headers: {
+            Authorization: `Bearer ${paymentToken}`,
+          },
+          timeout: this.timeoutMs,
+        }),
+      );
+
+      if (!response.data.success) {
+        throw new Error(`Tranzak API error: ${response.data.errorMsg}`);
+      }
+
+      this.logger.log('[Tranzak] Bulk transfer created');
+
+      return response.data.data;
+    } catch (error) {
+      this.logger.error(
+        '[Tranzak] Error creating bulk transfer:',
         error.response?.data || error.message,
       );
       throw error;
