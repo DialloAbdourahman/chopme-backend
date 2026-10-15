@@ -9,6 +9,7 @@ import { EnumOrderCancelledReason } from 'src/common/enums/order-cancelled-reaso
 import { EnumRefundStatus } from 'src/common/enums/refund-statuses';
 import { RestaurantMember } from 'src/restaurant-members/entities/restaurant-member.entity';
 import { Transfer } from 'src/transfers/entities/transfer.entity';
+import { TransferGroup } from 'src/transfers/entities/transfer-group.entity';
 
 export type OrderDocument = HydratedDocument<Order>;
 
@@ -109,8 +110,13 @@ export class Order extends BaseSchema {
   @Prop({ type: Types.ObjectId, ref: RestaurantMember.name, required: false })
   cancelledByRestaurantMember?: Types.ObjectId | RestaurantMember;
 
-  @Prop({ type: Types.ObjectId, ref: Transfer.name, required: false })
-  transfer?: Types.ObjectId | Transfer;
+  @Prop({
+    type: Types.ObjectId,
+    ref: TransferGroup.name,
+    required: false,
+    index: true,
+  })
+  transferGroup?: Types.ObjectId | TransferGroup;
 
   @Prop({
     enum: EnumOrderStatus,

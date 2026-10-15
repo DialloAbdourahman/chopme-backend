@@ -1,26 +1,16 @@
-import { EnumTranzakBulkTransferStatus } from 'src/common/enums/tranzak/bulk-transfer-status';
+import { EnumTranzakTransferStatus } from 'src/common/enums/tranzak/transfer-status';
 import { EnumTranzakCurrency } from 'src/common/enums/tranzak/currency';
 import { EnumTranzakWebhookStatus } from 'src/common/enums/tranzak/webhook-status';
 
-export interface ITranzakBulkTransferRecipient {
-  payeeAccountId: string;
-  mobileNumber?: string;
-  payeeAccountName?: string;
+export interface ITranzakCreateTransferRequestDto {
   amount: number;
-  payeeNote: string;
-  description: string;
-  customTransactionRef: string;
-  smsMobileNumber?: string;
-}
-
-export interface ITranzakCreateBulkTransferRequestDto {
-  title: string;
-  description: string;
   currencyCode: EnumTranzakCurrency;
-  isPriority?: boolean;
+  description: string;
   customTransactionRef?: string;
-  recipients: ITranzakBulkTransferRecipient[];
+  payeeAccountId: string;
+  payeeAccountName?: string;
   verifyPayeeName?: boolean;
+  payeeNote?: string;
   callbackUrl?: string;
   payeeFeePercentage?: number;
   sendSmsToPayee?: boolean;
@@ -30,75 +20,48 @@ export interface ITranzakCreateBulkTransferRequestDto {
   };
 }
 
-export interface ITranzakBulkTransferRecipientResult {
+export interface ITranzakCreateTransferResponseData {
+  transferId: string;
+  status: EnumTranzakTransferStatus;
   payeeAccountId: string;
   payeeAccountName?: string;
-  amount: number;
+  destinationServiceName?: string;
   payeeNote?: string;
-  description?: string;
-  customTransactionRef?: string;
-}
-
-export interface ITranzakCreateBulkTransferResponseData {
-  payoutId: string;
-  title: string;
+  description: string;
+  amount: number;
   currencyCode: EnumTranzakCurrency;
-  mchTransactionRef?: string;
-  description?: string;
-  feeIsPaidByPayee?: boolean;
-  isPriority?: boolean;
-  totalNumberOfRecipients?: number;
-  totalNumberFailedTransactions?: number;
-  totalFailedTransactionAmount?: number;
+  fee: number;
+  customTransactionRef?: string;
+  createdByAppId?: string;
+  type?: string;
   transactionId?: string;
   transactionTime?: string;
-  isCreatedViaFileUpload?: boolean;
-  appId?: string;
-  fundingAccountId?: string;
-  status: EnumTranzakBulkTransferStatus;
-  totalAmount: number;
-  priorityFee?: number;
-  totalRecipientFee?: number;
-  totalFee?: number;
-  type?: string;
-  reportFile?: string;
   createdAt?: string;
-  completedAt?: string;
-  sendSmsToPayee?: boolean;
-  smsContent?: string;
-  refundId?: string;
-  totalRefundedAmount?: number;
-  recipients?: ITranzakBulkTransferRecipientResult[];
 }
 
-export interface ITranzakWebhookBulkTransferResponse {
-  payoutId?: string;
-  title?: string;
-  currencyCode?: EnumTranzakCurrency;
-  mchTransactionRef?: string;
-  description?: string;
-  feeIsPaidByPayee?: boolean;
-  isPriority?: boolean;
-  totalNumberOfRecipients?: number;
-  totalNumberFailedTransactions?: number;
-  totalFailedTransactionAmount?: number;
+export interface ITranzakWebhookTransferResponse {
+  transferId: string;
+  status: EnumTranzakWebhookStatus;
+  payeeAccountId: string;
+  fundingAccountId?: string;
+  payeeAccountName?: string;
+  destinationServiceName?: string;
+  payeeNote?: string;
+  description: string;
+  amount: number;
+  currencyCode: EnumTranzakCurrency;
+  fee: number;
+  customTransactionRef?: string;
+  createdByAppId?: string;
+  type?: string;
   transactionId?: string;
   transactionTime?: string;
-  isCreatedViaFileUpload?: boolean;
-  appId?: string;
-  fundingAccountId?: string;
-  status?: EnumTranzakWebhookStatus;
-  totalAmount?: number;
-  priorityFee?: number;
-  totalRecipientFee?: number;
-  totalFee?: number;
-  type?: string;
-  reportFile?: string;
-  createdAt?: string;
-  completedAt?: string;
+  partnerTransactionId?: string;
   sendSmsToPayee?: boolean;
   smsContent?: string;
+  smsMobileNumber?: string;
+  payeeSmsSuccess?: boolean;
+  createdAt?: string;
+  errorMessage?: string;
   refundId?: string;
-  totalRefundedAmount?: number;
-  recipients?: ITranzakBulkTransferRecipientResult[];
 }

@@ -435,7 +435,7 @@ export class OrdersService {
     };
 
     if (excludeTransferred) {
-      match.transfer = { $exists: false };
+      match.transferGroup = { $exists: false };
     }
 
     const result = await this.orderModel.aggregate([

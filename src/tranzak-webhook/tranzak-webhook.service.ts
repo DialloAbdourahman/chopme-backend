@@ -84,6 +84,8 @@ export class TranzakWebhookService {
     } else if (
       webhook.eventType === EnumTranzakWebhookEventType.TRANSFER_COMPLETED
     ) {
+      console.log('Transfer webhook received', webhook);
+
       // const typedWebhook: ITranzakWebhook<TransferWebhookData> =
       //   webhook as ITranzakWebhook<TransferWebhookData>;
       // this.logger.log(

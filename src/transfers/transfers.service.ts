@@ -19,6 +19,11 @@ import { EnumTransferStatuses } from 'src/common/enums/transfer-statuses';
 import { Pagination } from 'src/common/interfaces/pagination';
 import { TranzakService } from 'src/common/tranzak/tranzak.service';
 import { EnumTranzakCurrency } from 'src/common/enums/tranzak/currency';
+import { EnumTransferDirection } from 'src/common/enums/transfer-direction';
+import {
+  TransferGroup,
+  TransferGroupDocument,
+} from './entities/transfer-group.entity';
 
 @Injectable()
 export class TransfersService {
@@ -26,6 +31,8 @@ export class TransfersService {
   constructor(
     @InjectModel(Transfer.name)
     private readonly transferModel: Model<TransferDocument>,
+    @InjectModel(TransferGroup.name)
+    private readonly transferGroupModel: Model<TransferGroupDocument>,
     @InjectModel(Order.name)
     private readonly orderModel: Model<OrderDocument>,
     @InjectModel(Restaurant.name)
@@ -76,7 +83,7 @@ export class TransfersService {
     const orders = await this.orderModel
       .find({
         status: EnumOrderStatus.DELIVERED,
-        transfer: { $exists: false },
+        transferGroup: { $exists: false },
         restaurant: restaurantId,
       })
       .exec();
@@ -99,7 +106,9 @@ export class TransfersService {
     const session = await this.connection.startSession();
     session.startTransaction();
 
-    let transfer: TransferDocument | null = null;
+    let restaurantTransfer: TransferDocument | null = null;
+    let platformTransfer: TransferDocument | null = null;
+    let transferGroup: TransferGroupDocument | null = null;
 
     try {
       const totalRestaurantAmount = orders.reduce(
@@ -110,22 +119,56 @@ export class TransfersService {
         (acc, order) => acc + order.pricing.platformEarningsAmount,
         0,
       );
-
-      this.logger.log(
-        `[createTransfer] Computed amounts: totalRestaurantAmount=${totalRestaurantAmount}, totalPlatformAmount=${totalPlatformAmount}`,
+      const totalPayoutAmount = orders.reduce(
+        (acc, order) =>
+          acc + (order.paymentWebhookDetails?.netAmountReceived ?? 0),
+        0,
       );
 
-      transfer = new this.transferModel({
-        restaurant: restaurantId,
-        totalRestaurantAmount,
-        totalPlatformAmount,
-        totalOrders: orders.length,
-        createdBy: new Types.ObjectId(user.id),
-      });
-      await transfer.save({ session });
+      const totalAmount = totalRestaurantAmount + totalPlatformAmount;
 
       this.logger.log(
-        `[createTransfer] Transfer document saved: id=${transfer._id}, restaurantId=${user.restaurantId}`,
+        `[createTransfer] Computed amounts: totalRestaurantAmount=${totalRestaurantAmount}, totalPlatformAmount=${totalPlatformAmount}, totalAmount=${totalAmount}, totalPayoutAmount=${totalPayoutAmount}`,
+      );
+
+      transferGroup = new this.transferGroupModel({
+        restaurantAmount: totalRestaurantAmount,
+        platformAmount: totalPlatformAmount,
+        totalAmount,
+        totalPayoutAmount,
+        transfers: [],
+        createdBy: new Types.ObjectId(user.id),
+      });
+      await transferGroup.save({ session });
+
+      restaurantTransfer = new this.transferModel({
+        restaurant: restaurantId,
+        amount: totalRestaurantAmount,
+        totalOrders: orders.length,
+        transferGroup: transferGroup._id,
+        transferDirection: EnumTransferDirection.RESTAURANT,
+        createdBy: new Types.ObjectId(user.id),
+      });
+      await restaurantTransfer.save({ session });
+
+      platformTransfer = new this.transferModel({
+        restaurant: restaurantId,
+        amount: totalPlatformAmount,
+        totalOrders: orders.length,
+        transferGroup: transferGroup._id,
+        transferDirection: EnumTransferDirection.PLATFORM,
+        createdBy: new Types.ObjectId(user.id),
+      });
+      await platformTransfer.save({ session });
+
+      await this.transferGroupModel.updateOne(
+        { _id: transferGroup._id },
+        { transfers: [restaurantTransfer._id, platformTransfer._id] },
+        { session },
+      );
+
+      this.logger.log(
+        `[createTransfer] Transfer documents saved: restaurantTransferId=${restaurantTransfer._id}, platformTransferId=${platformTransfer._id}, transferGroupId=${transferGroup._id}`,
       );
 
       const orderIds = orders.map((o) => o._id);
@@ -135,19 +178,19 @@ export class TransfersService {
         },
         {
           $set: {
-            transfer: transfer._id,
+            transferGroup: transferGroup._id,
           },
         },
         { session },
       );
 
       this.logger.log(
-        `[createTransfer] Linked ${orderIds.length} order(s) to transfer: id=${transfer._id}`,
+        `[createTransfer] Linked ${orderIds.length} order(s) to transferGroup=${transferGroup._id}`,
       );
 
       await session.commitTransaction();
       this.logger.log(
-        `[createTransfer] Transaction committed successfully: transferId=${transfer._id}`,
+        `[createTransfer] Transaction committed successfully: transferGroup=${transferGroup._id}`,
       );
     } catch (error) {
       if (session.inTransaction()) {
@@ -167,7 +210,7 @@ export class TransfersService {
       session.endSession();
     }
 
-    if (!transfer) {
+    if (!restaurantTransfer || !platformTransfer || !transferGroup) {
       this.logger.error('[createTransfer] Transfer is unexpectedly null');
       throw new OrchestrationException({
         statusCode: EnumStatusCode.UNABLE_TO_CREATE_TRANSFER,
@@ -176,25 +219,26 @@ export class TransfersService {
       });
     }
 
-    try {
-      this.logger.log(
-        `[createTransfer] Starting transfer initiation: transferId=${transfer._id}`,
-      );
+    // try {
+    //   this.logger.log(
+    //     `[createTransfer] Starting transfer initiation: restaurantTransferId=${restaurantTransfer._id}, platformTransferId=${platformTransfer._id}`,
+    //   );
 
-      await this.initiateTransfer(transfer, restaurant);
-    } catch (error) {
-      this.logger.error(
-        `[createTransfer] Failed to initiate transfer: ${error.message}`,
-      );
-    }
+    //   await this.initiateTransfer(restaurantTransfer, restaurant);
+    //   await this.initiateTransfer(platformTransfer, restaurant);
+    // } catch (error) {
+    //   this.logger.error(
+    //     `[createTransfer] Failed to initiate transfer: ${error.message}`,
+    //   );
+    // }
 
     this.logger.log(
-      `[createTransfer] Transfer creation completed: transferId=${transfer?._id}`,
+      `[createTransfer] Transfer creation completed: transferGroup=${transferGroup?._id}`,
     );
 
     const publicTransfer = plainToInstance(
       TransferPublicOutputDto,
-      transfer.toObject(),
+      restaurantTransfer.toObject(),
       { excludeExtraneousValues: true },
     );
 
@@ -234,7 +278,12 @@ export class TransfersService {
       restaurant: Types.ObjectId;
       status?: EnumTransferStatuses;
       deleted: boolean;
-    } = { restaurant: restaurantId, deleted: false };
+      transferDirection: EnumTransferDirection;
+    } = {
+      restaurant: restaurantId,
+      deleted: false,
+      transferDirection: EnumTransferDirection.RESTAURANT,
+    };
 
     if (status) {
       filters.status = status;
@@ -272,7 +321,6 @@ export class TransfersService {
 
   async startTransfer({
     transferId,
-    user,
   }: {
     transferId: string;
     user: ILoggedInUserTokenData;
@@ -325,46 +373,52 @@ export class TransfersService {
     transfer: TransferDocument,
     restaurant: RestaurantDocument,
   ) {
-    this.logger.log('[initiateTransfer] Starting transfer initiation');
+    this.logger.log(
+      `[initiateTransfer] Starting transfer initiation: transferId=${transfer._id}, direction=${transfer.transferDirection}`,
+    );
 
     try {
-      const tranzakResponse = await this.tranzakService.createBulkTransfer({
-        title: `Payout for ${restaurant?.name || 'restaurant'}`,
-        description: `Order payouts for transfer ${transfer._id}`,
-        currencyCode: EnumTranzakCurrency.XAF,
-        customTransactionRef: transfer._id.toString(),
-        recipients: [
-          {
-            payeeAccountId: restaurant.wallet?.mobileData?.number || '',
-            mobileNumber: restaurant.wallet?.mobileData?.number || '',
-            payeeAccountName: restaurant?.name || '',
-            amount: transfer.totalRestaurantAmount,
-            payeeNote: 'Order earnings',
-            description: 'Order earnings payout',
-            customTransactionRef: `${transfer._id}-r`,
-          },
-          {
-            payeeAccountId: env.platformMobileMoneyAccountNumber,
-            mobileNumber: env.platformMobileMoneyAccountNumber,
-            payeeAccountName: 'ChopMe Platform',
-            amount: transfer.totalPlatformAmount,
-            payeeNote: 'Platform commission',
-            description: `Platform earnings from restaurant ${restaurant?.name || ''}`,
-            customTransactionRef: `${transfer._id}-p`,
-          },
-        ],
-      });
+      if (transfer.transferDirection === EnumTransferDirection.RESTAURANT) {
+        const response = await this.tranzakService.createTransfer({
+          amount: transfer.amount,
+          currencyCode: EnumTranzakCurrency.XAF,
+          description: `Order earnings payout for restaurant ${restaurant?.name || ''}`,
+          customTransactionRef: `${transfer._id}`,
+          payeeAccountId: restaurant.wallet?.mobileData?.number || '',
+          payeeAccountName: restaurant?.name || '',
+          payeeNote: 'Order earnings',
+        });
 
-      this.logger.log(
-        `[initiateTransfer] Transfer initiated successfully: transferId=${transfer._id}, payoutId=${tranzakResponse.payoutId}, status=${tranzakResponse.status}`,
-      );
+        this.logger.log(
+          `[initiateTransfer] Restaurant transfer initiated: transferId=${response.transferId}, status=${response.status}`,
+        );
 
-      transfer.payoutId = tranzakResponse.payoutId;
+        transfer.transferId = response.transferId;
+      } else if (
+        transfer.transferDirection === EnumTransferDirection.PLATFORM
+      ) {
+        const response = await this.tranzakService.createTransfer({
+          amount: transfer.amount,
+          currencyCode: EnumTranzakCurrency.XAF,
+          description: `Platform earnings from restaurant ${restaurant?.name || ''}`,
+          customTransactionRef: `${transfer._id}`,
+          payeeAccountId: env.platformMobileMoneyAccountNumber,
+          payeeAccountName: 'ChopMe Platform',
+          payeeNote: 'Platform commission',
+        });
+
+        this.logger.log(
+          `[initiateTransfer] Platform transfer initiated: transferId=${response.transferId}, status=${response.status}`,
+        );
+
+        transfer.transferId = response.transferId;
+      }
+
       transfer.status = EnumTransferStatuses.INITIATED;
       await transfer.save();
     } catch (error) {
       this.logger.error(
-        `[initiateTransfer] Tranzak bulk transfer failed: transferId=${transfer._id}`,
+        `[initiateTransfer] Tranzak transfer failed: transferId=${transfer._id}`,
         error.response?.data || error.message,
       );
       transfer.status = EnumTransferStatuses.FAILED_TO_INITIATE;
