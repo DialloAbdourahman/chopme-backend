@@ -355,7 +355,10 @@ export class TransfersService {
       `[startTransfer] Starting transfer initiation for transferId=${transferId}`,
     );
 
-    const transfer = await this.transferModel.findById(transferId);
+    const transfer = await this.transferModel.findOne({
+      _id: transferId,
+      deleted: false,
+    });
     if (!transfer) {
       this.logger.error(
         `[startTransfer] Transfer not found: transferId=${transferId}`,
@@ -371,10 +374,7 @@ export class TransfersService {
       `[startTransfer] Transfer found: transferId=${transfer._id}, status=${transfer.status}`,
     );
 
-    if (
-      transfer.status !== EnumTransferStatuses.CREATED &&
-      transfer.status !== EnumTransferStatuses.FAILED_TO_INITIATE
-    ) {
+    if (transfer.status !== EnumTransferStatuses.CREATED) {
       this.logger.warn(
         `[startTransfer] Transfer cannot be initiated: transferId=${transfer._id}, currentStatus=${transfer.status}`,
       );
@@ -444,6 +444,108 @@ export class TransfersService {
     });
   }
 
+  async retryTransfer({
+    transferId,
+  }: {
+    transferId: string;
+    user: ILoggedInUserTokenData;
+  }) {
+    this.logger.log(
+      `[retryTransfer] Starting transfer retry for transferId=${transferId}`,
+    );
+
+    const transfer = await this.transferModel.findOne({
+      _id: transferId,
+      deleted: false,
+    });
+    if (!transfer) {
+      this.logger.error(
+        `[retryTransfer] Transfer not found: transferId=${transferId}`,
+      );
+      throw new OrchestrationException({
+        statusCode: EnumStatusCode.NOT_FOUND,
+        message: 'Transfer not found',
+        code: 404,
+      });
+    }
+
+    this.logger.log(
+      `[retryTransfer] Transfer found: transferId=${transfer._id}, status=${transfer.status}`,
+    );
+
+    if (
+      transfer.status !== EnumTransferStatuses.FAILED &&
+      transfer.status !== EnumTransferStatuses.FAILED_TO_INITIATE
+    ) {
+      this.logger.warn(
+        `[retryTransfer] Transfer cannot be retried: transferId=${transfer._id}, currentStatus=${transfer.status}`,
+      );
+      throw new OrchestrationException({
+        statusCode: EnumStatusCode.UNABLE_TO_START_TRANSFER,
+        message: 'Transfer cannot be retried',
+        code: 400,
+      });
+    }
+
+    const restaurant = await this.restaurantModel.findById(transfer.restaurant);
+
+    if (!restaurant) {
+      this.logger.error(
+        `[retryTransfer] Restaurant not found: restaurantId=${transfer.restaurant}`,
+      );
+      throw new OrchestrationException({
+        statusCode: EnumStatusCode.NOT_FOUND,
+        message: 'Restaurant not found',
+        code: 404,
+      });
+    }
+
+    this.logger.log(
+      `[retryTransfer] Restaurant found: restaurantId=${restaurant._id}, name=${restaurant.name}`,
+    );
+
+    // Ensure topup before retrying transfer
+    this.logger.log(
+      `[retryTransfer] Ensuring topup for transferGroup=${transfer.transferGroup}`,
+    );
+
+    const ensuredTransferGroupTopup = await this.ensureTopup(
+      transfer.transferGroup as Types.ObjectId,
+    );
+
+    this.logger.log(
+      `[retryTransfer] Topup ensured with status=${ensuredTransferGroupTopup.topupStatus}`,
+    );
+
+    if (
+      ensuredTransferGroupTopup.topupStatus !==
+      EnumTranzakTopupStatus.SUCCESSFUL
+    ) {
+      this.logger.warn(
+        `[retryTransfer] Topup not successful (status=${ensuredTransferGroupTopup.topupStatus}), cannot retry transfer`,
+      );
+      throw new OrchestrationException({
+        statusCode: EnumStatusCode.UNABLE_TO_START_TRANSFER,
+        message: `Cannot retry transfer: topup status is ${ensuredTransferGroupTopup.topupStatus}`,
+        code: 400,
+      });
+    }
+
+    await this.initiateTransfer(transfer, restaurant);
+
+    const publicTransfer = plainToInstance(
+      TransferPublicOutputDto,
+      transfer.toObject(),
+      { excludeExtraneousValues: true },
+    );
+
+    return OrchestrationResult.Success<TransferPublicOutputDto>({
+      statusCode: EnumStatusCode.STARTED_SUCCESSFULLY,
+      data: publicTransfer,
+      message: 'Transfer retried successfully',
+    });
+  }
+
   async initiateTransfer(
     transfer: TransferDocument,
     restaurant: RestaurantDocument,
@@ -508,8 +610,10 @@ export class TransfersService {
       `[ensureTopup] Checking topup for transferGroupId=${transferGroupId}`,
     );
 
-    const transferGroup =
-      await this.transferGroupModel.findById(transferGroupId);
+    const transferGroup = await this.transferGroupModel.findOne({
+      _id: transferGroupId,
+      deleted: false,
+    });
 
     if (!transferGroup) {
       throw new OrchestrationException({

@@ -122,6 +122,17 @@ const NOTIFICATION_MESSAGES: NotificationMessagesMap = {
       body: 'Your order status has changed.',
     },
   },
+
+  [EnumNotificationI18nType.TRANSFER_COMPLETED_RESTAURANT]: {
+    [EnumUserLanguage.FR]: {
+      title: 'Paiement reçu',
+      body: 'Le paiement de vos gains a été effectué avec succès.',
+    },
+    [EnumUserLanguage.EN]: {
+      title: 'Payout received',
+      body: 'Your earnings payout has been completed successfully.',
+    },
+  },
 };
 
 export function getNotificationMessage(

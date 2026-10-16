@@ -53,7 +53,7 @@ export interface ITranzakWebhookTransferResponse {
   fee: number;
   customTransactionRef?: string;
   createdByAppId?: string;
-  type?: string;
+  type?: 'account transfer' | 'mobile money transfer';
   transactionId?: string;
   transactionTime?: string;
   partnerTransactionId?: string;

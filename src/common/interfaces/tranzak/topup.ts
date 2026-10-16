@@ -34,29 +34,3 @@ export interface ITranzakCreateTopupResponseData {
   verifyPayeeName: boolean;
   createdAt: string;
 }
-
-export interface ITranzakWebhookTopupResponse {
-  transferId: string;
-  status: EnumTranzakTopupStatus;
-  payeeAccountId: string;
-  fundingAccountId: string;
-  payeeAccountName: string | null;
-  destinationServiceName: string;
-  payeeNote: string;
-  description: string;
-  amount: number;
-  currencyCode: EnumTranzakCurrency;
-  fee: number;
-  customTransactionRef: string;
-  feeIsPaidByPayee: boolean;
-  createdByAppId: string;
-  payoutId: string | null;
-  payeeFeePercentage: number | null;
-  type: string;
-  transactionId: string;
-  transactionTime: string;
-  partnerTransactionId: string;
-  sms: string | null;
-  verifyPayeeName: boolean;
-  createdAt: string;
-}

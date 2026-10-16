@@ -13,6 +13,14 @@ import {
   FcmToken,
   FcmTokenSchema,
 } from 'src/fcm-tokens/entities/fcm-token.entity';
+import {
+  TransferGroup,
+  TransferGroupSchema,
+} from 'src/transfers/entities/transfer-group.entity';
+import {
+  Transfer,
+  TransferSchema,
+} from 'src/transfers/entities/transfer.entity';
 
 @Module({
   imports: [
@@ -21,6 +29,8 @@ import {
       { name: Menu.name, schema: MenuSchema },
       { name: RestaurantMember.name, schema: RestaurantMemberSchema },
       { name: FcmToken.name, schema: FcmTokenSchema },
+      { name: TransferGroup.name, schema: TransferGroupSchema },
+      { name: Transfer.name, schema: TransferSchema },
     ]),
     WebSocketModule,
   ],

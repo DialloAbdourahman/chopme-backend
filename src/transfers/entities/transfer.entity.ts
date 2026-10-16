@@ -8,32 +8,86 @@ import { TransferGroup } from './transfer-group.entity';
 
 export type TransferDocument = HydratedDocument<Transfer>;
 
+@Schema({ _id: false })
 export class TransferWebhookDetails {
+  @Prop({ type: String, required: false })
   transferId?: string;
+
+  @Prop({ type: String, required: false })
   status?: string;
+
+  @Prop({ type: String, required: false })
   payeeAccountId?: string;
+
+  @Prop({ type: String, required: false })
   fundingAccountId?: string;
+
+  @Prop({ type: String, required: false })
   payeeAccountName?: string;
+
+  @Prop({ type: String, required: false })
   destinationServiceName?: string;
+
+  @Prop({ type: String, required: false })
   payeeNote?: string;
+
+  @Prop({ type: String, required: false })
   description?: string;
+
+  @Prop({ type: Number, required: false })
   amount?: number;
+
+  @Prop({ type: String, required: false })
   currencyCode?: string;
+
+  @Prop({ type: Number, required: false })
   fee?: number;
+
+  @Prop({ type: String, required: false })
   customTransactionRef?: string;
+
+  @Prop({ type: String, required: false })
   createdByAppId?: string;
+
+  // Field name `type` must be declared as a schema type property to avoid
+  // Mongoose treating it as a nested object definition.
+  @Prop({ type: String, required: false })
   type?: string;
+
+  @Prop({ type: String, required: false })
   transactionId?: string;
+
+  @Prop({ type: String, required: false })
   transactionTime?: string;
+
+  @Prop({ type: String, required: false })
   partnerTransactionId?: string;
+
+  @Prop({ type: Boolean, required: false })
   sendSmsToPayee?: boolean;
+
+  @Prop({ type: String, required: false })
   smsContent?: string;
+
+  @Prop({ type: String, required: false })
   smsMobileNumber?: string;
+
+  @Prop({ type: Boolean, required: false })
   payeeSmsSuccess?: boolean;
+
+  @Prop({ type: String, required: false })
   createdAt?: string;
+
+  @Prop({ type: String, required: false })
   errorMessage?: string;
+
+  @Prop({ type: String, required: false })
   refundId?: string;
 }
+
+export const TransferWebhookDetailsSchema = SchemaFactory.createForClass(
+  TransferWebhookDetails,
+);
 
 @Schema({ timestamps: true })
 export class Transfer extends BaseSchema {
@@ -56,7 +110,7 @@ export class Transfer extends BaseSchema {
 
   @Prop({
     type: Types.ObjectId,
-    ref: TransferGroup.name,
+    ref: 'TransferGroup',
     required: true,
     index: true,
   })
@@ -72,35 +126,7 @@ export class Transfer extends BaseSchema {
   @Prop({ type: String, required: false })
   transferId?: string;
 
-  @Prop({
-    type: {
-      transferId: { type: String, required: false },
-      status: { type: String, required: false },
-      payeeAccountId: { type: String, required: false },
-      fundingAccountId: { type: String, required: false },
-      payeeAccountName: { type: String, required: false },
-      destinationServiceName: { type: String, required: false },
-      payeeNote: { type: String, required: false },
-      description: { type: String, required: false },
-      amount: { type: Number, required: false },
-      currencyCode: { type: String, required: false },
-      fee: { type: Number, required: false },
-      customTransactionRef: { type: String, required: false },
-      createdByAppId: { type: String, required: false },
-      type: { type: String, required: false },
-      transactionId: { type: String, required: false },
-      transactionTime: { type: String, required: false },
-      partnerTransactionId: { type: String, required: false },
-      sendSmsToPayee: { type: Boolean, required: false },
-      smsContent: { type: String, required: false },
-      smsMobileNumber: { type: String, required: false },
-      payeeSmsSuccess: { type: Boolean, required: false },
-      createdAt: { type: String, required: false },
-      errorMessage: { type: String, required: false },
-      refundId: { type: String, required: false },
-    },
-    _id: false,
-  })
+  @Prop({ type: TransferWebhookDetailsSchema, required: false })
   transferWebhookDetails?: TransferWebhookDetails;
 }
 
