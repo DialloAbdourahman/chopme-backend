@@ -18,6 +18,10 @@ import {
   ITranzakCreateTransferRequestDto,
   ITranzakCreateTransferResponseData,
 } from '../interfaces/tranzak/transfer';
+import {
+  ITranzakCreateTopupRequestDto,
+  ITranzakCreateTopupResponseData,
+} from '../interfaces/tranzak/topup';
 
 @Injectable()
 export class TranzakService implements OnModuleInit {
@@ -189,6 +193,41 @@ export class TranzakService implements OnModuleInit {
     } catch (error) {
       this.logger.error(
         '[Tranzak] Error creating transfer:',
+        error.response?.data || error.message,
+      );
+      throw error;
+    }
+  }
+
+  async createTopup(
+    data: ITranzakCreateTopupRequestDto,
+  ): Promise<ITranzakCreateTopupResponseData> {
+    try {
+      this.logger.log(`[Tranzak] Creating topup: amount=${data.amount}`);
+
+      const paymentToken = await this.getPaymentToken();
+
+      const response = await firstValueFrom(
+        this.httpService.post<
+          ITranzakApiResponse<ITranzakCreateTopupResponseData>
+        >(`${this.baseUrl}/xp021/v1/transfer/payout-account-topup`, data, {
+          headers: {
+            Authorization: `Bearer ${paymentToken}`,
+          },
+          timeout: this.timeoutMs,
+        }),
+      );
+
+      if (!response.data.success) {
+        throw new Error(`Tranzak API error: ${response.data.errorMsg}`);
+      }
+
+      this.logger.log('[Tranzak] Topup created');
+
+      return response.data.data;
+    } catch (error) {
+      this.logger.error(
+        '[Tranzak] Error creating topup:',
         error.response?.data || error.message,
       );
       throw error;

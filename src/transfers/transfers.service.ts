@@ -21,6 +21,11 @@ import { TranzakService } from 'src/common/tranzak/tranzak.service';
 import { EnumTranzakCurrency } from 'src/common/enums/tranzak/currency';
 import { EnumTransferDirection } from 'src/common/enums/transfer-direction';
 import {
+  ITranzakCreateTopupRequestDto,
+  ITranzakCreateTopupResponseData,
+} from 'src/common/interfaces/tranzak/topup';
+import { EnumTranzakTopupStatus } from 'src/common/enums/tranzak/topup-status';
+import {
   TransferGroup,
   TransferGroupDocument,
 } from './entities/transfer-group.entity';
@@ -119,7 +124,7 @@ export class TransfersService {
         (acc, order) => acc + order.pricing.platformEarningsAmount,
         0,
       );
-      const totalPayoutAmount = orders.reduce(
+      const totalTopupAmount = orders.reduce(
         (acc, order) =>
           acc + (order.paymentWebhookDetails?.netAmountReceived ?? 0),
         0,
@@ -128,14 +133,14 @@ export class TransfersService {
       const totalAmount = totalRestaurantAmount + totalPlatformAmount;
 
       this.logger.log(
-        `[createTransfer] Computed amounts: totalRestaurantAmount=${totalRestaurantAmount}, totalPlatformAmount=${totalPlatformAmount}, totalAmount=${totalAmount}, totalPayoutAmount=${totalPayoutAmount}`,
+        `[createTransfer] Computed amounts: totalRestaurantAmount=${totalRestaurantAmount}, totalPlatformAmount=${totalPlatformAmount}, totalAmount=${totalAmount}, totalTopupAmount=${totalTopupAmount}`,
       );
 
       transferGroup = new this.transferGroupModel({
         restaurantAmount: totalRestaurantAmount,
         platformAmount: totalPlatformAmount,
         totalAmount,
-        totalPayoutAmount,
+        totalTopupAmount,
         transfers: [],
         createdBy: new Types.ObjectId(user.id),
       });
@@ -219,18 +224,39 @@ export class TransfersService {
       });
     }
 
-    // try {
-    //   this.logger.log(
-    //     `[createTransfer] Starting transfer initiation: restaurantTransferId=${restaurantTransfer._id}, platformTransferId=${platformTransfer._id}`,
-    //   );
+    try {
+      this.logger.log(
+        `[createTransfer] Ensuring topup for transferGroup=${transferGroup._id}`,
+      );
 
-    //   await this.initiateTransfer(restaurantTransfer, restaurant);
-    //   await this.initiateTransfer(platformTransfer, restaurant);
-    // } catch (error) {
-    //   this.logger.error(
-    //     `[createTransfer] Failed to initiate transfer: ${error.message}`,
-    //   );
-    // }
+      const ensuredTransferGroupTopup = await this.ensureTopup(
+        transferGroup._id,
+      );
+
+      this.logger.log(
+        `[createTransfer] Topup ensured with status=${ensuredTransferGroupTopup.topupStatus}`,
+      );
+
+      if (
+        ensuredTransferGroupTopup.topupStatus ===
+        EnumTranzakTopupStatus.SUCCESSFUL
+      ) {
+        this.logger.log(
+          `[createTransfer] Topup successful, starting transfer initiation: restaurantTransferId=${restaurantTransfer._id}, platformTransferId=${platformTransfer._id}`,
+        );
+
+        await this.initiateTransfer(restaurantTransfer, restaurant);
+        await this.initiateTransfer(platformTransfer, restaurant);
+      } else {
+        this.logger.warn(
+          `[createTransfer] Topup not successful (status=${ensuredTransferGroupTopup.topupStatus}), skipping transfer initiation`,
+        );
+      }
+    } catch (error) {
+      this.logger.error(
+        `[createTransfer] Failed to initiate transfer: ${error.message}`,
+      );
+    }
 
     this.logger.log(
       `[createTransfer] Transfer creation completed: transferGroup=${transferGroup?._id}`,
@@ -325,32 +351,81 @@ export class TransfersService {
     transferId: string;
     user: ILoggedInUserTokenData;
   }) {
-    this.logger.log('[startTransfer] Starting transfer initiation');
+    this.logger.log(
+      `[startTransfer] Starting transfer initiation for transferId=${transferId}`,
+    );
+
     const transfer = await this.transferModel.findById(transferId);
     if (!transfer) {
+      this.logger.error(
+        `[startTransfer] Transfer not found: transferId=${transferId}`,
+      );
       throw new OrchestrationException({
         statusCode: EnumStatusCode.NOT_FOUND,
         message: 'Transfer not found',
         code: 404,
       });
     }
+
+    this.logger.log(
+      `[startTransfer] Transfer found: transferId=${transfer._id}, status=${transfer.status}`,
+    );
+
     if (
       transfer.status !== EnumTransferStatuses.CREATED &&
       transfer.status !== EnumTransferStatuses.FAILED_TO_INITIATE
     ) {
+      this.logger.warn(
+        `[startTransfer] Transfer cannot be initiated: transferId=${transfer._id}, currentStatus=${transfer.status}`,
+      );
       throw new OrchestrationException({
         statusCode: EnumStatusCode.UNABLE_TO_START_TRANSFER,
         message: 'Transfer cannot be initiated',
         code: 400,
       });
     }
+
     const restaurant = await this.restaurantModel.findById(transfer.restaurant);
 
     if (!restaurant) {
+      this.logger.error(
+        `[startTransfer] Restaurant not found: restaurantId=${transfer.restaurant}`,
+      );
       throw new OrchestrationException({
         statusCode: EnumStatusCode.NOT_FOUND,
         message: 'Restaurant not found',
         code: 404,
+      });
+    }
+
+    this.logger.log(
+      `[startTransfer] Restaurant found: restaurantId=${restaurant._id}, name=${restaurant.name}`,
+    );
+
+    // Ensure topup before initiating transfer
+    this.logger.log(
+      `[startTransfer] Ensuring topup for transferGroup=${transfer.transferGroup}`,
+    );
+
+    const ensuredTransferGroupTopup = await this.ensureTopup(
+      transfer.transferGroup as Types.ObjectId,
+    );
+
+    this.logger.log(
+      `[startTransfer] Topup ensured with status=${ensuredTransferGroupTopup.topupStatus}`,
+    );
+
+    if (
+      ensuredTransferGroupTopup.topupStatus !==
+      EnumTranzakTopupStatus.SUCCESSFUL
+    ) {
+      this.logger.warn(
+        `[startTransfer] Topup not successful (status=${ensuredTransferGroupTopup.topupStatus}), cannot initiate transfer`,
+      );
+      throw new OrchestrationException({
+        statusCode: EnumStatusCode.UNABLE_TO_START_TRANSFER,
+        message: `Cannot initiate transfer: topup status is ${ensuredTransferGroupTopup.topupStatus}`,
+        code: 400,
       });
     }
 
@@ -423,6 +498,109 @@ export class TransfersService {
       );
       transfer.status = EnumTransferStatuses.FAILED_TO_INITIATE;
       await transfer.save();
+    }
+  }
+
+  async ensureTopup(
+    transferGroupId: Types.ObjectId,
+  ): Promise<TransferGroupDocument> {
+    this.logger.log(
+      `[ensureTopup] Checking topup for transferGroupId=${transferGroupId}`,
+    );
+
+    const transferGroup =
+      await this.transferGroupModel.findById(transferGroupId);
+
+    if (!transferGroup) {
+      throw new OrchestrationException({
+        statusCode: EnumStatusCode.NOT_FOUND,
+        message: 'Transfer group not found',
+        code: 404,
+      });
+    }
+
+    // Check if topup already exists and is successful or processing
+    if (
+      transferGroup.topupStatus &&
+      transferGroup.topupStatus !== EnumTranzakTopupStatus.FAILED
+    ) {
+      this.logger.log(
+        `[ensureTopup] Topup already exists with status=${transferGroup.topupStatus}, skipping creation`,
+      );
+      return transferGroup;
+    }
+
+    // Create new topup
+    try {
+      const topupRequest: ITranzakCreateTopupRequestDto = {
+        amount: transferGroup.totalTopupAmount,
+        currencyCode: EnumTranzakCurrency.XAF,
+        description: 'Payout account topup',
+        customTransactionRef: `${transferGroup._id}`,
+        payeeNote: 'Payout account topup',
+      };
+
+      this.logger.log(
+        `[ensureTopup] Creating topup: amount=${topupRequest.amount}`,
+      );
+
+      const topupResponse: ITranzakCreateTopupResponseData =
+        await this.tranzakService.createTopup(topupRequest);
+
+      this.logger.log(
+        `[ensureTopup] Topup created: transferId=${topupResponse.transferId}, status=${topupResponse.status}`,
+      );
+
+      transferGroup.topupStatus = topupResponse.status;
+      transferGroup.topupDetails = {
+        transferId: topupResponse.transferId,
+        status: topupResponse.status,
+        payeeAccountId: topupResponse.payeeAccountId,
+        fundingAccountId: topupResponse.fundingAccountId,
+        payeeAccountName: topupResponse.payeeAccountName,
+        destinationServiceName: topupResponse.destinationServiceName,
+        payeeNote: topupResponse.payeeNote,
+        description: topupResponse.description,
+        amount: topupResponse.amount,
+        currencyCode: topupResponse.currencyCode,
+        fee: topupResponse.fee,
+        customTransactionRef: topupResponse.customTransactionRef,
+        feeIsPaidByPayee: topupResponse.feeIsPaidByPayee,
+        createdByAppId: topupResponse.createdByAppId,
+        payoutId: topupResponse.payoutId,
+        payeeFeePercentage: topupResponse.payeeFeePercentage,
+        type: topupResponse.type,
+        transactionId: topupResponse.transactionId,
+        transactionTime: topupResponse.transactionTime,
+        partnerTransactionId: topupResponse.partnerTransactionId,
+        sms: topupResponse.sms,
+        verifyPayeeName: topupResponse.verifyPayeeName,
+        createdAt: topupResponse.createdAt,
+      };
+
+      await transferGroup.save();
+
+      this.logger.log(
+        `[ensureTopup] Topup details saved to transferGroup=${transferGroup._id}`,
+      );
+
+      return transferGroup;
+    } catch (error) {
+      this.logger.error(
+        `[ensureTopup] Failed to create topup: ${error.message}`,
+        error,
+      );
+
+      // Save failed status if possible
+      if (transferGroup) {
+        transferGroup.topupStatus = EnumTranzakTopupStatus.FAILED;
+        transferGroup.topupDetails = {
+          status: EnumTranzakTopupStatus.FAILED,
+        };
+        await transferGroup.save();
+      }
+
+      throw error;
     }
   }
 }
