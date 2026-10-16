@@ -126,6 +126,9 @@ export class Transfer extends BaseSchema {
   @Prop({ type: String, required: false })
   transferId?: string;
 
+  @Prop({ type: Types.ObjectId, ref: 'Transfer', required: false })
+  retriedFromTransferId?: Types.ObjectId | Transfer;
+
   @Prop({ type: TransferWebhookDetailsSchema, required: false })
   transferWebhookDetails?: TransferWebhookDetails;
 }

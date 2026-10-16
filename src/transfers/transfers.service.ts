@@ -446,6 +446,7 @@ export class TransfersService {
 
   async retryTransfer({
     transferId,
+    user,
   }: {
     transferId: string;
     user: ILoggedInUserTokenData;
@@ -531,11 +532,85 @@ export class TransfersService {
       });
     }
 
-    await this.initiateTransfer(transfer, restaurant);
+    const session = await this.connection.startSession();
+    session.startTransaction();
+
+    let newTransfer: TransferDocument | null = null;
+
+    try {
+      // Soft-delete the failed transfer so it stays out of queries.
+      transfer.deleted = true;
+      transfer.deletedAt = new Date();
+      transfer.deletedBy = new Types.ObjectId(user.id);
+      await transfer.save({ session });
+
+      this.logger.log(
+        `[retryTransfer] Old transfer soft-deleted: transferId=${transfer._id}`,
+      );
+
+      // Create a fresh transfer carrying over the old transfer's data.
+      newTransfer = new this.transferModel({
+        restaurant: transfer.restaurant,
+        amount: transfer.amount,
+        totalOrders: transfer.totalOrders,
+        transferGroup: transfer.transferGroup,
+        transferDirection: transfer.transferDirection,
+        retriedFromTransferId: transfer._id,
+        createdBy: new Types.ObjectId(user.id),
+      });
+      await newTransfer.save({ session });
+
+      this.logger.log(
+        `[retryTransfer] New transfer created: transferId=${newTransfer._id}`,
+      );
+
+      // Swap the old transfer id for the new one in the transfer group.
+      const transferGroupId = transfer.transferGroup as Types.ObjectId;
+      const updatedTransfers = [
+        ...ensuredTransferGroupTopup.transfers.filter(
+          (id) => !id.equals(transfer._id),
+        ),
+        newTransfer._id,
+      ];
+      await this.transferGroupModel.updateOne(
+        { _id: transferGroupId },
+        { $set: { transfers: updatedTransfers } },
+        { session },
+      );
+
+      await session.commitTransaction();
+      this.logger.log(
+        `[retryTransfer] Transaction committed: oldTransferId=${transfer._id}, newTransferId=${newTransfer._id}`,
+      );
+    } catch (error) {
+      if (session.inTransaction()) {
+        await session.abortTransaction();
+      }
+      this.logger.error(
+        `[retryTransfer] Error during transfer retry: ${error?.message}`,
+      );
+      throw new OrchestrationException({
+        statusCode: EnumStatusCode.UNABLE_TO_START_TRANSFER,
+        message: 'Unable to retry transfer',
+        code: 500,
+      });
+    } finally {
+      session.endSession();
+    }
+
+    if (!newTransfer) {
+      throw new OrchestrationException({
+        statusCode: EnumStatusCode.UNABLE_TO_START_TRANSFER,
+        message: 'Unable to retry transfer',
+        code: 500,
+      });
+    }
+
+    await this.initiateTransfer(newTransfer, restaurant);
 
     const publicTransfer = plainToInstance(
       TransferPublicOutputDto,
-      transfer.toObject(),
+      newTransfer.toObject(),
       { excludeExtraneousValues: true },
     );
 
