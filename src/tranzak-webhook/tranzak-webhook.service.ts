@@ -163,7 +163,7 @@ export class TranzakWebhookService {
     }
 
     this.logger.log('[TranzakWebhookService] Webhook processing completed');
-    return 'This action adds a new flwWebhook';
+    return 'Webhook processed successfully';
   }
 
   private async processSuccessfulPayment(

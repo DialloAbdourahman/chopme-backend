@@ -18,8 +18,6 @@ import { WebSocketModule } from './web-socket/web-socket.module';
 import { WebSocketService } from './web-socket/web-socket-service';
 import { FcmModule } from './fcm/fcm.module';
 import { FcmTokensModule } from './fcm-tokens/fcm-tokens.module';
-import { FlutterwaveModule } from './common/flutterwave/flutterwave.module';
-import { FlwWebhookModule } from './flw-webhook/flw-webhook.module';
 import { RestaurantRatingsModule } from './restaurant-ratings/restaurant-ratings.module';
 import { TransfersModule } from './transfers/transfers.module';
 import { StartupService } from './startup';
@@ -61,16 +59,11 @@ import { TranzakWebhookModule } from './tranzak-webhook/tranzak-webhook.module';
     WebSocketModule,
     FcmModule,
     FcmTokensModule,
-    FlutterwaveModule.forRoot({
-      baseUrl: env.flutterWaveUrl,
-      secretKey: env.flutterWaveClientSecretKey,
-    }),
     TranzakModule.forRoot({
       baseUrl: env.tranzakUrl,
       appId: env.tranzakAppId,
       apiKey: env.tranzakApiKey,
     }),
-    FlwWebhookModule,
     TranzakWebhookModule,
     RestaurantRatingsModule,
     TransfersModule,

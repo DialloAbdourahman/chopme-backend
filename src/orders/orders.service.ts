@@ -22,14 +22,10 @@ import {
 } from './dto/output/order-output.dto';
 import { OrchestrationResult } from 'src/common/utils/orchestration.result';
 import { EnumOrderStatus } from 'src/common/enums/order-status';
-import { FlutterwaveService } from 'src/common/flutterwave/flutterwave.service';
 import { UserDocument } from 'src/users/entities/user.entity';
 import { Pagination } from 'src/common/interfaces/pagination';
 import { ClientPublicWithUserOutputDto } from 'src/clients/dto/output/client-output.dto';
-import Flutterwave from 'flutterwave-node-v3';
 import { EnumOrderCancelledReason } from 'src/common/enums/order-cancelled-reason';
-import { FlutterWaveResponse } from 'src/common/interfaces/flutterwave/response';
-import { FlutterwaveRefund } from 'src/common/interfaces/flutterwave/refund';
 import { EnumRefundStatus } from 'src/common/enums/refund-statuses';
 import { WebSocketService } from 'src/web-socket/web-socket-service';
 import { EnumWebSocketEventType } from 'src/common/enums/web-socket-events';
@@ -52,10 +48,6 @@ import { EnumTranzakRefundReasonCode } from 'src/common/enums/tranzak/refund-rea
 @Injectable()
 export class OrdersService {
   private readonly logger = new Logger(OrdersService.name);
-  private readonly flw = new Flutterwave(
-    env.flutterWaveClientPublicKey,
-    env.flutterWaveClientSecretKey,
-  );
   private readonly restaurantOrderStatuses = [
     EnumOrderStatus.PAID,
     EnumOrderStatus.CANCELLED_BY_RESTAURANT,
@@ -77,7 +69,6 @@ export class OrdersService {
     @InjectModel(FcmToken.name)
     private readonly fcmTokenModel: Model<FcmTokenDocument>,
 
-    private readonly flutterwaveService: FlutterwaveService,
     private readonly tranzakService: TranzakService,
     private readonly eventsGateway: WebSocketService,
     private readonly fcmService: FcmService,

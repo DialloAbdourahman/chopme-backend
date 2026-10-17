@@ -62,11 +62,10 @@ jobs:
             --build-arg DISBURSEMENT_PERCENTAGE="${{ vars.DISBURSEMENT_PERCENTAGE }}" \
             --build-arg ROUND_TO_NEAREST_FCFA="${{ vars.ROUND_TO_NEAREST_FCFA }}" \
             --build-arg MAX_TIME_TO_PAY_ORDER_IN_MINS="${{ vars.MAX_TIME_TO_PAY_ORDER_IN_MINS }}" \
-            --build-arg FLUTTER_WAVE_URL="${{ vars.FLUTTER_WAVE_URL }}" \
-            --build-arg FLUTTER_WAVE_CLIENT_PUBLIC="${{ secrets.FLUTTER_WAVE_CLIENT_PUBLIC }}" \
-            --build-arg FLUTTER_WAVE_CLIENT_SECRET="${{ secrets.FLUTTER_WAVE_CLIENT_SECRET }}" \
-            --build-arg FLUTTER_WAVE_MAX_PAYMENT_LINK_VALIDITY_IN_HR="${{ vars.FLUTTER_WAVE_MAX_PAYMENT_LINK_VALIDITY_IN_HR }}" \
-            --build-arg FLUTTER_WAVE_WEBHOOK_SECRET_HASH="${{ secrets.FLUTTER_WAVE_WEBHOOK_SECRET_HASH }}" \
+            --build-arg TRANZAK_URL="${{ vars.TRANZAK_URL }}" \
+            --build-arg TRANZAK_APP_ID="${{ vars.TRANZAK_APP_ID }}" \
+            --build-arg TRANZAK_API_KEY="${{ secrets.TRANZAK_API_KEY }}" \
+            --build-arg TRANZAK_WEBHOOK_AUTH_KEY="${{ secrets.TRANZAK_WEBHOOK_AUTH_KEY }}" \
             --build-arg PLATFORM_MOBILE_MONEY_ACCOUNT_NUMBER="${{ vars.PLATFORM_MOBILE_MONEY_ACCOUNT_NUMBER }}" \
             --build-arg PLATFORM_MOBILE_MONEY_NETWORK_TYPE="${{ vars.PLATFORM_MOBILE_MONEY_NETWORK_TYPE }}" \
             --build-arg ADMIN_EMAIL="${{ secrets.ADMIN_EMAIL }}" \
