@@ -422,8 +422,13 @@ export class TransfersService {
       this.logger.warn(
         `[startTransfer] Topup not successful (status=${ensuredTransferGroupTopup.topupStatus}), cannot initiate transfer`,
       );
+      const statusCode =
+        ensuredTransferGroupTopup.topupStatus ===
+        EnumTranzakTopupStatus.PROCESSING
+          ? EnumStatusCode.TOPUP_IN_PROGRESS
+          : EnumStatusCode.TOPUP_FAILED;
       throw new OrchestrationException({
-        statusCode: EnumStatusCode.UNABLE_TO_START_TRANSFER,
+        statusCode,
         message: `Cannot initiate transfer: topup status is ${ensuredTransferGroupTopup.topupStatus}`,
         code: 400,
       });
@@ -525,8 +530,13 @@ export class TransfersService {
       this.logger.warn(
         `[retryTransfer] Topup not successful (status=${ensuredTransferGroupTopup.topupStatus}), cannot retry transfer`,
       );
+      const statusCode =
+        ensuredTransferGroupTopup.topupStatus ===
+        EnumTranzakTopupStatus.PROCESSING
+          ? EnumStatusCode.TOPUP_IN_PROGRESS
+          : EnumStatusCode.TOPUP_FAILED;
       throw new OrchestrationException({
-        statusCode: EnumStatusCode.UNABLE_TO_START_TRANSFER,
+        statusCode,
         message: `Cannot retry transfer: topup status is ${ensuredTransferGroupTopup.topupStatus}`,
         code: 400,
       });
