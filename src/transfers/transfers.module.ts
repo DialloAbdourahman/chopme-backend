@@ -8,11 +8,16 @@ import {
   Restaurant,
   RestaurantSchema,
 } from 'src/restaurants/entities/restaurant.entity';
+import {
+  TransferGroup,
+  TransferGroupSchema,
+} from './entities/transfer-group.entity';
 
 @Module({
   imports: [
     MongooseModule.forFeature([
       { name: Transfer.name, schema: TransferSchema },
+      { name: TransferGroup.name, schema: TransferGroupSchema },
       { name: Order.name, schema: OrderSchema },
       { name: Restaurant.name, schema: RestaurantSchema },
     ]),

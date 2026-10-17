@@ -1,15 +1,15 @@
 import { Test, TestingModule } from '@nestjs/testing';
-import { FlutterwaveService } from './flutterwave.service';
+import { TranzakService } from './tranzak.service';
 
-describe.skip('FlutterwaveService', () => {
-  let service: FlutterwaveService;
+describe('TranzakService', () => {
+  let service: TranzakService;
 
   beforeEach(async () => {
     const module: TestingModule = await Test.createTestingModule({
-      providers: [FlutterwaveService],
+      providers: [TranzakService],
     }).compile();
 
-    service = module.get<FlutterwaveService>(FlutterwaveService);
+    service = module.get<TranzakService>(TranzakService);
   });
 
   it('should be defined', () => {

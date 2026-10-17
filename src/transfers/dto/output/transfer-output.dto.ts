@@ -1,4 +1,5 @@
 import { Expose, Transform } from 'class-transformer';
+import { EnumTransferDirection } from 'src/common/enums/transfer-direction';
 
 export class TransferPublicOutputDto {
   @Expose()
@@ -13,7 +14,14 @@ export class TransferPublicOutputDto {
   status: string;
 
   @Expose()
-  totalRestaurantAmount: number;
+  amount: number;
+
+  @Expose()
+  @Transform(({ obj }) => obj.transferGroupId?.toString())
+  transferGroupId: string;
+
+  @Expose()
+  transferDirection: EnumTransferDirection;
 
   @Expose()
   totalPlatformAmount: number;

@@ -1,0 +1,7 @@
+export enum EnumTranzakTransferStatus {
+  PENDING = 'PENDING',
+  SUCCESSFUL = 'SUCCESSFUL',
+  CANCELLED = 'CANCELLED',
+  FAILED = 'FAILED',
+  PROCESSING = 'PROCESSING',
+}

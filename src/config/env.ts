@@ -32,11 +32,10 @@ export interface EnvConfig {
 
   maxTimeToPayOrderInMins: number;
 
-  flutterWaveUrl: string;
-  flutterWaveClientSecretKey: string;
-  flutterWaveClientPublicKey: string;
-  flutterWaveMaxPaymentLinkValidityInHr: number;
-  flutterWaveWebhookSecretHash: string;
+  tranzakUrl: string;
+  tranzakAppId: string;
+  tranzakApiKey: string;
+  tranzakWebhookAuthKey: string;
 
   platformMobileMoneyAccountNumber: string;
   platformMobileMoneyNetworkType: string;
@@ -78,13 +77,10 @@ export const env: EnvConfig = {
 
   maxTimeToPayOrderInMins: Number(process.env.MAX_TIME_TO_PAY_ORDER_IN_MINS),
 
-  flutterWaveUrl: process.env.FLUTTER_WAVE_URL!,
-  flutterWaveClientPublicKey: process.env.FLUTTER_WAVE_CLIENT_PUBLIC!,
-  flutterWaveClientSecretKey: process.env.FLUTTER_WAVE_CLIENT_SECRET!,
-  flutterWaveMaxPaymentLinkValidityInHr: Number(
-    process.env.FLUTTER_WAVE_MAX_PAYMENT_LINK_VALIDITY_IN_HR!,
-  ),
-  flutterWaveWebhookSecretHash: process.env.FLUTTER_WAVE_WEBHOOK_SECRET_HASH!,
+  tranzakUrl: process.env.TRANZAK_URL!,
+  tranzakAppId: process.env.TRANZAK_APP_ID!,
+  tranzakApiKey: process.env.TRANZAK_API_KEY!,
+  tranzakWebhookAuthKey: process.env.TRANZAK_WEBHOOK_AUTH_KEY!,
 
   platformMobileMoneyAccountNumber:
     process.env.PLATFORM_MOBILE_MONEY_ACCOUNT_NUMBER!,

@@ -22,15 +22,10 @@ import {
 } from './dto/output/order-output.dto';
 import { OrchestrationResult } from 'src/common/utils/orchestration.result';
 import { EnumOrderStatus } from 'src/common/enums/order-status';
-import { FlutterwaveService } from 'src/common/flutterwave/flutterwave.service';
 import { UserDocument } from 'src/users/entities/user.entity';
-import { EnumCurrency } from 'src/common/enums/currencies';
 import { Pagination } from 'src/common/interfaces/pagination';
 import { ClientPublicWithUserOutputDto } from 'src/clients/dto/output/client-output.dto';
-import Flutterwave from 'flutterwave-node-v3';
 import { EnumOrderCancelledReason } from 'src/common/enums/order-cancelled-reason';
-import { FlutterWaveResponse } from 'src/common/interfaces/flutterwave/response';
-import { FlutterwaveRefund } from 'src/common/interfaces/flutterwave/refund';
 import { EnumRefundStatus } from 'src/common/enums/refund-statuses';
 import { WebSocketService } from 'src/web-socket/web-socket-service';
 import { EnumWebSocketEventType } from 'src/common/enums/web-socket-events';
@@ -46,14 +41,13 @@ import { EnumUserLanguage } from 'src/common/enums/user-language';
 import { EnumNotificationI18nType } from 'src/common/enums/notification-internationalization-type';
 import { getNotificationMessage } from '../common/utils/get-fcm-notification-message';
 import { RestaurantPublicOutputDto } from 'src/restaurants/dto/output/restaurant-output.dto';
+import { TranzakService } from 'src/common/tranzak/tranzak.service';
+import { EnumTranzakCurrency } from 'src/common/enums/tranzak/currency';
+import { EnumTranzakRefundReasonCode } from 'src/common/enums/tranzak/refund-reason';
 
 @Injectable()
 export class OrdersService {
   private readonly logger = new Logger(OrdersService.name);
-  private readonly flw = new Flutterwave(
-    env.flutterWaveClientPublicKey,
-    env.flutterWaveClientSecretKey,
-  );
   private readonly restaurantOrderStatuses = [
     EnumOrderStatus.PAID,
     EnumOrderStatus.CANCELLED_BY_RESTAURANT,
@@ -75,7 +69,7 @@ export class OrdersService {
     @InjectModel(FcmToken.name)
     private readonly fcmTokenModel: Model<FcmTokenDocument>,
 
-    private readonly flutterwaveService: FlutterwaveService,
+    private readonly tranzakService: TranzakService,
     private readonly eventsGateway: WebSocketService,
     private readonly fcmService: FcmService,
   ) {}
@@ -432,7 +426,7 @@ export class OrdersService {
     };
 
     if (excludeTransferred) {
-      match.transfer = { $exists: false };
+      match.transferGroup = { $exists: false };
     }
 
     const result = await this.orderModel.aggregate([
@@ -590,21 +584,36 @@ export class OrdersService {
       `[cancelOrderRestaurant] Order cancelled successfully: id=${order._id}, status=${order.status} and initiating refund.`,
     );
 
-    // Initate refund logic here and update order
-    const response = (await this.flw.Transaction.refund({
-      id: order.paymentWebhookDetails.transactionId?.toString(),
-      amount: order.pricing.totalAmountCollectedWithDelivery,
-    })) as FlutterWaveResponse<FlutterwaveRefund>;
+    try {
+      const tranzakResponse = await this.tranzakService.createRefund({
+        refundedTransactionId:
+          order?.paymentWebhookDetails?.transactionId?.toString() || '',
+        reasonCode: EnumTranzakRefundReasonCode.DEFICIENT_PRODUCT_OR_SERVICE,
+        merchantRefundNumber: order.id.toString(),
+        note: 'Order cancelled by restaurant',
+      });
 
-    if (response.status === 'success' && response.data.status === 'completed') {
       this.logger.log(
-        `[cancelOrderRestaurant] Refund initiated successfully: id=${order._id}, refundId=${response.data.id}`,
+        `[cancelOrderRestaurant] Refund initiated successfully: id=${order._id}, refundId=${tranzakResponse.refundId}`,
       );
       order.refundStatus = EnumRefundStatus.INITIATED;
+      order.refundDetails = {
+        refundId: tranzakResponse.refundId,
+        refundedTransactionId: tranzakResponse.refundedTransactionId,
+        amount: tranzakResponse.amount,
+        currencyCode: tranzakResponse.currencyCode,
+        status: tranzakResponse.status,
+        merchantRefundRef: tranzakResponse.merchantRefundRef,
+        note: tranzakResponse.note,
+        reasonCode: tranzakResponse.reasonCode.toString(),
+        createdAt: tranzakResponse.createdAt,
+        approvedAt: tranzakResponse.approvedAt,
+      };
       await order.save();
-    } else {
-      this.logger.warn(
-        `[cancelOrderRestaurant] Refund initiation failed: id=${order._id}, status=${response.status}, message: '${response.message}', data=${JSON.stringify(response.data)}`,
+    } catch (error) {
+      this.logger.error(
+        `[cancelOrderRestaurant] Tranzak refund creation failed: id=${order._id}`,
+        error.response?.data || error.message,
       );
       order.refundStatus = EnumRefundStatus.FAILED_TO_INITIATE;
       await order.save();
@@ -1014,30 +1023,31 @@ export class OrdersService {
 
     this.logger.log(`[pay] Proceeding to create charge for order ${orderId}`);
 
-    const flutterwavePayment = await this.flutterwaveService.createPayment({
-      tx_ref: order.id.toString(),
-      session_duration: env.flutterWaveMaxPaymentLinkValidityInHr * 60,
-      amount: order.pricing.totalAmountCollectedWithDelivery.toString(),
-      currency: EnumCurrency.XAF,
-      customer: {
-        email: (client.user as UserDocument).email,
-        name: (client.user as UserDocument).fullName,
-      },
-      customizations: {
+    const language =
+      (client.user as UserDocument).language ?? EnumUserLanguage.FR;
+    const itemCount = order.items.reduce((sum, item) => sum + item.quantity, 0);
+    const description =
+      language === EnumUserLanguage.FR
+        ? `${itemCount} menu${itemCount > 1 ? 's' : ''} commandé${itemCount > 1 ? 's' : ''} chez ${restaurant.name}`
+        : `${itemCount} menu${itemCount > 1 ? 's' : ''} ordered at ${restaurant.name}`;
+
+    const tranzakResponse = await this.tranzakService.createPayment({
+      amount: order.pricing.totalAmountCollectedWithDelivery,
+      description,
+      currencyCode: EnumTranzakCurrency.XAF,
+      mchTransactionRef: order.id.toString(),
+      returnUrl: `${env.clientFrontendUrl}/orders/${order.id}`,
+      cancelUrl: `${env.clientFrontendUrl}/orders/${order.id}`,
+      customization: {
         title: 'Chopme',
-      },
-      redirect_url: `${env.clientFrontendUrl}/orders/${order.id}`,
-      meta: {
-        orderId: order.id.toString(),
       },
     });
 
     order.status = EnumOrderStatus.PAYMENT_INITIATED;
     order.paymentDetails = {
-      link: flutterwavePayment.link,
-      validUntil: new Date(
-        Date.now() + env.flutterWaveMaxPaymentLinkValidityInHr * 60 * 60 * 1000,
-      ),
+      link: tranzakResponse.links.paymentAuthUrl,
+      requestId: tranzakResponse.requestId,
+      appId: tranzakResponse.appId,
     };
     order.statusTransitions = [
       ...order.statusTransitions,
@@ -1051,7 +1061,7 @@ export class OrdersService {
     }>({
       statusCode: EnumStatusCode.PAYMENT_INITIATED,
       data: {
-        url: flutterwavePayment.link,
+        url: tranzakResponse.links.paymentAuthUrl,
       },
       message: 'Payment flow initialized',
     });
