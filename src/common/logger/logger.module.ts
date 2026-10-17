@@ -11,12 +11,12 @@ import DailyRotateFile from 'winston-daily-rotate-file';
         // Console — for local development
         new winston.transports.Console({
           format: winston.format.combine(
-            winston.format.timestamp(),
-            winston.format.json(),
-
             // winston.format.timestamp(),
-            // winston.format.colorize(),
-            // winston.format.simple(),
+            // winston.format.json(),
+
+            winston.format.timestamp(),
+            winston.format.colorize(),
+            winston.format.simple(),
           ),
         }),
 

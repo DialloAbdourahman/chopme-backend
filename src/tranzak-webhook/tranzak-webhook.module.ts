@@ -1,6 +1,6 @@
 import { Module } from '@nestjs/common';
-import { FlwWebhookService } from './flw-webhook.service';
-import { FlwWebhookController } from './flw-webhook.controller';
+import { TranzakWebhookService } from './tranzak-webhook.service';
+import { TranzakWebhookController } from './tranzak-webhook.controller';
 import { MongooseModule } from '@nestjs/mongoose';
 import { Menu, MenuSchema } from 'src/menus/entities/menu.entity';
 import { Order, OrderSchema } from 'src/orders/entities/order.entity';
@@ -13,6 +13,14 @@ import {
   FcmToken,
   FcmTokenSchema,
 } from 'src/fcm-tokens/entities/fcm-token.entity';
+import {
+  TransferGroup,
+  TransferGroupSchema,
+} from 'src/transfers/entities/transfer-group.entity';
+import {
+  Transfer,
+  TransferSchema,
+} from 'src/transfers/entities/transfer.entity';
 
 @Module({
   imports: [
@@ -21,10 +29,12 @@ import {
       { name: Menu.name, schema: MenuSchema },
       { name: RestaurantMember.name, schema: RestaurantMemberSchema },
       { name: FcmToken.name, schema: FcmTokenSchema },
+      { name: TransferGroup.name, schema: TransferGroupSchema },
+      { name: Transfer.name, schema: TransferSchema },
     ]),
     WebSocketModule,
   ],
-  controllers: [FlwWebhookController],
-  providers: [FlwWebhookService],
+  controllers: [TranzakWebhookController],
+  providers: [TranzakWebhookService],
 })
-export class FlwWebhookModule {}
+export class TranzakWebhookModule {}

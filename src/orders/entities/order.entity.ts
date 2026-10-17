@@ -9,6 +9,7 @@ import { EnumOrderCancelledReason } from 'src/common/enums/order-cancelled-reaso
 import { EnumRefundStatus } from 'src/common/enums/refund-statuses';
 import { RestaurantMember } from 'src/restaurant-members/entities/restaurant-member.entity';
 import { Transfer } from 'src/transfers/entities/transfer.entity';
+import { TransferGroup } from 'src/transfers/entities/transfer-group.entity';
 
 export type OrderDocument = HydratedDocument<Order>;
 
@@ -44,25 +45,58 @@ export class MetaData {
 
 export class PaymentDetails {
   link: string;
-  validUntil: Date;
+  requestId: string;
+  appId: string;
 }
 
 export class PaymentWebhookDetails {
-  transactionId?: number;
+  webhookId?: string;
+  requestId?: string;
+  transactionId?: string;
+  partnerTransactionId?: string;
+  mchTransactionRef?: string;
+  transactionTime?: Date;
   amount?: number;
-  appFee?: number;
-  chargedAmount?: number;
-  currency?: string;
-  ip?: string;
-  merchantFee?: number;
-  paymentType?: string;
+  currencyCode?: string;
   status?: string;
-  txRef?: string;
-  flwRef?: string;
+  transactionStatus?: string;
+  mobileWalletNumber?: string;
+  paymentMethod?: string;
+  payerName?: string;
+  payerFee?: number;
+  netAmountPaid?: number;
+  merchantFee?: number;
+  netAmountReceived?: number;
+  errorCode?: number;
+  errorMessage?: string;
+}
+
+export class RefundDetails {
+  refundId?: string;
+  refundedTransactionId?: string;
+  amount?: number;
+  currencyCode?: string;
+  status?: string;
+  merchantRefundRef?: string;
+  note?: string;
+  reasonCode?: string;
+  createdAt?: string;
+  approvedAt?: string;
 }
 
 export class RefundWebhookDetails {
-  id?: number;
+  webhookId?: string;
+  refundId?: string;
+  refundedTransactionId?: string;
+  amount?: number;
+  currencyCode?: string;
+  status?: string;
+  merchantRefundRef?: string;
+  note?: string;
+  reasonCode?: number;
+  reason?: string;
+  createdAt?: string;
+  approvedAt?: string;
 }
 
 @Schema({ timestamps: true })
@@ -76,8 +110,13 @@ export class Order extends BaseSchema {
   @Prop({ type: Types.ObjectId, ref: RestaurantMember.name, required: false })
   cancelledByRestaurantMember?: Types.ObjectId | RestaurantMember;
 
-  @Prop({ type: Types.ObjectId, ref: Transfer.name, required: false })
-  transfer?: Types.ObjectId | Transfer;
+  @Prop({
+    type: Types.ObjectId,
+    ref: TransferGroup.name,
+    required: false,
+    index: true,
+  })
+  transferGroup?: Types.ObjectId | TransferGroup;
 
   @Prop({
     enum: EnumOrderStatus,
@@ -181,10 +220,13 @@ export class Order extends BaseSchema {
         type: String,
         required: true,
       },
-      validUntil: {
-        type: Date,
+      requestId: {
+        type: String,
         required: true,
-        default: Date.now,
+      },
+      appId: {
+        type: String,
+        required: true,
       },
     },
     _id: false,
@@ -194,17 +236,25 @@ export class Order extends BaseSchema {
 
   @Prop({
     type: {
-      transactionId: { type: Number, required: false },
+      webhookId: { type: String, required: false },
+      requestId: { type: String, required: false },
+      transactionId: { type: String, required: false },
+      partnerTransactionId: { type: String, required: false },
+      mchTransactionRef: { type: String, required: false },
+      transactionTime: { type: Date, required: false },
       amount: { type: Number, required: false },
-      appFee: { type: Number, required: false },
-      chargedAmount: { type: Number, required: false },
-      currency: { type: String, required: false },
-      ip: { type: String, required: false },
-      merchantFee: { type: Number, required: false },
-      paymentType: { type: String, required: false },
+      currencyCode: { type: String, required: false },
       status: { type: String, required: false },
-      txRef: { type: String, required: false },
-      flwRef: { type: String, required: false },
+      transactionStatus: { type: String, required: false },
+      mobileWalletNumber: { type: String, required: false },
+      paymentMethod: { type: String, required: false },
+      payerName: { type: String, required: false },
+      payerFee: { type: Number, required: false },
+      netAmountPaid: { type: Number, required: false },
+      merchantFee: { type: Number, required: false },
+      netAmountReceived: { type: Number, required: false },
+      errorCode: { type: Number, required: false },
+      errorMessage: { type: String, required: false },
     },
     _id: false,
     required: false,
@@ -213,7 +263,36 @@ export class Order extends BaseSchema {
 
   @Prop({
     type: {
-      id: { type: Number, required: false },
+      refundId: { type: String, required: false },
+      refundedTransactionId: { type: String, required: false },
+      amount: { type: Number, required: false },
+      currencyCode: { type: String, required: false },
+      status: { type: String, required: false },
+      merchantRefundRef: { type: String, required: false },
+      note: { type: String, required: false },
+      reasonCode: { type: String, required: false },
+      createdAt: { type: String, required: false },
+      approvedAt: { type: String, required: false },
+    },
+    _id: false,
+    required: false,
+  })
+  refundDetails: RefundDetails;
+
+  @Prop({
+    type: {
+      webhookId: { type: String, required: false },
+      refundId: { type: String, required: false },
+      refundedTransactionId: { type: String, required: false },
+      amount: { type: Number, required: false },
+      currencyCode: { type: String, required: false },
+      status: { type: String, required: false },
+      merchantRefundRef: { type: String, required: false },
+      note: { type: String, required: false },
+      reasonCode: { type: Number, required: false },
+      reason: { type: String, required: false },
+      createdAt: { type: String, required: false },
+      approvedAt: { type: String, required: false },
     },
     _id: false,
     required: false,

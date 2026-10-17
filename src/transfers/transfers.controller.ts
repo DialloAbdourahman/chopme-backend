@@ -62,4 +62,15 @@ export class TransfersController {
   ) {
     return this.transfersService.startTransfer({ transferId, user });
   }
+
+  @Post(':transferId/retry-transfer')
+  @HttpCode(HttpStatus.OK)
+  @UseGuards(AuthGuard, RoleGuard)
+  @Roles(EnumUserRole.ADMIN)
+  retryTransfer(
+    @Param('transferId') transferId: string,
+    @CurrentUser() user: ILoggedInUserTokenData,
+  ) {
+    return this.transfersService.retryTransfer({ transferId, user });
+  }
 }

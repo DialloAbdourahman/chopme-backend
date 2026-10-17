@@ -46,6 +46,17 @@ const NOTIFICATION_MESSAGES: NotificationMessagesMap = {
     },
   },
 
+  [EnumNotificationI18nType.ORDER_REFUNDED_CLIENT]: {
+    [EnumUserLanguage.FR]: {
+      title: 'Remboursement effectué',
+      body: 'Votre commande a été remboursée avec succès.',
+    },
+    [EnumUserLanguage.EN]: {
+      title: 'Refund processed',
+      body: 'Your order has been refunded successfully.',
+    },
+  },
+
   [EnumNotificationI18nType.ORDER_PAID_RESTAURANT]: {
     [EnumUserLanguage.FR]: {
       title: 'Nouvelle commande payée',
@@ -109,6 +120,17 @@ const NOTIFICATION_MESSAGES: NotificationMessagesMap = {
     [EnumUserLanguage.EN]: {
       title: 'Order update',
       body: 'Your order status has changed.',
+    },
+  },
+
+  [EnumNotificationI18nType.TRANSFER_COMPLETED_RESTAURANT]: {
+    [EnumUserLanguage.FR]: {
+      title: 'Paiement reçu',
+      body: 'Le paiement de vos gains a été effectué avec succès.',
+    },
+    [EnumUserLanguage.EN]: {
+      title: 'Payout received',
+      body: 'Your earnings payout has been completed successfully.',
     },
   },
 };
