@@ -993,27 +993,27 @@ export class TranzakWebhookService {
   }
 
   private async notifyTransferSuccess(transfer: TransferDocument) {
-    if (transfer.transferDirection !== EnumTransferDirection.RESTAURANT) {
-      return;
-    }
-
     let restaurantMemberUserIds: string[] = [];
-    try {
-      const usersToSend = await this.restaurantMemberModel
-        .find({
-          restaurant: transfer.restaurant,
-          role: EnumRestaurantMemberRole.OWNER,
-        })
-        .select('user');
-      restaurantMemberUserIds = usersToSend.map((item) => item.user.toString());
+    if (transfer.transferDirection === EnumTransferDirection.RESTAURANT) {
+      try {
+        const usersToSend = await this.restaurantMemberModel
+          .find({
+            restaurant: transfer.restaurant,
+            role: EnumRestaurantMemberRole.OWNER,
+          })
+          .select('user');
+        restaurantMemberUserIds = usersToSend.map((item) =>
+          item.user.toString(),
+        );
 
-      this.logger.log(
-        `[notifyTransferSuccess] Found ${restaurantMemberUserIds.length} restaurant member(s) to notify for transfer: id=${transfer._id}`,
-      );
-    } catch (error) {
-      this.logger.error(
-        `[notifyTransferSuccess] Failed to find restaurant members: ${error.message}`,
-      );
+        this.logger.log(
+          `[notifyTransferSuccess] Found ${restaurantMemberUserIds.length} restaurant member(s) to notify for transfer: id=${transfer._id}`,
+        );
+      } catch (error) {
+        this.logger.error(
+          `[notifyTransferSuccess] Failed to find restaurant members: ${error.message}`,
+        );
+      }
     }
 
     let adminUserIds: string[] = [];
