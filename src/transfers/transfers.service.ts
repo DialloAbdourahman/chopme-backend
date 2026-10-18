@@ -261,6 +261,11 @@ export class TransfersService {
       notifyAdmins: true,
     });
 
+    this.notifyTransferStatusChanged(restaurantTransfer, {
+      notifyRestaurantMembers: false,
+      notifyAdmins: true,
+    });
+
     const publicTransfer = plainToInstance(
       TransferPublicOutputDto,
       restaurantTransfer.toObject(),
