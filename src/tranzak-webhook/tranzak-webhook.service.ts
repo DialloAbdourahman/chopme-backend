@@ -35,9 +35,7 @@ import { ITranzakWebhookResponse } from 'src/common/interfaces/tranzak/response'
 import { EnumTranzakWebhookEventType } from 'src/common/enums/tranzak/event-type';
 import { ITranzakWebhookPaymentResponse } from 'src/common/interfaces/tranzak/payment';
 import { ITranzakWebhookRefundResponse } from 'src/common/interfaces/tranzak/refund';
-import { EnumTranzakPaymentStatus } from 'src/common/enums/tranzak/payment-status';
 import { EnumRefundStatus } from 'src/common/enums/refund-statuses';
-import { EnumTranzakWebhookRefundStatus } from 'src/common/enums/tranzak/refund-webhook-status';
 import { EnumTranzakWebhookStatus } from 'src/common/enums/tranzak/webhook-status';
 import { ITranzakWebhookTransferResponse } from 'src/common/interfaces/tranzak/transfer';
 import {
@@ -414,6 +412,185 @@ export class TranzakWebhookService {
         error.message,
       );
     });
+  }
+
+  private async processSuccessfulTransfer(
+    webhook: ITranzakWebhookResponse<ITranzakWebhookTransferResponse>,
+  ) {
+    const webhookData = webhook.resource;
+
+    this.logger.log(
+      `[processSuccessfulTransfer] Processing: transferId=${webhookData.transferId}, ref=${webhookData.customTransactionRef}`,
+    );
+
+    const transfer = await this.transferModel.findOne({
+      _id: webhookData.customTransactionRef,
+      deleted: false,
+    });
+
+    if (!transfer) {
+      this.logger.error(
+        `[processSuccessfulTransfer] Transfer not found: id=${webhookData.customTransactionRef}`,
+      );
+      throw new NotFoundException('Transfer not found');
+    }
+
+    if (transfer.status === EnumTransferStatuses.COMPLETED) {
+      this.logger.warn(
+        `[processSuccessfulTransfer] Transfer already completed, skipping. id=${transfer._id}`,
+      );
+      return;
+    }
+
+    const session = await this.connection.startSession();
+    session.startTransaction();
+
+    try {
+      transfer.status = EnumTransferStatuses.COMPLETED;
+      transfer.transferWebhookDetails =
+        this.buildTransferWebhookDetails(webhook);
+      await transfer.save({ session });
+
+      this.logger.log(
+        `[processSuccessfulTransfer] Transfer updated: id=${transfer._id}, status=${transfer.status}`,
+      );
+
+      if (transfer.transferDirection === EnumTransferDirection.RESTAURANT) {
+        const orderUpdateResult = await this.orderModel.updateMany(
+          { transferGroup: transfer.transferGroup },
+          {
+            $set: { status: EnumOrderStatus.DISBURSED },
+            $push: {
+              statusTransitions: {
+                status: EnumOrderStatus.DISBURSED,
+                timestamp: new Date(),
+              },
+            },
+          },
+          { session },
+        );
+
+        this.logger.log(
+          `[processSuccessfulTransfer] Marked ${orderUpdateResult.modifiedCount} order(s) as DISBURSED for transferGroup=${transfer.transferGroup}`,
+        );
+      }
+
+      await session.commitTransaction();
+      this.logger.log(
+        `[processSuccessfulTransfer] Transaction committed: transferId=${transfer._id}`,
+      );
+    } catch (error) {
+      if (session.inTransaction()) {
+        await session.abortTransaction();
+      }
+      this.logger.error(
+        `[processSuccessfulTransfer] Transaction aborted for transferId=${transfer._id}: ${error?.message}`,
+      );
+      throw error;
+    } finally {
+      session.endSession();
+    }
+
+    // Fire-and-forget: notification is non-critical and should not delay
+    // the webhook response.
+    this.notifyTransferSuccess(transfer).catch((error) => {
+      this.logger.error(
+        `[processSuccessfulTransfer] Failed to emit transfer success notification for transfer: id=${transfer._id}`,
+        error.message,
+      );
+    });
+  }
+
+  private async processFailedTransfer(
+    webhook: ITranzakWebhookResponse<ITranzakWebhookTransferResponse>,
+  ) {
+    const webhookData = webhook.resource;
+
+    this.logger.log(
+      `[processFailedTransfer] Processing: transferId=${webhookData.transferId}, ref=${webhookData.customTransactionRef}`,
+    );
+
+    const transfer = await this.transferModel.findOne({
+      _id: webhookData.customTransactionRef,
+      deleted: false,
+    });
+
+    if (!transfer) {
+      this.logger.error(
+        `[processFailedTransfer] Transfer not found: id=${webhookData.customTransactionRef}`,
+      );
+      throw new NotFoundException('Transfer not found');
+    }
+
+    if (
+      transfer.status === EnumTransferStatuses.FAILED ||
+      transfer.status === EnumTransferStatuses.COMPLETED
+    ) {
+      this.logger.warn(
+        `[processFailedTransfer] Transfer already in final status ${transfer.status}, skipping. id=${transfer._id}`,
+      );
+      return;
+    }
+
+    transfer.status = EnumTransferStatuses.FAILED;
+    transfer.transferWebhookDetails = this.buildTransferWebhookDetails(webhook);
+    await transfer.save();
+
+    this.logger.log(
+      `[processFailedTransfer] Transfer updated: id=${transfer._id}, status=${transfer.status}, error=${webhookData.errorMessage}`,
+    );
+
+    // Fire-and-forget: notification is non-critical and should not delay
+    // the webhook response.
+    this.notifyTransferFailure(transfer).catch((error) => {
+      this.logger.error(
+        `[processFailedTransfer] Failed to emit transfer failure notification for transfer: id=${transfer._id}`,
+        error.message,
+      );
+    });
+  }
+
+  private async processTopupTransfer(
+    webhook: ITranzakWebhookResponse<ITranzakWebhookTransferResponse>,
+  ) {
+    const webhookData = webhook.resource;
+
+    this.logger.log(
+      `[processTopupTransfer] Processing topup webhook: transferId=${webhookData.transferId}, status=${webhookData.status}, ref=${webhookData.customTransactionRef}`,
+    );
+
+    const transferGroup = await this.transferGroupModel.findOne({
+      _id: webhookData.customTransactionRef,
+      deleted: false,
+    });
+
+    if (!transferGroup) {
+      this.logger.error(
+        `[processTopupTransfer] Transfer group not found: transferGroupId=${webhookData.customTransactionRef}`,
+      );
+      throw new NotFoundException('Transfer group not found');
+    }
+
+    if (transferGroup.topupStatus === EnumTranzakTopupStatus.SUCCESSFUL) {
+      this.logger.warn(
+        `[processTopupTransfer] Topup already successful, skipping. transferGroupId=${transferGroup._id}`,
+      );
+      return;
+    }
+
+    if (webhookData.status === EnumTranzakWebhookStatus.SUCCESSFUL) {
+      transferGroup.topupStatus = EnumTranzakTopupStatus.SUCCESSFUL;
+    } else {
+      transferGroup.topupStatus = EnumTranzakTopupStatus.FAILED;
+    }
+
+    transferGroup.topupWebhookDetails =
+      this.buildTransferWebhookDetails(webhook);
+    await transferGroup.save();
+
+    this.logger.log(
+      `[processTopupTransfer] Updated transferGroup=${transferGroup._id} with topupStatus=${webhookData.status}`,
+    );
   }
 
   private async findRefundOrder(
@@ -810,146 +987,6 @@ export class TranzakWebhookService {
     );
   }
 
-  private buildPaymentWebhookDetails(
-    webhook: ITranzakWebhookResponse<ITranzakWebhookPaymentResponse>,
-  ): PaymentWebhookDetails {
-    const webhookData = webhook.resource;
-    const webhookId = webhook.webhookId;
-
-    return {
-      webhookId,
-      requestId: webhookData.requestId,
-      transactionId: webhookData.transactionId,
-      partnerTransactionId: webhookData.partnerTransactionId,
-      mchTransactionRef: webhookData.mchTransactionRef,
-      transactionTime: webhookData.transactionTime
-        ? new Date(webhookData.transactionTime)
-        : undefined,
-      amount: webhookData.amount,
-      currencyCode: webhookData.currencyCode,
-      status: webhookData.status,
-      transactionStatus: webhookData.transactionStatus,
-      mobileWalletNumber: webhookData.mobileWalletNumber ?? undefined,
-      paymentMethod: webhookData.payer?.paymentMethod,
-      payerName: webhookData.payer?.name,
-      payerFee: webhookData.payer?.fee,
-      netAmountPaid: webhookData.payer?.netAmountPaid,
-      merchantFee: webhookData.merchant?.fee,
-      netAmountReceived: webhookData.merchant?.netAmountReceived,
-      errorCode: webhookData.errorCode,
-      errorMessage: webhookData.errorMessage,
-    };
-  }
-
-  private buildRefundWebhookDetails(
-    webhook: ITranzakWebhookResponse<ITranzakWebhookRefundResponse>,
-  ): RefundWebhookDetails {
-    const webhookData = webhook.resource;
-    const webhookId = webhook.webhookId;
-
-    return {
-      webhookId,
-      refundId: webhookData.refundId,
-      refundedTransactionId: webhookData.refundedTransactionId,
-      amount: webhookData.amount,
-      currencyCode: webhookData.currencyCode,
-      status: webhookData.status,
-      merchantRefundRef: webhookData.merchantRefundRef ?? undefined,
-      note: webhookData.note,
-      reasonCode: webhookData.reasonCode,
-      reason: webhookData.reason,
-      createdAt: webhookData.createdAt,
-      approvedAt: webhookData.approvedAt,
-    };
-  }
-
-  private async processSuccessfulTransfer(
-    webhook: ITranzakWebhookResponse<ITranzakWebhookTransferResponse>,
-  ) {
-    const webhookData = webhook.resource;
-
-    this.logger.log(
-      `[processSuccessfulTransfer] Processing: transferId=${webhookData.transferId}, ref=${webhookData.customTransactionRef}`,
-    );
-
-    const transfer = await this.transferModel.findOne({
-      _id: webhookData.customTransactionRef,
-      deleted: false,
-    });
-
-    if (!transfer) {
-      this.logger.error(
-        `[processSuccessfulTransfer] Transfer not found: id=${webhookData.customTransactionRef}`,
-      );
-      throw new NotFoundException('Transfer not found');
-    }
-
-    if (transfer.status === EnumTransferStatuses.COMPLETED) {
-      this.logger.warn(
-        `[processSuccessfulTransfer] Transfer already completed, skipping. id=${transfer._id}`,
-      );
-      return;
-    }
-
-    const session = await this.connection.startSession();
-    session.startTransaction();
-
-    try {
-      transfer.status = EnumTransferStatuses.COMPLETED;
-      transfer.transferWebhookDetails =
-        this.buildTransferWebhookDetails(webhook);
-      await transfer.save({ session });
-
-      this.logger.log(
-        `[processSuccessfulTransfer] Transfer updated: id=${transfer._id}, status=${transfer.status}`,
-      );
-
-      if (transfer.transferDirection === EnumTransferDirection.RESTAURANT) {
-        const orderUpdateResult = await this.orderModel.updateMany(
-          { transferGroup: transfer.transferGroup },
-          {
-            $set: { status: EnumOrderStatus.DISBURSED },
-            $push: {
-              statusTransitions: {
-                status: EnumOrderStatus.DISBURSED,
-                timestamp: new Date(),
-              },
-            },
-          },
-          { session },
-        );
-
-        this.logger.log(
-          `[processSuccessfulTransfer] Marked ${orderUpdateResult.modifiedCount} order(s) as DISBURSED for transferGroup=${transfer.transferGroup}`,
-        );
-      }
-
-      await session.commitTransaction();
-      this.logger.log(
-        `[processSuccessfulTransfer] Transaction committed: transferId=${transfer._id}`,
-      );
-    } catch (error) {
-      if (session.inTransaction()) {
-        await session.abortTransaction();
-      }
-      this.logger.error(
-        `[processSuccessfulTransfer] Transaction aborted for transferId=${transfer._id}: ${error?.message}`,
-      );
-      throw error;
-    } finally {
-      session.endSession();
-    }
-
-    // Fire-and-forget: notification is non-critical and should not delay
-    // the webhook response.
-    this.notifyTransferSuccess(transfer).catch((error) => {
-      this.logger.error(
-        `[processSuccessfulTransfer] Failed to emit transfer success notification for transfer: id=${transfer._id}`,
-        error.message,
-      );
-    });
-  }
-
   private async notifyTransferSuccess(transfer: TransferDocument) {
     if (transfer.transferDirection !== EnumTransferDirection.RESTAURANT) {
       return;
@@ -1054,101 +1091,62 @@ export class TranzakWebhookService {
     }
   }
 
-  private async processFailedTransfer(
-    webhook: ITranzakWebhookResponse<ITranzakWebhookTransferResponse>,
-  ) {
-    const webhookData = webhook.resource;
-
-    this.logger.log(
-      `[processFailedTransfer] Processing: transferId=${webhookData.transferId}, ref=${webhookData.customTransactionRef}`,
-    );
-
-    const transfer = await this.transferModel.findOne({
-      _id: webhookData.customTransactionRef,
-      deleted: false,
-    });
-
-    if (!transfer) {
-      this.logger.error(
-        `[processFailedTransfer] Transfer not found: id=${webhookData.customTransactionRef}`,
-      );
-      throw new NotFoundException('Transfer not found');
-    }
-
-    if (
-      transfer.status === EnumTransferStatuses.FAILED ||
-      transfer.status === EnumTransferStatuses.COMPLETED
-    ) {
-      this.logger.warn(
-        `[processFailedTransfer] Transfer already in final status ${transfer.status}, skipping. id=${transfer._id}`,
-      );
-      return;
-    }
-
-    transfer.status = EnumTransferStatuses.FAILED;
-    transfer.transferWebhookDetails = this.buildTransferWebhookDetails(webhook);
-    await transfer.save();
-
-    this.logger.log(
-      `[processFailedTransfer] Transfer updated: id=${transfer._id}, status=${transfer.status}, error=${webhookData.errorMessage}`,
-    );
-
-    // Fire-and-forget: notification is non-critical and should not delay
-    // the webhook response.
-    this.notifyTransferFailure(transfer).catch((error) => {
-      this.logger.error(
-        `[processFailedTransfer] Failed to emit transfer failure notification for transfer: id=${transfer._id}`,
-        error.message,
-      );
-    });
-  }
-
   private async notifyTransferFailure(transfer: TransferDocument) {
     // TODO: notify the admin about this failed transfer so they can
     // investigate and retry the payout.
   }
 
-  private async processTopupTransfer(
-    webhook: ITranzakWebhookResponse<ITranzakWebhookTransferResponse>,
-  ) {
+  private buildPaymentWebhookDetails(
+    webhook: ITranzakWebhookResponse<ITranzakWebhookPaymentResponse>,
+  ): PaymentWebhookDetails {
     const webhookData = webhook.resource;
+    const webhookId = webhook.webhookId;
 
-    this.logger.log(
-      `[processTopupTransfer] Processing topup webhook: transferId=${webhookData.transferId}, status=${webhookData.status}, ref=${webhookData.customTransactionRef}`,
-    );
+    return {
+      webhookId,
+      requestId: webhookData.requestId,
+      transactionId: webhookData.transactionId,
+      partnerTransactionId: webhookData.partnerTransactionId,
+      mchTransactionRef: webhookData.mchTransactionRef,
+      transactionTime: webhookData.transactionTime
+        ? new Date(webhookData.transactionTime)
+        : undefined,
+      amount: webhookData.amount,
+      currencyCode: webhookData.currencyCode,
+      status: webhookData.status,
+      transactionStatus: webhookData.transactionStatus,
+      mobileWalletNumber: webhookData.mobileWalletNumber ?? undefined,
+      paymentMethod: webhookData.payer?.paymentMethod,
+      payerName: webhookData.payer?.name,
+      payerFee: webhookData.payer?.fee,
+      netAmountPaid: webhookData.payer?.netAmountPaid,
+      merchantFee: webhookData.merchant?.fee,
+      netAmountReceived: webhookData.merchant?.netAmountReceived,
+      errorCode: webhookData.errorCode,
+      errorMessage: webhookData.errorMessage,
+    };
+  }
 
-    const transferGroup = await this.transferGroupModel.findOne({
-      _id: webhookData.customTransactionRef,
-      deleted: false,
-    });
+  private buildRefundWebhookDetails(
+    webhook: ITranzakWebhookResponse<ITranzakWebhookRefundResponse>,
+  ): RefundWebhookDetails {
+    const webhookData = webhook.resource;
+    const webhookId = webhook.webhookId;
 
-    if (!transferGroup) {
-      this.logger.error(
-        `[processTopupTransfer] Transfer group not found: transferGroupId=${webhookData.customTransactionRef}`,
-      );
-      throw new NotFoundException('Transfer group not found');
-    }
-
-    if (transferGroup.topupStatus === EnumTranzakTopupStatus.SUCCESSFUL) {
-      this.logger.warn(
-        `[processTopupTransfer] Topup already successful, skipping. transferGroupId=${transferGroup._id}`,
-      );
-      return;
-    }
-
-    if (webhookData.status === EnumTranzakWebhookStatus.SUCCESSFUL) {
-      transferGroup.topupStatus = EnumTranzakTopupStatus.SUCCESSFUL;
-    } else {
-      transferGroup.topupStatus = EnumTranzakTopupStatus.FAILED;
-    }
-
-    transferGroup.topupWebhookDetails =
-      this.buildTransferWebhookDetails(webhook);
-    await transferGroup.save();
-
-    this.logger.log(
-      `[processTopupTransfer] Updated transferGroup=${transferGroup._id} with topupStatus=${webhookData.status}`,
-    );
+    return {
+      webhookId,
+      refundId: webhookData.refundId,
+      refundedTransactionId: webhookData.refundedTransactionId,
+      amount: webhookData.amount,
+      currencyCode: webhookData.currencyCode,
+      status: webhookData.status,
+      merchantRefundRef: webhookData.merchantRefundRef ?? undefined,
+      note: webhookData.note,
+      reasonCode: webhookData.reasonCode,
+      reason: webhookData.reason,
+      createdAt: webhookData.createdAt,
+      approvedAt: webhookData.approvedAt,
+    };
   }
 
   private buildTransferWebhookDetails(

@@ -4,7 +4,10 @@ import { InjectConnection, InjectModel } from '@nestjs/mongoose';
 import { Transfer, TransferDocument } from './entities/transfer.entity';
 import { Connection, Model, Types } from 'mongoose';
 import { Order, OrderDocument } from 'src/orders/entities/order.entity';
-import { TransferPublicOutputDto } from './dto/output/transfer-output.dto';
+import {
+  TransferPrivateOutputDto,
+  TransferPublicOutputDto,
+} from './dto/output/transfer-output.dto';
 import { EnumOrderStatus } from 'src/common/enums/order-status';
 import { OrchestrationException } from 'src/common/exceptions/orchestration.exception';
 import { EnumStatusCode } from 'src/common/enums/response-status-code';
@@ -29,11 +32,20 @@ import {
   TransferGroup,
   TransferGroupDocument,
 } from './entities/transfer-group.entity';
+import { INotification } from 'src/common/interfaces/notification';
+import { EnumNotificationType } from 'src/common/enums/notification-type';
+import { EnumWebSocketEventType } from 'src/common/enums/web-socket-events';
+import { EnumRestaurantMemberRole } from 'src/common/enums/restaurant-member-role';
+import { RestaurantMember } from 'src/restaurant-members/entities/restaurant-member.entity';
+import { WebSocketService } from 'src/web-socket/web-socket-service';
+import { User, UserDocument } from 'src/users/entities/user.entity';
+import { EnumUserRole } from 'src/common/enums/user-roles';
 
 @Injectable()
 export class TransfersService {
   private readonly logger = new Logger(TransfersService.name);
   constructor(
+    private readonly eventsGateway: WebSocketService,
     @InjectModel(Transfer.name)
     private readonly transferModel: Model<TransferDocument>,
     @InjectModel(TransferGroup.name)
@@ -42,6 +54,10 @@ export class TransfersService {
     private readonly orderModel: Model<OrderDocument>,
     @InjectModel(Restaurant.name)
     private readonly restaurantModel: Model<RestaurantDocument>,
+    @InjectModel(RestaurantMember.name)
+    private readonly restaurantMemberModel: Model<RestaurantMember>,
+    @InjectModel(User.name)
+    private readonly userModel: Model<UserDocument>,
     @InjectConnection()
     private readonly connection: Connection,
     private readonly tranzakService: TranzakService,
@@ -229,38 +245,21 @@ export class TransfersService {
         `[createTransfer] Ensuring topup for transferGroup=${transferGroup._id}`,
       );
 
-      const ensuredTransferGroupTopup = await this.ensureTopup(
-        transferGroup._id,
-      );
-
-      this.logger.log(
-        `[createTransfer] Topup ensured with status=${ensuredTransferGroupTopup.topupStatus}`,
-      );
-
-      if (
-        ensuredTransferGroupTopup.topupStatus ===
-        EnumTranzakTopupStatus.SUCCESSFUL
-      ) {
-        this.logger.log(
-          `[createTransfer] Topup successful, starting transfer initiation: restaurantTransferId=${restaurantTransfer._id}, platformTransferId=${platformTransfer._id}`,
-        );
-
-        await this.initiateTransfer(restaurantTransfer, restaurant);
-        await this.initiateTransfer(platformTransfer, restaurant);
-      } else {
-        this.logger.warn(
-          `[createTransfer] Topup not successful (status=${ensuredTransferGroupTopup.topupStatus}), skipping transfer initiation`,
-        );
-      }
+      await this.ensureTopup(transferGroup._id);
     } catch (error) {
       this.logger.error(
-        `[createTransfer] Failed to initiate transfer: ${error.message}`,
+        `[createTransfer] Failed to ensure topup: ${error.message}`,
       );
     }
 
     this.logger.log(
       `[createTransfer] Transfer creation completed: transferGroup=${transferGroup?._id}`,
     );
+
+    this.notifyTransferStatusChanged(platformTransfer, {
+      notifyRestaurantMembers: false,
+      notifyAdmins: true,
+    });
 
     const publicTransfer = plainToInstance(
       TransferPublicOutputDto,
@@ -342,6 +341,91 @@ export class TransfersService {
       statusCode: EnumStatusCode.RECOVERED_SUCCESSFULLY,
       data: paginatedResult,
       message: 'Restaurant transfers fetched successfully',
+    });
+  }
+
+  async getAdminTransfers({
+    page,
+    limit,
+    status,
+    transferDirection,
+  }: {
+    page: number;
+    limit: number;
+    status?: EnumTransferStatuses;
+    transferDirection?: EnumTransferDirection;
+  }) {
+    this.logger.log(
+      `[getAdminTransfers] Fetching transfers: page=${page}, limit=${limit}, status=${status}, transferDirection=${transferDirection}`,
+    );
+
+    if (status && !Object.values(EnumTransferStatuses).includes(status)) {
+      this.logger.warn(`[getAdminTransfers] Invalid status: ${status}`);
+      throw new OrchestrationException({
+        statusCode: EnumStatusCode.CANNOT_FILTER_WITH_STATUS,
+        message: `Cannot filter with status ${status}`,
+        code: 400,
+      });
+    }
+
+    if (
+      transferDirection &&
+      !Object.values(EnumTransferDirection).includes(transferDirection)
+    ) {
+      this.logger.warn(
+        `[getAdminTransfers] Invalid transferDirection: ${transferDirection}`,
+      );
+      throw new OrchestrationException({
+        statusCode: EnumStatusCode.CANNOT_FILTER_WITH_STATUS,
+        message: `Cannot filter with transfer direction ${transferDirection}`,
+        code: 400,
+      });
+    }
+
+    const filters: {
+      status?: EnumTransferStatuses;
+      transferDirection?: EnumTransferDirection;
+      deleted: boolean;
+    } = {
+      deleted: false,
+    };
+
+    if (status) {
+      filters.status = status;
+    }
+    if (transferDirection) {
+      filters.transferDirection = transferDirection;
+    }
+
+    const totalItems = await this.transferModel.countDocuments(filters);
+    const transfers = await this.transferModel
+      .find(filters)
+      .populate('restaurant')
+      .populate('transferGroup')
+      .sort({ createdAt: -1 })
+      .skip((page - 1) * limit)
+      .limit(limit)
+      .exec();
+
+    const totalPages = Math.ceil(totalItems / limit) || 1;
+    const privateTransfers = plainToInstance(
+      TransferPrivateOutputDto,
+      transfers.map((transfer) => transfer.toObject()),
+      { excludeExtraneousValues: true },
+    );
+
+    const paginatedResult: Pagination<TransferPrivateOutputDto> = {
+      items: privateTransfers,
+      page,
+      totalPages,
+      totalItems,
+      itemsPerPage: limit,
+    };
+
+    return OrchestrationResult.Success<Pagination<TransferPrivateOutputDto>>({
+      statusCode: EnumStatusCode.RECOVERED_SUCCESSFULLY,
+      data: paginatedResult,
+      message: 'Transfers fetched successfully',
     });
   }
 
@@ -631,7 +715,7 @@ export class TransfersService {
     });
   }
 
-  async initiateTransfer(
+  private async initiateTransfer(
     transfer: TransferDocument,
     restaurant: RestaurantDocument,
   ) {
@@ -678,6 +762,11 @@ export class TransfersService {
 
       transfer.status = EnumTransferStatuses.INITIATED;
       await transfer.save();
+      this.notifyTransferStatusChanged(transfer, {
+        notifyRestaurantMembers:
+          transfer.transferDirection === EnumTransferDirection.RESTAURANT,
+        notifyAdmins: true,
+      });
     } catch (error) {
       this.logger.error(
         `[initiateTransfer] Tranzak transfer failed: transferId=${transfer._id}`,
@@ -688,7 +777,7 @@ export class TransfersService {
     }
   }
 
-  async ensureTopup(
+  private async ensureTopup(
     transferGroupId: Types.ObjectId,
   ): Promise<TransferGroupDocument> {
     this.logger.log(
@@ -790,6 +879,95 @@ export class TransfersService {
       }
 
       throw error;
+    }
+  }
+
+  private async notifyTransferStatusChanged(
+    transfer: TransferDocument,
+    {
+      notifyRestaurantMembers = false,
+      notifyAdmins = false,
+    }: {
+      notifyRestaurantMembers?: boolean;
+      notifyAdmins?: boolean;
+    } = {},
+  ) {
+    const restaurantMemberIds = new Set<string>();
+    if (notifyRestaurantMembers) {
+      try {
+        const usersToSend = await this.restaurantMemberModel
+          .find({
+            restaurant: transfer.restaurant,
+            role: EnumRestaurantMemberRole.OWNER,
+          })
+          .select('user');
+        usersToSend.forEach((item) =>
+          restaurantMemberIds.add(item.user.toString()),
+        );
+
+        this.logger.log(
+          `[notifyTransferSuccess] Found ${restaurantMemberIds.size} restaurant member(s) to notify for transfer: id=${transfer._id}`,
+        );
+      } catch (error) {
+        this.logger.error(
+          `[notifyTransferSuccess] Failed to find restaurant members: ${error.message}`,
+        );
+      }
+    }
+
+    const adminIds = new Set<string>();
+    if (notifyAdmins) {
+      try {
+        const adminUsers = await this.userModel
+          .find({
+            role: EnumUserRole.ADMIN,
+            deleted: false,
+          })
+          .select('_id');
+        adminUsers.forEach((admin) => adminIds.add(admin._id.toString()));
+
+        this.logger.log(
+          `[notifyTransferSuccess] Found ${adminIds.size} admin(s) to notify for transfer: id=${transfer._id}`,
+        );
+      } catch (error) {
+        this.logger.error(
+          `[notifyTransferSuccess] Failed to find admin users: ${error.message}`,
+        );
+      }
+    }
+
+    if (restaurantMemberIds.size === 0 && adminIds.size === 0) {
+      return;
+    }
+
+    try {
+      const transferToSend = plainToInstance(
+        TransferPublicOutputDto,
+        transfer.toObject(),
+        { excludeExtraneousValues: true },
+      );
+      const notification: INotification<TransferPublicOutputDto> = {
+        type: EnumNotificationType.TRANSFER_STATUS_CHANGED,
+        data: transferToSend,
+      };
+      if (restaurantMemberIds.size > 0) {
+        this.eventsGateway.emitToUsers({
+          userIds: [...restaurantMemberIds],
+          event: EnumWebSocketEventType.RESTAURANT_APPLICATION,
+          data: notification,
+        });
+      }
+      if (adminIds.size > 0) {
+        this.eventsGateway.emitToUsers({
+          userIds: [...adminIds],
+          event: EnumWebSocketEventType.ADMIN_APPLICATION,
+          data: notification,
+        });
+      }
+    } catch (error) {
+      this.logger.error(
+        `[notifyTransferSuccess] Failed to emit transfer status notification: ${error.message}`,
+      );
     }
   }
 }
