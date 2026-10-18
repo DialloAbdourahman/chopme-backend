@@ -3,6 +3,7 @@ import { OrdersService } from './orders.service';
 import { OrdersController } from './orders.controller';
 import { MongooseModule } from '@nestjs/mongoose';
 import { Order, OrderSchema } from './entities/order.entity';
+import { Refund, RefundSchema } from './entities/refund.entity';
 import { Menu, MenuSchema } from 'src/menus/entities/menu.entity';
 import { Client } from 'src/clients/entities/client.entity';
 import {
@@ -18,6 +19,7 @@ import {
   imports: [
     MongooseModule.forFeature([
       { name: Order.name, schema: OrderSchema },
+      { name: Refund.name, schema: RefundSchema },
       { name: Menu.name, schema: MenuSchema },
       { name: Client.name, schema: MenuSchema },
       { name: Restaurant.name, schema: RestaurantSchema },

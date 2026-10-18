@@ -6,10 +6,10 @@ import { Restaurant } from 'src/restaurants/entities/restaurant.entity';
 import { Menu } from 'src/menus/entities/menu.entity';
 import { EnumOrderStatus } from 'src/common/enums/order-status';
 import { EnumOrderCancelledReason } from 'src/common/enums/order-cancelled-reason';
-import { EnumRefundStatus } from 'src/common/enums/refund-statuses';
 import { RestaurantMember } from 'src/restaurant-members/entities/restaurant-member.entity';
 import { Transfer } from 'src/transfers/entities/transfer.entity';
 import { TransferGroup } from 'src/transfers/entities/transfer-group.entity';
+import { Refund } from './refund.entity';
 
 export type OrderDocument = HydratedDocument<Order>;
 
@@ -71,34 +71,6 @@ export class PaymentWebhookDetails {
   errorMessage?: string;
 }
 
-export class RefundDetails {
-  refundId?: string;
-  refundedTransactionId?: string;
-  amount?: number;
-  currencyCode?: string;
-  status?: string;
-  merchantRefundRef?: string;
-  note?: string;
-  reasonCode?: string;
-  createdAt?: string;
-  approvedAt?: string;
-}
-
-export class RefundWebhookDetails {
-  webhookId?: string;
-  refundId?: string;
-  refundedTransactionId?: string;
-  amount?: number;
-  currencyCode?: string;
-  status?: string;
-  merchantRefundRef?: string;
-  note?: string;
-  reasonCode?: number;
-  reason?: string;
-  createdAt?: string;
-  approvedAt?: string;
-}
-
 @Schema({ timestamps: true })
 export class Order extends BaseSchema {
   @Prop({ type: Types.ObjectId, ref: Client.name, required: true })
@@ -126,12 +98,8 @@ export class Order extends BaseSchema {
   })
   status: EnumOrderStatus;
 
-  @Prop({
-    enum: EnumRefundStatus,
-    type: String,
-    required: false,
-  })
-  refundStatus?: EnumRefundStatus;
+  @Prop({ type: Types.ObjectId, ref: Refund.name, required: false })
+  refund?: Types.ObjectId | Refund;
 
   @Prop({
     type: [
@@ -260,44 +228,6 @@ export class Order extends BaseSchema {
     required: false,
   })
   paymentWebhookDetails: PaymentWebhookDetails;
-
-  @Prop({
-    type: {
-      refundId: { type: String, required: false },
-      refundedTransactionId: { type: String, required: false },
-      amount: { type: Number, required: false },
-      currencyCode: { type: String, required: false },
-      status: { type: String, required: false },
-      merchantRefundRef: { type: String, required: false },
-      note: { type: String, required: false },
-      reasonCode: { type: String, required: false },
-      createdAt: { type: String, required: false },
-      approvedAt: { type: String, required: false },
-    },
-    _id: false,
-    required: false,
-  })
-  refundDetails: RefundDetails;
-
-  @Prop({
-    type: {
-      webhookId: { type: String, required: false },
-      refundId: { type: String, required: false },
-      refundedTransactionId: { type: String, required: false },
-      amount: { type: Number, required: false },
-      currencyCode: { type: String, required: false },
-      status: { type: String, required: false },
-      merchantRefundRef: { type: String, required: false },
-      note: { type: String, required: false },
-      reasonCode: { type: Number, required: false },
-      reason: { type: String, required: false },
-      createdAt: { type: String, required: false },
-      approvedAt: { type: String, required: false },
-    },
-    _id: false,
-    required: false,
-  })
-  refundWebhookDetails: RefundWebhookDetails;
 
   @Prop({
     type: {

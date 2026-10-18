@@ -1,6 +1,6 @@
 import { Injectable, Logger } from '@nestjs/common';
-import { InjectModel } from '@nestjs/mongoose';
-import { Model, Types } from 'mongoose';
+import { InjectConnection, InjectModel } from '@nestjs/mongoose';
+import { Connection, Model, Types } from 'mongoose';
 import { CreateOrderDto } from './dto/input/create-order.dto';
 import { ILoggedInUserTokenData } from 'src/common/interfaces/loggedin-user-token-data';
 import { Menu, MenuDocument } from 'src/menus/entities/menu.entity';
@@ -13,6 +13,7 @@ import {
 } from 'src/restaurants/entities/restaurant.entity';
 import { env } from 'src/config/env';
 import { Order, OrderDocument, OrderItem } from './entities/order.entity';
+import { Refund, RefundDocument } from './entities/refund.entity';
 import { computePriceWithPlatformPercentage } from 'src/common/utils/compute-price-with-platform-percentage';
 import { plainToInstance } from 'class-transformer';
 import {
@@ -68,6 +69,10 @@ export class OrdersService {
     private readonly orderModel: Model<OrderDocument>,
     @InjectModel(FcmToken.name)
     private readonly fcmTokenModel: Model<FcmTokenDocument>,
+    @InjectModel(Refund.name)
+    private readonly refundModel: Model<RefundDocument>,
+    @InjectConnection()
+    private readonly connection: Connection,
 
     private readonly tranzakService: TranzakService,
     private readonly eventsGateway: WebSocketService,
@@ -564,24 +569,54 @@ export class OrdersService {
       `[cancelOrderRestaurant] Cancelling order: id=${order._id}, restaurantId=${user.restaurantId}`,
     );
 
-    order.status = EnumOrderStatus.CANCELLED_BY_RESTAURANT;
-    order.cancelledAt = new Date();
-    order.cancelledByRestaurantMember = new Types.ObjectId(
-      user.restaurantMemberId,
-    );
-    order.orderCancelReason = reason;
-    order.statusTransitions = [
-      ...order.statusTransitions,
-      {
-        status: EnumOrderStatus.CANCELLED_BY_RESTAURANT,
-        timestamp: new Date(),
-      },
-    ];
+    const session = await this.connection.startSession();
+    session.startTransaction();
 
-    await order.save();
+    let refund: RefundDocument;
+
+    try {
+      refund = new this.refundModel({
+        order: order._id,
+        createdBy: order.createdBy,
+        transactionId:
+          order?.paymentWebhookDetails?.transactionId?.toString() || '',
+      });
+      await refund.save({ session });
+
+      order.status = EnumOrderStatus.CANCELLED_BY_RESTAURANT;
+      order.cancelledAt = new Date();
+      order.cancelledByRestaurantMember = new Types.ObjectId(
+        user.restaurantMemberId,
+      );
+      order.orderCancelReason = reason;
+      order.refund = refund._id;
+      order.statusTransitions = [
+        ...order.statusTransitions,
+        {
+          status: EnumOrderStatus.CANCELLED_BY_RESTAURANT,
+          timestamp: new Date(),
+        },
+      ];
+      await order.save({ session });
+
+      await session.commitTransaction();
+      this.logger.log(
+        `[cancelOrderRestaurant] Order cancelled and refund created: id=${order._id}, status=${order.status}, refundId=${refund._id}`,
+      );
+    } catch (error) {
+      if (session.inTransaction()) {
+        await session.abortTransaction();
+      }
+      this.logger.error(
+        `[cancelOrderRestaurant] Transaction aborted for orderId=${orderId}: ${error?.message}`,
+      );
+      throw error;
+    } finally {
+      session.endSession();
+    }
 
     this.logger.log(
-      `[cancelOrderRestaurant] Order cancelled successfully: id=${order._id}, status=${order.status} and initiating refund.`,
+      `[cancelOrderRestaurant] Initiating Tranzak refund: id=${order._id}, refundId=${refund._id}`,
     );
 
     try {
@@ -589,15 +624,15 @@ export class OrdersService {
         refundedTransactionId:
           order?.paymentWebhookDetails?.transactionId?.toString() || '',
         reasonCode: EnumTranzakRefundReasonCode.DEFICIENT_PRODUCT_OR_SERVICE,
-        merchantRefundNumber: order.id.toString(),
+        merchantRefundNumber: refund.id.toString(),
         note: 'Order cancelled by restaurant',
       });
 
       this.logger.log(
         `[cancelOrderRestaurant] Refund initiated successfully: id=${order._id}, refundId=${tranzakResponse.refundId}`,
       );
-      order.refundStatus = EnumRefundStatus.INITIATED;
-      order.refundDetails = {
+      refund.status = EnumRefundStatus.INITIATED;
+      refund.refundDetails = {
         refundId: tranzakResponse.refundId,
         refundedTransactionId: tranzakResponse.refundedTransactionId,
         amount: tranzakResponse.amount,
@@ -609,14 +644,14 @@ export class OrdersService {
         createdAt: tranzakResponse.createdAt,
         approvedAt: tranzakResponse.approvedAt,
       };
-      await order.save();
+      await refund.save();
     } catch (error) {
       this.logger.error(
-        `[cancelOrderRestaurant] Tranzak refund creation failed: id=${order._id}`,
+        `[cancelOrderRestaurant] Tranzak refund creation failed: id=${order._id}, refundId=${refund._id}`,
         error.response?.data || error.message,
       );
-      order.refundStatus = EnumRefundStatus.FAILED_TO_INITIATE;
-      await order.save();
+      refund.status = EnumRefundStatus.FAILED_TO_INITIATE;
+      await refund.save();
     }
 
     const orderObject = order.toObject();

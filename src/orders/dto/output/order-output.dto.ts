@@ -116,7 +116,8 @@ abstract class OrderOutputDto {
   status: string;
 
   @Expose()
-  refundStatus;
+  @Transform(({ obj }) => obj.refund?._id?.toString() || obj.refund?.toString())
+  refundId?: string;
 
   @Expose()
   distanceKm: number;
