@@ -31,6 +31,14 @@ export class TransferPublicOutputDto {
   transferDirection: EnumTransferDirection;
 
   @Expose()
+  @Transform(
+    ({ obj }) =>
+      obj.retriedFromTransferId?._id?.toString() ||
+      obj.retriedFromTransferId?.toString(),
+  )
+  retriedFromTransferId?: string;
+
+  @Expose()
   createdAt: Date;
 
   @Expose()
@@ -51,14 +59,6 @@ export class TransferPrivateOutputDto extends TransferPublicOutputDto {
   @Expose()
   @Type(() => TransferGroupOutputDto)
   transferGroup: TransferGroupOutputDto;
-
-  @Expose()
-  @Transform(
-    ({ obj }) =>
-      obj.retriedFromTransferId?._id?.toString() ||
-      obj.retriedFromTransferId?.toString(),
-  )
-  retriedFromTransferId?: string;
 
   @Expose()
   deletedAt: Date | null;

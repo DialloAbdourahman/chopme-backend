@@ -941,27 +941,40 @@ export class TransfersService {
     }
 
     try {
-      const transferToSend = plainToInstance(
-        TransferPublicOutputDto,
-        transfer.toObject(),
-        { excludeExtraneousValues: true },
-      );
-      const notification: INotification<TransferPublicOutputDto> = {
-        type: EnumNotificationType.TRANSFER_STATUS_CHANGED,
-        data: transferToSend,
-      };
       if (restaurantMemberIds.size > 0) {
+        const restaurantTransferToSend = plainToInstance(
+          TransferPublicOutputDto,
+          transfer.toObject(),
+          { excludeExtraneousValues: true },
+        );
+        const restaurantNotification: INotification<TransferPublicOutputDto> = {
+          type: EnumNotificationType.TRANSFER_STATUS_CHANGED,
+          data: restaurantTransferToSend,
+        };
         this.eventsGateway.emitToUsers({
           userIds: [...restaurantMemberIds],
           event: EnumWebSocketEventType.RESTAURANT_APPLICATION,
-          data: notification,
+          data: restaurantNotification,
         });
       }
       if (adminIds.size > 0) {
+        const populatedTransfer = await transfer.populate([
+          'restaurant',
+          'transferGroup',
+        ]);
+        const adminTransferToSend = plainToInstance(
+          TransferPrivateOutputDto,
+          populatedTransfer.toObject(),
+          { excludeExtraneousValues: true },
+        );
+        const adminNotification: INotification<TransferPrivateOutputDto> = {
+          type: EnumNotificationType.TRANSFER_STATUS_CHANGED,
+          data: adminTransferToSend,
+        };
         this.eventsGateway.emitToUsers({
           userIds: [...adminIds],
           event: EnumWebSocketEventType.ADMIN_APPLICATION,
-          data: notification,
+          data: adminNotification,
         });
       }
     } catch (error) {
