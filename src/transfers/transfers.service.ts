@@ -525,15 +525,23 @@ export class TransfersService {
 
     await this.initiateTransfer(transfer, restaurant);
 
-    const publicTransfer = plainToInstance(
-      TransferPublicOutputDto,
+    this.notifyTransferStatusChanged(transfer, {
+      notifyRestaurantMembers:
+        transfer.transferDirection === EnumTransferDirection.RESTAURANT,
+      notifyAdmins: false,
+    });
+
+    await transfer.populate(['restaurant', 'transferGroup']);
+
+    const privateTransfer = plainToInstance(
+      TransferPrivateOutputDto,
       transfer.toObject(),
       { excludeExtraneousValues: true },
     );
 
-    return OrchestrationResult.Success<TransferPublicOutputDto>({
+    return OrchestrationResult.Success<TransferPrivateOutputDto>({
       statusCode: EnumStatusCode.STARTED_SUCCESSFULLY,
-      data: publicTransfer,
+      data: privateTransfer,
       message: 'Transfer started successfully',
     });
   }
@@ -707,15 +715,23 @@ export class TransfersService {
 
     await this.initiateTransfer(newTransfer, restaurant);
 
-    const publicTransfer = plainToInstance(
-      TransferPublicOutputDto,
+    this.notifyTransferStatusChanged(transfer, {
+      notifyRestaurantMembers:
+        transfer.transferDirection === EnumTransferDirection.RESTAURANT,
+      notifyAdmins: false,
+    });
+
+    await newTransfer.populate(['restaurant', 'transferGroup']);
+
+    const privateTransfer = plainToInstance(
+      TransferPrivateOutputDto,
       newTransfer.toObject(),
       { excludeExtraneousValues: true },
     );
 
-    return OrchestrationResult.Success<TransferPublicOutputDto>({
+    return OrchestrationResult.Success<TransferPrivateOutputDto>({
       statusCode: EnumStatusCode.STARTED_SUCCESSFULLY,
-      data: publicTransfer,
+      data: privateTransfer,
       message: 'Transfer retried successfully',
     });
   }
@@ -767,11 +783,6 @@ export class TransfersService {
 
       transfer.status = EnumTransferStatuses.INITIATED;
       await transfer.save();
-      this.notifyTransferStatusChanged(transfer, {
-        notifyRestaurantMembers:
-          transfer.transferDirection === EnumTransferDirection.RESTAURANT,
-        notifyAdmins: true,
-      });
     } catch (error) {
       this.logger.error(
         `[initiateTransfer] Tranzak transfer failed: transferId=${transfer._id}`,
