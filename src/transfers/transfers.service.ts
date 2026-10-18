@@ -715,9 +715,9 @@ export class TransfersService {
 
     await this.initiateTransfer(newTransfer, restaurant);
 
-    this.notifyTransferStatusChanged(transfer, {
+    this.notifyTransferStatusChanged(newTransfer, {
       notifyRestaurantMembers:
-        transfer.transferDirection === EnumTransferDirection.RESTAURANT,
+        newTransfer.transferDirection === EnumTransferDirection.RESTAURANT,
       notifyAdmins: false,
     });
 
