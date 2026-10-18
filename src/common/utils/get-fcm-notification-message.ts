@@ -133,6 +133,39 @@ const NOTIFICATION_MESSAGES: NotificationMessagesMap = {
       body: 'Your earnings payout has been completed successfully.',
     },
   },
+
+  [EnumNotificationI18nType.TRANSFER_FAILED_RESTAURANT]: {
+    [EnumUserLanguage.FR]: {
+      title: 'Paiement échoué',
+      body: 'Le transfert de vos gains a échoué. Notre équipe a été notifiée.',
+    },
+    [EnumUserLanguage.EN]: {
+      title: 'Payout failed',
+      body: 'Your earnings payout has failed. Our team has been notified.',
+    },
+  },
+
+  [EnumNotificationI18nType.TRANSFER_COMPLETED_ADMIN]: {
+    [EnumUserLanguage.FR]: {
+      title: 'Transfert terminé',
+      body: 'Le transfert des gains vers un restaurant a été effectué avec succès.',
+    },
+    [EnumUserLanguage.EN]: {
+      title: 'Transfer completed',
+      body: 'A restaurant earnings transfer was completed successfully.',
+    },
+  },
+
+  [EnumNotificationI18nType.TRANSFER_FAILED_ADMIN]: {
+    [EnumUserLanguage.FR]: {
+      title: 'Transfert échoué',
+      body: 'Un transfert vers un restaurant a échoué. Veuillez vérifier et réessayer.',
+    },
+    [EnumUserLanguage.EN]: {
+      title: 'Transfer failed',
+      body: 'A restaurant earnings transfer has failed. Please review and retry.',
+    },
+  },
 };
 
 export function getNotificationMessage(

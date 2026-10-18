@@ -21,6 +21,7 @@ import {
   Transfer,
   TransferSchema,
 } from 'src/transfers/entities/transfer.entity';
+import { User, UserSchema } from 'src/users/entities/user.entity';
 
 @Module({
   imports: [
@@ -31,6 +32,7 @@ import {
       { name: FcmToken.name, schema: FcmTokenSchema },
       { name: TransferGroup.name, schema: TransferGroupSchema },
       { name: Transfer.name, schema: TransferSchema },
+      { name: User.name, schema: UserSchema },
     ]),
     WebSocketModule,
   ],

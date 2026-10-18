@@ -27,6 +27,7 @@ import {
   FcmTokenDocument,
 } from 'src/fcm-tokens/entities/fcm-token.entity';
 import { User } from 'src/users/entities/user.entity';
+import { EnumUserRole } from 'src/common/enums/user-roles';
 import { EnumUserLanguage } from 'src/common/enums/user-language';
 import { EnumNotificationI18nType } from 'src/common/enums/notification-internationalization-type';
 import { getNotificationMessage } from 'src/common/utils/get-fcm-notification-message';
@@ -43,7 +44,10 @@ import {
   TransferDocument,
   TransferWebhookDetails,
 } from 'src/transfers/entities/transfer.entity';
-import { TransferPublicOutputDto } from 'src/transfers/dto/output/transfer-output.dto';
+import {
+  TransferPrivateOutputDto,
+  TransferPublicOutputDto,
+} from 'src/transfers/dto/output/transfer-output.dto';
 import {
   TransferGroup,
   TransferGroupDocument,
@@ -70,6 +74,7 @@ export class TranzakWebhookService {
     private readonly transferGroupModel: Model<TransferGroupDocument>,
     @InjectModel(Transfer.name)
     private readonly transferModel: Model<TransferDocument>,
+    @InjectModel(User.name) private readonly userModel: Model<User>,
     @InjectConnection()
     private readonly connection: Connection,
   ) {}
@@ -1011,36 +1016,205 @@ export class TranzakWebhookService {
       );
     }
 
-    if (restaurantMemberUserIds.length === 0) {
+    let adminUserIds: string[] = [];
+    try {
+      const adminUsers = await this.userModel
+        .find({
+          role: EnumUserRole.ADMIN,
+          deleted: false,
+        })
+        .select('_id');
+      adminUserIds = adminUsers.map((admin) => admin._id.toString());
+
+      this.logger.log(
+        `[notifyTransferSuccess] Found ${adminUserIds.length} admin(s) to notify for transfer: id=${transfer._id}`,
+      );
+    } catch (error) {
+      this.logger.error(
+        `[notifyTransferSuccess] Failed to find admin users: ${error.message}`,
+      );
+    }
+
+    if (restaurantMemberUserIds.length === 0 && adminUserIds.length === 0) {
       return;
     }
 
     try {
-      const transferToSend = plainToInstance(
-        TransferPublicOutputDto,
-        transfer.toObject(),
-        { excludeExtraneousValues: true },
-      );
-      const notification: INotification<TransferPublicOutputDto> = {
-        type: EnumNotificationType.TRANSFER_STATUS_CHANGED,
-        data: transferToSend,
-      };
-      this.eventsGateway.emitToUsers({
-        userIds: restaurantMemberUserIds,
-        event: EnumWebSocketEventType.RESTAURANT_APPLICATION,
-        data: notification,
-      });
+      if (restaurantMemberUserIds.length > 0) {
+        const transferToSend = plainToInstance(
+          TransferPublicOutputDto,
+          transfer.toObject(),
+          { excludeExtraneousValues: true },
+        );
+        const notification: INotification<TransferPublicOutputDto> = {
+          type: EnumNotificationType.TRANSFER_STATUS_CHANGED,
+          data: transferToSend,
+        };
+        this.eventsGateway.emitToUsers({
+          userIds: restaurantMemberUserIds,
+          event: EnumWebSocketEventType.RESTAURANT_APPLICATION,
+          data: notification,
+        });
+      }
+      if (adminUserIds.length > 0) {
+        const populatedTransfer = await transfer.populate([
+          'restaurant',
+          'transferGroup',
+        ]);
+        const adminTransferToSend = plainToInstance(
+          TransferPrivateOutputDto,
+          populatedTransfer.toObject(),
+          { excludeExtraneousValues: true },
+        );
+        const adminNotification: INotification<TransferPrivateOutputDto> = {
+          type: EnumNotificationType.TRANSFER_STATUS_CHANGED,
+          data: adminTransferToSend,
+        };
+        this.eventsGateway.emitToUsers({
+          userIds: adminUserIds,
+          event: EnumWebSocketEventType.ADMIN_APPLICATION,
+          data: adminNotification,
+        });
+      }
     } catch (error) {
       this.logger.error(
-        `[notifyTransferSuccess] Failed to emit restaurant member notification: ${error.message}`,
+        `[notifyTransferSuccess] Failed to emit transfer notification: ${error.message}`,
       );
+    }
+
+    await this.sendTransferFcm(
+      transfer,
+      restaurantMemberUserIds,
+      EnumNotificationI18nType.TRANSFER_COMPLETED_RESTAURANT,
+      `${env.restaurantFrontendUrl}/payments`,
+    );
+    await this.sendTransferFcm(
+      transfer,
+      adminUserIds,
+      EnumNotificationI18nType.TRANSFER_COMPLETED_ADMIN,
+      `${env.adminFrontendUrl}/transfers`,
+    );
+  }
+
+  private async notifyTransferFailure(transfer: TransferDocument) {
+    let restaurantMemberUserIds: string[] = [];
+    if (transfer.transferDirection === EnumTransferDirection.RESTAURANT) {
+      try {
+        const usersToSend = await this.restaurantMemberModel
+          .find({
+            restaurant: transfer.restaurant,
+            role: EnumRestaurantMemberRole.OWNER,
+          })
+          .select('user');
+        restaurantMemberUserIds = usersToSend.map((item) =>
+          item.user.toString(),
+        );
+
+        this.logger.log(
+          `[notifyTransferFailure] Found ${restaurantMemberUserIds.length} restaurant member(s) to notify for transfer: id=${transfer._id}`,
+        );
+      } catch (error) {
+        this.logger.error(
+          `[notifyTransferFailure] Failed to find restaurant members: ${error.message}`,
+        );
+      }
+    }
+
+    let adminUserIds: string[] = [];
+    try {
+      const adminUsers = await this.userModel
+        .find({
+          role: EnumUserRole.ADMIN,
+          deleted: false,
+        })
+        .select('_id');
+      adminUserIds = adminUsers.map((admin) => admin._id.toString());
+
+      this.logger.log(
+        `[notifyTransferFailure] Found ${adminUserIds.length} admin(s) to notify for transfer: id=${transfer._id}`,
+      );
+    } catch (error) {
+      this.logger.error(
+        `[notifyTransferFailure] Failed to find admin users: ${error.message}`,
+      );
+    }
+
+    if (restaurantMemberUserIds.length === 0 && adminUserIds.length === 0) {
+      return;
+    }
+
+    try {
+      if (restaurantMemberUserIds.length > 0) {
+        const transferToSend = plainToInstance(
+          TransferPublicOutputDto,
+          transfer.toObject(),
+          { excludeExtraneousValues: true },
+        );
+        const notification: INotification<TransferPublicOutputDto> = {
+          type: EnumNotificationType.TRANSFER_STATUS_CHANGED,
+          data: transferToSend,
+        };
+        this.eventsGateway.emitToUsers({
+          userIds: restaurantMemberUserIds,
+          event: EnumWebSocketEventType.RESTAURANT_APPLICATION,
+          data: notification,
+        });
+      }
+      if (adminUserIds.length > 0) {
+        const populatedTransfer = await transfer.populate([
+          'restaurant',
+          'transferGroup',
+        ]);
+        const adminTransferToSend = plainToInstance(
+          TransferPrivateOutputDto,
+          populatedTransfer.toObject(),
+          { excludeExtraneousValues: true },
+        );
+        const adminNotification: INotification<TransferPrivateOutputDto> = {
+          type: EnumNotificationType.TRANSFER_STATUS_CHANGED,
+          data: adminTransferToSend,
+        };
+        this.eventsGateway.emitToUsers({
+          userIds: adminUserIds,
+          event: EnumWebSocketEventType.ADMIN_APPLICATION,
+          data: adminNotification,
+        });
+      }
+    } catch (error) {
+      this.logger.error(
+        `[notifyTransferFailure] Failed to emit transfer notification: ${error.message}`,
+      );
+    }
+
+    await this.sendTransferFcm(
+      transfer,
+      restaurantMemberUserIds,
+      EnumNotificationI18nType.TRANSFER_FAILED_RESTAURANT,
+      `${env.restaurantFrontendUrl}/payments`,
+    );
+    await this.sendTransferFcm(
+      transfer,
+      adminUserIds,
+      EnumNotificationI18nType.TRANSFER_FAILED_ADMIN,
+      `${env.adminFrontendUrl}/transfers`,
+    );
+  }
+
+  private async sendTransferFcm(
+    transfer: TransferDocument,
+    userIds: string[],
+    i18nType: EnumNotificationI18nType,
+    clickAction: string,
+  ) {
+    if (userIds.length === 0) {
+      return;
     }
 
     try {
       const installations = await this.fcmTokenModel
         .find({
           user: {
-            $in: restaurantMemberUserIds.map((id) => new Types.ObjectId(id)),
+            $in: userIds.map((id) => new Types.ObjectId(id)),
           },
         })
         .populate<{ user: User }>('user')
@@ -1048,7 +1222,7 @@ export class TranzakWebhookService {
 
       if (installations.length === 0) {
         this.logger.log(
-          `[notifyTransferSuccess] No FCM installations for restaurant members of transfer: id=${transfer._id}`,
+          `[sendTransferFcm] No FCM installations for users of transfer: id=${transfer._id}`,
         );
         return;
       }
@@ -1064,36 +1238,28 @@ export class TranzakWebhookService {
       const transferId = transfer._id.toString();
 
       for (const [language, installationIds] of languageGroups) {
-        const { title, body } = getNotificationMessage(
-          EnumNotificationI18nType.TRANSFER_COMPLETED_RESTAURANT,
-          language,
-        );
+        const { title, body } = getNotificationMessage(i18nType, language);
         const fcmResults = await this.fcmService.sendToDevices(
           installationIds,
           {
             title,
             body,
             data: {
-              click_action: `${env.restaurantFrontendUrl}/payments`,
+              click_action: clickAction,
               transferId,
             },
           },
         );
         this.logger.log(
-          `[notifyTransferSuccess] FCM transfer notification sent (${language}): ${JSON.stringify(fcmResults)}`,
+          `[sendTransferFcm] FCM transfer notification sent (${language}): ${JSON.stringify(fcmResults)}`,
         );
       }
     } catch (error) {
       this.logger.error(
-        `[notifyTransferSuccess] Failed to send FCM notification for transfer: id=${transfer._id}`,
+        `[sendTransferFcm] Failed to send FCM notification for transfer: id=${transfer._id}`,
         error.message,
       );
     }
-  }
-
-  private async notifyTransferFailure(transfer: TransferDocument) {
-    // TODO: notify the admin about this failed transfer so they can
-    // investigate and retry the payout.
   }
 
   private buildPaymentWebhookDetails(
