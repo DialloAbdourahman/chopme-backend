@@ -7,8 +7,12 @@ import {
   Order,
   OrderDocument,
   PaymentWebhookDetails,
-  RefundWebhookDetails,
 } from 'src/orders/entities/order.entity';
+import {
+  Refund,
+  RefundDocument,
+  RefundWebhookDetails,
+} from 'src/orders/entities/refund.entity';
 import { EnumOrderStatus } from 'src/common/enums/order-status';
 import { WebSocketService } from 'src/web-socket/web-socket-service';
 import { EnumWebSocketEventType } from 'src/common/enums/web-socket-events';
@@ -16,6 +20,10 @@ import {
   OrderClientOutputDto,
   OrderRestaurantOutputDto,
 } from 'src/orders/dto/output/order-output.dto';
+import {
+  RefundPrivateOutputDto,
+  RefundPublicOutputDto,
+} from 'src/orders/dto/output/refund-output.dto';
 import { plainToInstance } from 'class-transformer';
 import { RestaurantMember } from 'src/restaurant-members/entities/restaurant-member.entity';
 import { EnumRestaurantMemberRole } from 'src/common/enums/restaurant-member-role';
@@ -75,6 +83,8 @@ export class TranzakWebhookService {
     @InjectModel(Transfer.name)
     private readonly transferModel: Model<TransferDocument>,
     @InjectModel(User.name) private readonly userModel: Model<User>,
+    @InjectModel(Refund.name)
+    private readonly refundModel: Model<RefundDocument>,
     @InjectConnection()
     private readonly connection: Connection,
   ) {}
@@ -317,46 +327,46 @@ export class TranzakWebhookService {
       `[TranzakWebhookService] Processing successful refund: refundId=${webhookData.refundId}, refundedTransactionId=${webhookData.refundedTransactionId}, amount=${webhookData.amount} ${webhookData.currencyCode}`,
     );
 
-    const order = await this.findRefundOrder(webhookData);
+    const refund = await this.findRefund(webhookData);
 
-    if (!order) {
+    if (!refund) {
       this.logger.error(
-        `[TranzakWebhookService] Order not found for refund: refundId=${webhookData.refundId}, merchantRefundRef=${webhookData.merchantRefundRef}, refundedTransactionId=${webhookData.refundedTransactionId}`,
+        `[TranzakWebhookService] Refund not found: refundId=${webhookData.refundId}, merchantRefundRef=${webhookData.merchantRefundRef}, refundedTransactionId=${webhookData.refundedTransactionId}`,
       );
-      throw new NotFoundException('Order not found');
+      throw new NotFoundException('Refund not found');
     }
 
     this.logger.log(
-      `[TranzakWebhookService] Order found: id=${order._id}, refundStatus=${order.refundStatus}`,
+      `[TranzakWebhookService] Refund found: id=${refund._id}, status=${refund.status}`,
     );
 
-    if (order.refundStatus === EnumRefundStatus.SUCCESSFUL) {
+    if (refund.status === EnumRefundStatus.SUCCESSFUL) {
       this.logger.warn(
-        `[TranzakWebhookService] Refund already processed, skipping. id=${order._id}, refundStatus=${order.refundStatus}`,
+        `[TranzakWebhookService] Refund already processed, skipping. id=${refund._id}, status=${refund.status}`,
       );
       return;
     }
 
     this.logger.log(
-      `[TranzakWebhookService] Updating order refund status to SUCCESSFUL: id=${order._id}`,
+      `[TranzakWebhookService] Updating refund status to SUCCESSFUL: id=${refund._id}`,
     );
 
-    order.refundStatus = EnumRefundStatus.SUCCESSFUL;
-    order.refundWebhookDetails = this.buildRefundWebhookDetails(webhook);
+    refund.status = EnumRefundStatus.SUCCESSFUL;
+    refund.refundWebhookDetails = this.buildRefundWebhookDetails(webhook);
 
     this.logger.log(
-      `[TranzakWebhookService] Saving order after successful refund: id=${order._id}`,
+      `[TranzakWebhookService] Saving refund after successful refund: id=${refund._id}`,
     );
-    await order.save();
+    await refund.save();
     this.logger.log(
-      `[TranzakWebhookService] Order saved successfully: id=${order._id}, refundStatus=${order.refundStatus}`,
+      `[TranzakWebhookService] Refund saved successfully: id=${refund._id}, status=${refund.status}`,
     );
 
     // Fire-and-forget: notification is non-critical and should not delay
     // the webhook response.
-    this.notifyRefundSuccess(order).catch((error) => {
+    this.notifyRefundSuccess(refund).catch((error) => {
       this.logger.error(
-        `[TranzakWebhookService] Failed to emit refund success notification for order: id=${order._id}`,
+        `[TranzakWebhookService] Failed to emit refund success notification for refund: id=${refund._id}`,
         error.message,
       );
     });
@@ -371,49 +381,49 @@ export class TranzakWebhookService {
       `[TranzakWebhookService] Processing failed refund: refundId=${webhookData.refundId}, refundedTransactionId=${webhookData.refundedTransactionId}, amount=${webhookData.amount} ${webhookData.currencyCode}`,
     );
 
-    const order = await this.findRefundOrder(webhookData);
+    const refund = await this.findRefund(webhookData);
 
-    if (!order) {
+    if (!refund) {
       this.logger.error(
-        `[TranzakWebhookService] Order not found for refund: refundId=${webhookData.refundId}, merchantRefundRef=${webhookData.merchantRefundRef}, refundedTransactionId=${webhookData.refundedTransactionId}`,
+        `[TranzakWebhookService] Refund not found: refundId=${webhookData.refundId}, merchantRefundRef=${webhookData.merchantRefundRef}, refundedTransactionId=${webhookData.refundedTransactionId}`,
       );
-      throw new NotFoundException('Order not found');
+      throw new NotFoundException('Refund not found');
     }
 
     this.logger.log(
-      `[TranzakWebhookService] Order found: id=${order._id}, refundStatus=${order.refundStatus}`,
+      `[TranzakWebhookService] Refund found: id=${refund._id}, status=${refund.status}`,
     );
 
     if (
-      order.refundStatus === EnumRefundStatus.FAILED ||
-      order.refundStatus === EnumRefundStatus.SUCCESSFUL
+      refund.status === EnumRefundStatus.FAILED ||
+      refund.status === EnumRefundStatus.SUCCESSFUL
     ) {
       this.logger.warn(
-        `[TranzakWebhookService] Refund already processed, skipping. id=${order._id}, refundStatus=${order.refundStatus}`,
+        `[TranzakWebhookService] Refund already processed, skipping. id=${refund._id}, status=${refund.status}`,
       );
       return;
     }
 
     this.logger.log(
-      `[TranzakWebhookService] Updating order refund status to FAILED: id=${order._id}`,
+      `[TranzakWebhookService] Updating refund status to FAILED: id=${refund._id}`,
     );
 
-    order.refundStatus = EnumRefundStatus.FAILED;
-    order.refundWebhookDetails = this.buildRefundWebhookDetails(webhook);
+    refund.status = EnumRefundStatus.FAILED;
+    refund.refundWebhookDetails = this.buildRefundWebhookDetails(webhook);
 
     this.logger.log(
-      `[TranzakWebhookService] Saving order after failed refund: id=${order._id}`,
+      `[TranzakWebhookService] Saving refund after failed refund: id=${refund._id}`,
     );
-    await order.save();
+    await refund.save();
     this.logger.log(
-      `[TranzakWebhookService] Order saved successfully: id=${order._id}, refundStatus=${order.refundStatus}`,
+      `[TranzakWebhookService] Refund saved successfully: id=${refund._id}, status=${refund.status}`,
     );
 
     // Fire-and-forget: notification is non-critical and should not delay
     // the webhook response.
-    this.notifyRefundFailure(order).catch((error) => {
+    this.notifyRefundFailure(refund).catch((error) => {
       this.logger.error(
-        `[TranzakWebhookService] Failed to emit refund failure notification for order: id=${order._id}`,
+        `[TranzakWebhookService] Failed to emit refund failure notification for refund: id=${refund._id}`,
         error.message,
       );
     });
@@ -598,23 +608,26 @@ export class TranzakWebhookService {
     );
   }
 
-  private async findRefundOrder(
+  private async findRefund(
     webhookData: ITranzakWebhookRefundResponse,
-  ): Promise<OrderDocument | null> {
-    // The merchantRefundRef is the order id we sent as merchantRefundNumber
+  ): Promise<RefundDocument | null> {
+    // The merchantRefundRef is the refund id we sent as merchantRefundNumber
     // when initiating the refund — it can be null, so fall back to the
-    // refunded transaction id.
+    // transaction id stored on the refund.
     if (
       webhookData.merchantRefundRef &&
       Types.ObjectId.isValid(webhookData.merchantRefundRef)
     ) {
-      return this.orderModel.findOne({
+      const refund = await this.refundModel.findOne({
         _id: new Types.ObjectId(webhookData.merchantRefundRef),
       });
+      if (refund) {
+        return refund;
+      }
     }
 
-    return this.orderModel.findOne({
-      'paymentWebhookDetails.transactionId': webhookData.refundedTransactionId,
+    return this.refundModel.findOne({
+      transactionId: webhookData.refundedTransactionId,
     });
   }
 
@@ -671,65 +684,13 @@ export class TranzakWebhookService {
       );
     }
 
-    try {
-      if (restaurantMemberUserIds.length === 0) {
-        this.logger.log(
-          `[TranzakWebhookService] No restaurant members to send FCM for order: id=${order._id}`,
-        );
-      } else {
-        const installations = await this.fcmTokenModel
-          .find({
-            user: {
-              $in: restaurantMemberUserIds.map((id) => new Types.ObjectId(id)),
-            },
-          })
-          .populate<{ user: User }>('user')
-          .lean();
-
-        if (installations.length === 0) {
-          this.logger.log(
-            `[TranzakWebhookService] No FCM installations for restaurant members of order: id=${order._id}`,
-          );
-        } else {
-          const languageGroups = new Map<EnumUserLanguage, string[]>();
-
-          for (const installation of installations) {
-            const language = installation.user?.language ?? EnumUserLanguage.FR;
-            const ids = languageGroups.get(language) ?? [];
-            ids.push(installation.installationId);
-            languageGroups.set(language, ids);
-          }
-
-          const orderId = order._id.toString();
-
-          for (const [language, installationIds] of languageGroups) {
-            const { title, body } = getNotificationMessage(
-              EnumNotificationI18nType.ORDER_PAID_RESTAURANT,
-              language,
-            );
-            const fcmResults = await this.fcmService.sendToDevices(
-              installationIds,
-              {
-                title,
-                body,
-                data: {
-                  orderId,
-                  status: order.status,
-                  click_action: `${env.restaurantFrontendUrl}/orders/${orderId}`,
-                },
-              },
-            );
-            this.logger.log(
-              `[TranzakWebhookService] Restaurant FCM results for language ${language}: ${JSON.stringify(fcmResults)}`,
-            );
-          }
-        }
-      }
-    } catch (error) {
-      this.logger.error(
-        `[TranzakWebhookService] Failed to send FCM notification to restaurant members: ${error.message}`,
-      );
-    }
+    const orderId = order._id.toString();
+    await this.sendPaymentFcm(
+      order,
+      restaurantMemberUserIds,
+      EnumNotificationI18nType.ORDER_PAID_RESTAURANT,
+      `${env.restaurantFrontendUrl}/orders/${orderId}`,
+    );
 
     if (order.createdBy) {
       try {
@@ -759,50 +720,12 @@ export class TranzakWebhookService {
         );
       }
 
-      try {
-        const clientId = order.createdBy.toString();
-        const installations = await this.fcmTokenModel
-          .find({ user: new Types.ObjectId(clientId) })
-          .populate<{ user: User }>('user')
-          .lean();
-
-        if (installations.length === 0) {
-          this.logger.log(
-            `[TranzakWebhookService] No FCM installations for order creator: id=${order._id}`,
-          );
-        } else {
-          const language =
-            installations[0].user?.language ?? EnumUserLanguage.FR;
-          const { title, body } = getNotificationMessage(
-            EnumNotificationI18nType.ORDER_PAID_CLIENT,
-            language,
-          );
-          const installationIds = installations.map(
-            (installation) => installation.installationId,
-          );
-          const orderId = order._id.toString();
-
-          const fcmResults = await this.fcmService.sendToDevices(
-            installationIds,
-            {
-              title,
-              body,
-              data: {
-                orderId,
-                status: order.status,
-                click_action: `${env.clientFrontendUrl}/orders/${orderId}`,
-              },
-            },
-          );
-          this.logger.log(
-            `[TranzakWebhookService] Client FCM results: ${JSON.stringify(fcmResults)}`,
-          );
-        }
-      } catch (error) {
-        this.logger.error(
-          `[TranzakWebhookService] Failed to send FCM notification to client: ${error.message}`,
-        );
-      }
+      await this.sendPaymentFcm(
+        order,
+        [order.createdBy.toString()],
+        EnumNotificationI18nType.ORDER_PAID_CLIENT,
+        `${env.clientFrontendUrl}/orders/${orderId}`,
+      );
     }
   }
 
@@ -839,72 +762,69 @@ export class TranzakWebhookService {
       );
     }
 
+    const orderId = order._id.toString();
+    await this.sendPaymentFcm(
+      order,
+      [order.createdBy.toString()],
+      EnumNotificationI18nType.ORDER_PAYMENT_FAILED_CLIENT,
+      `${env.clientFrontendUrl}/orders/${orderId}`,
+    );
+  }
+
+  private async notifyRefundSuccess(refund: RefundDocument) {
+    // Websocket-only notification to admins so the refunds table stays in
+    // sync in real time.
     try {
-      const clientId = order.createdBy.toString();
-      const installations = await this.fcmTokenModel
-        .find({ user: new Types.ObjectId(clientId) })
-        .populate<{ user: User }>('user')
-        .lean();
+      const adminUsers = await this.userModel
+        .find({
+          role: EnumUserRole.ADMIN,
+          deleted: false,
+        })
+        .select('_id');
+      const adminUserIds = adminUsers.map((admin) => admin._id.toString());
 
-      if (installations.length === 0) {
-        this.logger.log(
-          `[TranzakWebhookService] No FCM installations for order creator: id=${order._id}`,
+      if (adminUserIds.length > 0) {
+        const refundToSendToAdmin = plainToInstance(
+          RefundPrivateOutputDto,
+          refund.toObject(),
+          { excludeExtraneousValues: true },
         );
-      } else {
-        const language = installations[0].user?.language ?? EnumUserLanguage.FR;
-        const { title, body } = getNotificationMessage(
-          EnumNotificationI18nType.ORDER_PAYMENT_FAILED_CLIENT,
-          language,
-        );
-        const installationIds = installations.map(
-          (installation) => installation.installationId,
-        );
-        const orderId = order._id.toString();
-
-        const fcmResults = await this.fcmService.sendToDevices(
-          installationIds,
-          {
-            title,
-            body,
-            data: {
-              orderId,
-              status: order.status,
-              click_action: `${env.clientFrontendUrl}/orders/${orderId}`,
-            },
-          },
-        );
-        this.logger.log(
-          `[TranzakWebhookService] Payment failure client FCM results: ${JSON.stringify(fcmResults)}`,
-        );
+        const adminNotification: INotification<RefundPrivateOutputDto> = {
+          type: EnumNotificationType.REFUND_STATUS_CHANGED,
+          data: refundToSendToAdmin,
+        };
+        this.eventsGateway.emitToUsers({
+          userIds: adminUserIds,
+          event: EnumWebSocketEventType.ADMIN_APPLICATION,
+          data: adminNotification,
+        });
       }
     } catch (error) {
       this.logger.error(
-        `[TranzakWebhookService] Failed to send FCM notification to client for failed payment: ${error.message}`,
+        `[notifyRefundSuccess] Failed to emit admin notification: ${error.message}`,
       );
     }
-  }
 
-  private async notifyRefundSuccess(order: OrderDocument) {
-    if (!order.createdBy) {
+    if (!refund.createdBy) {
       return;
     }
 
     try {
-      const clientId = order.createdBy.toString();
+      const clientId = refund.createdBy.toString();
       this.logger.log(
         `[TranzakWebhookService] Notifying order creator of successful refund: ${clientId}`,
       );
-      const orderObject = order.toObject();
-      const orderToSendToClient = plainToInstance(
-        OrderClientOutputDto,
-        orderObject,
+      const refundObject = refund.toObject();
+      const refundToSendToClient = plainToInstance(
+        RefundPublicOutputDto,
+        refundObject,
         {
           excludeExtraneousValues: true,
         },
       );
-      const notification: INotification<OrderClientOutputDto> = {
-        type: EnumNotificationType.ORDER_REFUND_STATUS_CHANGED,
-        data: orderToSendToClient,
+      const notification: INotification<RefundPublicOutputDto> = {
+        type: EnumNotificationType.REFUND_STATUS_CHANGED,
+        data: refundToSendToClient,
       };
       this.eventsGateway.emitToUser({
         userId: clientId,
@@ -918,7 +838,7 @@ export class TranzakWebhookService {
     }
 
     try {
-      const clientId = order.createdBy.toString();
+      const clientId = refund.createdBy!.toString();
       const installations = await this.fcmTokenModel
         .find({ user: new Types.ObjectId(clientId) })
         .populate<{ user: User }>('user')
@@ -926,18 +846,18 @@ export class TranzakWebhookService {
 
       if (installations.length === 0) {
         this.logger.log(
-          `[TranzakWebhookService] No FCM installations for order creator: id=${order._id}`,
+          `[TranzakWebhookService] No FCM installations for refund creator: refundId=${refund._id}`,
         );
       } else {
         const language = installations[0].user?.language ?? EnumUserLanguage.FR;
         const { title, body } = getNotificationMessage(
-          EnumNotificationI18nType.ORDER_REFUNDED_CLIENT,
+          EnumNotificationI18nType.REFUND_SUCCESSFUL_CLIENT,
           language,
         );
         const installationIds = installations.map(
           (installation) => installation.installationId,
         );
-        const orderId = order._id.toString();
+        const orderId = (refund.order as Types.ObjectId).toString();
 
         const fcmResults = await this.fcmService.sendToDevices(
           installationIds,
@@ -946,7 +866,8 @@ export class TranzakWebhookService {
             body,
             data: {
               orderId,
-              status: order.status,
+              refundId: refund._id.toString(),
+              status: refund.status,
               click_action: `${env.clientFrontendUrl}/orders/${orderId}`,
             },
           },
@@ -962,8 +883,84 @@ export class TranzakWebhookService {
     }
   }
 
-  private async notifyRefundFailure(order: OrderDocument) {
-    // TODO: Maybe notify the admin and the client so further actions can be taken.
+  private async notifyRefundFailure(refund: RefundDocument) {
+    const clientUserIds = refund.createdBy ? [refund.createdBy.toString()] : [];
+
+    let adminUserIds: string[] = [];
+    try {
+      const adminUsers = await this.userModel
+        .find({
+          role: EnumUserRole.ADMIN,
+          deleted: false,
+        })
+        .select('_id');
+      adminUserIds = adminUsers.map((admin) => admin._id.toString());
+
+      this.logger.log(
+        `[notifyRefundFailure] Found ${adminUserIds.length} admin(s) to notify for refund: id=${refund._id}`,
+      );
+    } catch (error) {
+      this.logger.error(
+        `[notifyRefundFailure] Failed to find admin users: ${error.message}`,
+      );
+    }
+
+    if (clientUserIds.length === 0 && adminUserIds.length === 0) {
+      return;
+    }
+
+    try {
+      if (clientUserIds.length > 0) {
+        const refundToSendToClient = plainToInstance(
+          RefundPublicOutputDto,
+          refund.toObject(),
+          { excludeExtraneousValues: true },
+        );
+        const notification: INotification<RefundPublicOutputDto> = {
+          type: EnumNotificationType.REFUND_STATUS_CHANGED,
+          data: refundToSendToClient,
+        };
+        this.eventsGateway.emitToUsers({
+          userIds: clientUserIds,
+          event: EnumWebSocketEventType.CLIENT_APPLICATION,
+          data: notification,
+        });
+      }
+      if (adminUserIds.length > 0) {
+        const refundToSendToAdmin = plainToInstance(
+          RefundPrivateOutputDto,
+          refund.toObject(),
+          { excludeExtraneousValues: true },
+        );
+        const adminNotification: INotification<RefundPrivateOutputDto> = {
+          type: EnumNotificationType.REFUND_STATUS_CHANGED,
+          data: refundToSendToAdmin,
+        };
+        this.eventsGateway.emitToUsers({
+          userIds: adminUserIds,
+          event: EnumWebSocketEventType.ADMIN_APPLICATION,
+          data: adminNotification,
+        });
+      }
+    } catch (error) {
+      this.logger.error(
+        `[notifyRefundFailure] Failed to emit refund failure notification: ${error.message}`,
+      );
+    }
+
+    const orderId = (refund.order as Types.ObjectId).toString();
+    await this.sendRefundFcm(
+      refund,
+      clientUserIds,
+      EnumNotificationI18nType.REFUND_FAILED_CLIENT,
+      `${env.clientFrontendUrl}/orders/${orderId}`,
+    );
+    await this.sendRefundFcm(
+      refund,
+      adminUserIds,
+      EnumNotificationI18nType.REFUND_FAILED_ADMIN,
+      `${env.adminFrontendUrl}/refunds`,
+    );
   }
 
   private async incrementMenuOrdersCount(order: OrderDocument) {
@@ -1257,6 +1254,133 @@ export class TranzakWebhookService {
     } catch (error) {
       this.logger.error(
         `[sendTransferFcm] Failed to send FCM notification for transfer: id=${transfer._id}`,
+        error.message,
+      );
+    }
+  }
+
+  private async sendRefundFcm(
+    refund: RefundDocument,
+    userIds: string[],
+    i18nType: EnumNotificationI18nType,
+    clickAction: string,
+  ) {
+    if (userIds.length === 0) {
+      return;
+    }
+
+    try {
+      const installations = await this.fcmTokenModel
+        .find({
+          user: {
+            $in: userIds.map((id) => new Types.ObjectId(id)),
+          },
+        })
+        .populate<{ user: User }>('user')
+        .lean();
+
+      if (installations.length === 0) {
+        this.logger.log(
+          `[sendRefundFcm] No FCM installations for users of refund: id=${refund._id}`,
+        );
+        return;
+      }
+
+      const languageGroups = new Map<EnumUserLanguage, string[]>();
+      for (const installation of installations) {
+        const language = installation.user?.language ?? EnumUserLanguage.FR;
+        const ids = languageGroups.get(language) ?? [];
+        ids.push(installation.installationId);
+        languageGroups.set(language, ids);
+      }
+
+      const refundId = refund._id.toString();
+      const orderId = (refund.order as Types.ObjectId).toString();
+
+      for (const [language, installationIds] of languageGroups) {
+        const { title, body } = getNotificationMessage(i18nType, language);
+        const fcmResults = await this.fcmService.sendToDevices(
+          installationIds,
+          {
+            title,
+            body,
+            data: {
+              click_action: clickAction,
+              refundId,
+              orderId,
+            },
+          },
+        );
+        this.logger.log(
+          `[sendRefundFcm] FCM refund notification sent (${language}): ${JSON.stringify(fcmResults)}`,
+        );
+      }
+    } catch (error) {
+      this.logger.error(
+        `[sendRefundFcm] Failed to send FCM notification for refund: id=${refund._id}`,
+        error.message,
+      );
+    }
+  }
+
+  private async sendPaymentFcm(
+    order: OrderDocument,
+    userIds: string[],
+    i18nType: EnumNotificationI18nType,
+    clickAction: string,
+  ) {
+    if (userIds.length === 0) {
+      return;
+    }
+
+    try {
+      const installations = await this.fcmTokenModel
+        .find({
+          user: {
+            $in: userIds.map((id) => new Types.ObjectId(id)),
+          },
+        })
+        .populate<{ user: User }>('user')
+        .lean();
+
+      if (installations.length === 0) {
+        this.logger.log(
+          `[sendPaymentFcm] No FCM installations for users of order: id=${order._id}`,
+        );
+        return;
+      }
+
+      const languageGroups = new Map<EnumUserLanguage, string[]>();
+      for (const installation of installations) {
+        const language = installation.user?.language ?? EnumUserLanguage.FR;
+        const ids = languageGroups.get(language) ?? [];
+        ids.push(installation.installationId);
+        languageGroups.set(language, ids);
+      }
+
+      const orderId = order._id.toString();
+
+      for (const [language, installationIds] of languageGroups) {
+        const { title, body } = getNotificationMessage(i18nType, language);
+        const fcmResults = await this.fcmService.sendToDevices(
+          installationIds,
+          {
+            title,
+            body,
+            data: {
+              click_action: clickAction,
+              orderId,
+              status: order.status,
+            },
+          },
+        );
+        this.logger.log(
+          `[sendPaymentFcm] FCM payment notification sent (${language}): ${JSON.stringify(fcmResults)}`,
+        );
+      }
+    } catch (error) {
+      this.logger.error(
+        `[sendPaymentFcm] Failed to send FCM notification for order: id=${order._id}`,
         error.message,
       );
     }

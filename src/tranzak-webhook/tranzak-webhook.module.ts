@@ -4,6 +4,7 @@ import { TranzakWebhookController } from './tranzak-webhook.controller';
 import { MongooseModule } from '@nestjs/mongoose';
 import { Menu, MenuSchema } from 'src/menus/entities/menu.entity';
 import { Order, OrderSchema } from 'src/orders/entities/order.entity';
+import { Refund, RefundSchema } from 'src/orders/entities/refund.entity';
 import { WebSocketModule } from 'src/web-socket/web-socket.module';
 import {
   RestaurantMember,
@@ -27,6 +28,7 @@ import { User, UserSchema } from 'src/users/entities/user.entity';
   imports: [
     MongooseModule.forFeature([
       { name: Order.name, schema: OrderSchema },
+      { name: Refund.name, schema: RefundSchema },
       { name: Menu.name, schema: MenuSchema },
       { name: RestaurantMember.name, schema: RestaurantMemberSchema },
       { name: FcmToken.name, schema: FcmTokenSchema },

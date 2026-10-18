@@ -46,7 +46,7 @@ const NOTIFICATION_MESSAGES: NotificationMessagesMap = {
     },
   },
 
-  [EnumNotificationI18nType.ORDER_REFUNDED_CLIENT]: {
+  [EnumNotificationI18nType.REFUND_SUCCESSFUL_CLIENT]: {
     [EnumUserLanguage.FR]: {
       title: 'Remboursement effectué',
       body: 'Votre commande a été remboursée avec succès.',
@@ -54,6 +54,28 @@ const NOTIFICATION_MESSAGES: NotificationMessagesMap = {
     [EnumUserLanguage.EN]: {
       title: 'Refund processed',
       body: 'Your order has been refunded successfully.',
+    },
+  },
+
+  [EnumNotificationI18nType.REFUND_FAILED_CLIENT]: {
+    [EnumUserLanguage.FR]: {
+      title: 'Remboursement échoué',
+      body: 'Le remboursement de votre commande a échoué. Veuillez contacter le support.',
+    },
+    [EnumUserLanguage.EN]: {
+      title: 'Refund failed',
+      body: 'Your order refund has failed. Please contact support.',
+    },
+  },
+
+  [EnumNotificationI18nType.REFUND_FAILED_ADMIN]: {
+    [EnumUserLanguage.FR]: {
+      title: 'Remboursement échoué',
+      body: 'Un remboursement a échoué. Veuillez vérifier.',
+    },
+    [EnumUserLanguage.EN]: {
+      title: 'Refund failed',
+      body: 'A refund has failed. Please check.',
     },
   },
 
