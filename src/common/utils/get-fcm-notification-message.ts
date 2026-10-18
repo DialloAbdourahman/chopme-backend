@@ -125,45 +125,45 @@ const NOTIFICATION_MESSAGES: NotificationMessagesMap = {
 
   [EnumNotificationI18nType.TRANSFER_COMPLETED_RESTAURANT]: {
     [EnumUserLanguage.FR]: {
-      title: 'Paiement reçu',
-      body: 'Le paiement de vos gains a été effectué avec succès.',
+      title: 'Transfert réussi',
+      body: 'Le transfert a été effectué avec succès.',
     },
     [EnumUserLanguage.EN]: {
-      title: 'Payout received',
-      body: 'Your earnings payout has been completed successfully.',
+      title: 'Transfer successful',
+      body: 'The transfer was completed successfully.',
     },
   },
 
   [EnumNotificationI18nType.TRANSFER_FAILED_RESTAURANT]: {
     [EnumUserLanguage.FR]: {
-      title: 'Paiement échoué',
-      body: 'Le transfert de vos gains a échoué. Notre équipe a été notifiée.',
+      title: 'Transfert échoué',
+      body: 'Le transfert a échoué. Un administrateur va vérifier.',
     },
     [EnumUserLanguage.EN]: {
-      title: 'Payout failed',
-      body: 'Your earnings payout has failed. Our team has been notified.',
+      title: 'Transfer failed',
+      body: 'The transfer has failed. An admin will check it.',
     },
   },
 
   [EnumNotificationI18nType.TRANSFER_COMPLETED_ADMIN]: {
     [EnumUserLanguage.FR]: {
-      title: 'Transfert terminé',
-      body: 'Le transfert des gains vers un restaurant a été effectué avec succès.',
+      title: 'Transfert réussi',
+      body: 'Le transfert a été effectué avec succès.',
     },
     [EnumUserLanguage.EN]: {
-      title: 'Transfer completed',
-      body: 'A restaurant earnings transfer was completed successfully.',
+      title: 'Transfer successful',
+      body: 'The transfer was completed successfully.',
     },
   },
 
   [EnumNotificationI18nType.TRANSFER_FAILED_ADMIN]: {
     [EnumUserLanguage.FR]: {
       title: 'Transfert échoué',
-      body: 'Un transfert vers un restaurant a échoué. Veuillez vérifier et réessayer.',
+      body: 'Le transfert a échoué. Veuillez vérifier.',
     },
     [EnumUserLanguage.EN]: {
       title: 'Transfer failed',
-      body: 'A restaurant earnings transfer has failed. Please review and retry.',
+      body: 'The transfer has failed. Please check.',
     },
   },
 };
