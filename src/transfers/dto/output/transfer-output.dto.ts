@@ -1,5 +1,7 @@
-import { Expose, Transform } from 'class-transformer';
+import { Expose, Transform, Type } from 'class-transformer';
 import { EnumTransferDirection } from 'src/common/enums/transfer-direction';
+import { RestaurantPublicOutputDto } from 'src/restaurants/dto/output/restaurant-output.dto';
+import { TransferGroupOutputDto } from './transfer-group-output.dto';
 
 export class TransferPublicOutputDto {
   @Expose()
@@ -7,7 +9,9 @@ export class TransferPublicOutputDto {
   id: string;
 
   @Expose()
-  @Transform(({ obj }) => obj.restaurant?.toString())
+  @Transform(
+    ({ obj }) => obj.restaurant?._id?.toString() || obj.restaurant?.toString(),
+  )
   restaurantId: string;
 
   @Expose()
@@ -17,26 +21,14 @@ export class TransferPublicOutputDto {
   amount: number;
 
   @Expose()
-  @Transform(({ obj }) => obj.transferGroupId?.toString())
+  @Transform(
+    ({ obj }) =>
+      obj.transferGroup?._id?.toString() || obj.transferGroup?.toString(),
+  )
   transferGroupId: string;
 
   @Expose()
   transferDirection: EnumTransferDirection;
-
-  @Expose()
-  totalPlatformAmount: number;
-
-  @Expose()
-  transferId: number;
-
-  @Expose()
-  platformTransferStatus: string;
-
-  @Expose()
-  restaurantTransferStatus: string;
-
-  @Expose()
-  totalOrders: number;
 
   @Expose()
   createdAt: Date;
@@ -46,6 +38,28 @@ export class TransferPublicOutputDto {
 }
 
 export class TransferPrivateOutputDto extends TransferPublicOutputDto {
+  @Expose()
+  totalOrders: number;
+
+  @Expose()
+  transferId: string;
+
+  @Expose()
+  @Type(() => RestaurantPublicOutputDto)
+  restaurant: RestaurantPublicOutputDto;
+
+  @Expose()
+  @Type(() => TransferGroupOutputDto)
+  transferGroup: TransferGroupOutputDto;
+
+  @Expose()
+  @Transform(
+    ({ obj }) =>
+      obj.retriedFromTransferId?._id?.toString() ||
+      obj.retriedFromTransferId?.toString(),
+  )
+  retriedFromTransferId?: string;
+
   @Expose()
   deletedAt: Date | null;
 

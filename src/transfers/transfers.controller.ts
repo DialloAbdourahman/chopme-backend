@@ -19,6 +19,7 @@ import { AuthGuard } from 'src/common/guards/auth.guard';
 import { EnumRestaurantMemberRole } from 'src/common/enums/restaurant-member-role';
 import { RestaurantRoles } from 'src/common/guards/restaurant-role.guard';
 import { EnumTransferStatuses } from 'src/common/enums/transfer-statuses';
+import { EnumTransferDirection } from 'src/common/enums/transfer-direction';
 
 @Controller('transfers')
 export class TransfersController {
@@ -49,6 +50,24 @@ export class TransfersController {
       page,
       limit,
       status,
+    });
+  }
+
+  @Get('admin-transfers')
+  @HttpCode(HttpStatus.OK)
+  @UseGuards(AuthGuard, RoleGuard)
+  @Roles(EnumUserRole.ADMIN)
+  getAdminTransfers(
+    @Query('page', new DefaultValuePipe(1), ParseIntPipe) page: number,
+    @Query('limit', new DefaultValuePipe(10), ParseIntPipe) limit: number,
+    @Query('status') status?: EnumTransferStatuses,
+    @Query('transferDirection') transferDirection?: EnumTransferDirection,
+  ) {
+    return this.transfersService.getAdminTransfers({
+      page,
+      limit,
+      status,
+      transferDirection,
     });
   }
 

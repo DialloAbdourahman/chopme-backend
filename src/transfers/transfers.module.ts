@@ -12,6 +12,11 @@ import {
   TransferGroup,
   TransferGroupSchema,
 } from './entities/transfer-group.entity';
+import {
+  RestaurantMember,
+  RestaurantMemberSchema,
+} from 'src/restaurant-members/entities/restaurant-member.entity';
+import { User, UserSchema } from 'src/users/entities/user.entity';
 
 @Module({
   imports: [
@@ -20,6 +25,8 @@ import {
       { name: TransferGroup.name, schema: TransferGroupSchema },
       { name: Order.name, schema: OrderSchema },
       { name: Restaurant.name, schema: RestaurantSchema },
+      { name: RestaurantMember.name, schema: RestaurantMemberSchema },
+      { name: User.name, schema: UserSchema },
     ]),
   ],
   controllers: [TransfersController],
