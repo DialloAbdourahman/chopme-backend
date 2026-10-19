@@ -86,6 +86,12 @@ export class RefundPublicOutputDto {
 
 export class RefundPrivateOutputDto extends RefundPublicOutputDto {
   @Expose()
+  @Transform(
+    ({ obj }) => obj.restaurant?._id?.toString() || obj.restaurant?.toString(),
+  )
+  restaurantId?: string;
+
+  @Expose()
   transactionId?: string;
 
   @Expose()

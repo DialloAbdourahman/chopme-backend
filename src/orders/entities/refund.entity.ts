@@ -3,6 +3,7 @@ import { HydratedDocument, Types } from 'mongoose';
 import { BaseSchema } from 'src/common/schemas/base.schema';
 import { EnumRefundStatus } from 'src/common/enums/refund-statuses';
 import type { Order } from './order.entity';
+import type { Restaurant } from 'src/restaurants/entities/restaurant.entity';
 
 export type RefundDocument = HydratedDocument<Refund>;
 
@@ -38,6 +39,14 @@ export class RefundWebhookDetails {
 export class Refund extends BaseSchema {
   @Prop({ type: Types.ObjectId, ref: 'Order', required: true, index: true })
   order: Types.ObjectId | Order;
+
+  @Prop({
+    type: Types.ObjectId,
+    ref: 'Restaurant',
+    required: true,
+    index: true,
+  })
+  restaurant: Types.ObjectId | Restaurant;
 
   @Prop({ type: String, required: false, index: true })
   transactionId?: string;

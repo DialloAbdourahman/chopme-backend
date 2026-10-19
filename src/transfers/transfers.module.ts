@@ -17,6 +17,10 @@ import {
   RestaurantMemberSchema,
 } from 'src/restaurant-members/entities/restaurant-member.entity';
 import { User, UserSchema } from 'src/users/entities/user.entity';
+import {
+  FcmToken,
+  FcmTokenSchema,
+} from 'src/fcm-tokens/entities/fcm-token.entity';
 
 @Module({
   imports: [
@@ -27,6 +31,7 @@ import { User, UserSchema } from 'src/users/entities/user.entity';
       { name: Restaurant.name, schema: RestaurantSchema },
       { name: RestaurantMember.name, schema: RestaurantMemberSchema },
       { name: User.name, schema: UserSchema },
+      { name: FcmToken.name, schema: FcmTokenSchema },
     ]),
   ],
   controllers: [TransfersController],
