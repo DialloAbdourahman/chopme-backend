@@ -21,6 +21,10 @@ import {
   OrderClientOutputDto,
   OrderRestaurantOutputDto,
 } from './dto/output/order-output.dto';
+import {
+  RefundPrivateOutputDto,
+  RefundPublicOutputDto,
+} from './dto/output/refund-output.dto';
 import { OrchestrationResult } from 'src/common/utils/orchestration.result';
 import { EnumOrderStatus } from 'src/common/enums/order-status';
 import { UserDocument } from 'src/users/entities/user.entity';
@@ -45,6 +49,7 @@ import { RestaurantPublicOutputDto } from 'src/restaurants/dto/output/restaurant
 import { TranzakService } from 'src/common/tranzak/tranzak.service';
 import { EnumTranzakCurrency } from 'src/common/enums/tranzak/currency';
 import { EnumTranzakRefundReasonCode } from 'src/common/enums/tranzak/refund-reason';
+import { EnumUserRole } from 'src/common/enums/user-roles';
 
 @Injectable()
 export class OrdersService {
@@ -71,6 +76,8 @@ export class OrdersService {
     private readonly fcmTokenModel: Model<FcmTokenDocument>,
     @InjectModel(Refund.name)
     private readonly refundModel: Model<RefundDocument>,
+    @InjectModel(User.name)
+    private readonly userModel: Model<UserDocument>,
     @InjectConnection()
     private readonly connection: Connection,
 
@@ -355,6 +362,57 @@ export class OrdersService {
     });
   }
 
+  async findAllRefundsForAdmin({
+    page,
+    limit,
+    status,
+  }: {
+    page: number;
+    limit: number;
+    status?: EnumRefundStatus;
+  }) {
+    this.logger.log(
+      `[findAllRefundsForAdmin] Fetching refunds for admin, page=${page}, limit=${limit}, status=${status ?? 'all'}`,
+    );
+
+    const filters: { status?: EnumRefundStatus } = {};
+    if (status) {
+      filters.status = status;
+    }
+
+    const totalItems = await this.refundModel.countDocuments(filters);
+    const refunds = await this.refundModel
+      .find(filters)
+      .sort({ createdAt: -1 })
+      .skip((page - 1) * limit)
+      .limit(limit)
+      .lean()
+      .exec();
+
+    const totalPages = Math.ceil(totalItems / limit) || 1;
+    const privateRefunds = plainToInstance(RefundPrivateOutputDto, refunds, {
+      excludeExtraneousValues: true,
+    });
+
+    const paginatedResult: Pagination<RefundPrivateOutputDto> = {
+      items: privateRefunds,
+      page,
+      totalPages,
+      totalItems,
+      itemsPerPage: limit,
+    };
+
+    this.logger.log(
+      `[findAllRefundsForAdmin] Fetched ${refunds.length} refunds out of ${totalItems} total`,
+    );
+
+    return OrchestrationResult.Success<Pagination<RefundPrivateOutputDto>>({
+      statusCode: EnumStatusCode.RECOVERED_SUCCESSFULLY,
+      data: paginatedResult,
+      message: 'Refunds fetched successfully',
+    });
+  }
+
   async countRestaurantOrders({
     user,
     status,
@@ -578,6 +636,7 @@ export class OrdersService {
       refund = new this.refundModel({
         order: order._id,
         createdBy: order.createdBy,
+        restaurant: order.restaurant,
         transactionId:
           order?.paymentWebhookDetails?.transactionId?.toString() || '',
       });
@@ -652,6 +711,13 @@ export class OrdersService {
       );
       refund.status = EnumRefundStatus.FAILED_TO_INITIATE;
       await refund.save();
+
+      this.notifyRefundFailureToAdmins(refund).catch((notifyError) => {
+        this.logger.error(
+          `[cancelOrderRestaurant] Failed to emit refund failure notification: id=${refund._id}`,
+          notifyError.message,
+        );
+      });
     }
 
     const orderObject = order.toObject();
@@ -660,6 +726,12 @@ export class OrdersService {
     });
 
     this.notifyOrderStatusChanged(order, orderObject);
+
+    this.notifyRefundStatusChanged(refund).catch((error) => {
+      this.logger.error(
+        `[notifyRefundStatusChanged] Unexpected error: ${error.message}`,
+      );
+    });
 
     return OrchestrationResult.Success<OrderRestaurantOutputDto>({
       statusCode: EnumStatusCode.CANCELLED_SUCCESSFULLY,
@@ -919,6 +991,90 @@ export class OrdersService {
       statusCode: EnumStatusCode.RECOVERED_SUCCESSFULLY,
       data: publicOrder,
       message: 'Order fetched successfully',
+    });
+  }
+
+  async getRefundById(refundId: string, user: ILoggedInUserTokenData) {
+    this.logger.log(
+      `[getRefundById] Fetching refundId=${refundId}, userId=${user.id}`,
+    );
+
+    if (!Types.ObjectId.isValid(refundId)) {
+      throw new OrchestrationException({
+        statusCode: EnumStatusCode.NOT_FOUND,
+        message: 'Refund not found',
+        code: 404,
+      });
+    }
+
+    const refund = await this.refundModel.findOne({
+      _id: new Types.ObjectId(refundId),
+      createdBy: new Types.ObjectId(user.id),
+    });
+
+    if (!refund) {
+      this.logger.warn(
+        `[getRefundById] Refund not found or access denied: refundId=${refundId}, userId=${user.id}`,
+      );
+      throw new OrchestrationException({
+        statusCode: EnumStatusCode.NOT_FOUND,
+        message: 'Refund not found',
+        code: 404,
+      });
+    }
+
+    const refundObject = refund.toObject();
+    const publicRefund = plainToInstance(RefundPublicOutputDto, refundObject, {
+      excludeExtraneousValues: true,
+    });
+
+    return OrchestrationResult.Success<RefundPublicOutputDto>({
+      statusCode: EnumStatusCode.RECOVERED_SUCCESSFULLY,
+      data: publicRefund,
+      message: 'Refund fetched successfully',
+    });
+  }
+  async getRefundByIdAndRestaurant(
+    refundId: string,
+    user: ILoggedInUserTokenData,
+  ) {
+    this.logger.log(
+      `[getRefundByIdAndRestaurant] Fetching refundId=${refundId}, restaurantId=${user.restaurantId}`,
+    );
+
+    if (!Types.ObjectId.isValid(refundId)) {
+      throw new OrchestrationException({
+        statusCode: EnumStatusCode.NOT_FOUND,
+        message: 'Refund not found',
+        code: 404,
+      });
+    }
+
+    const refund = await this.refundModel.findOne({
+      _id: new Types.ObjectId(refundId),
+      restaurant: new Types.ObjectId(user.restaurantId),
+    });
+
+    if (!refund) {
+      this.logger.warn(
+        `[getRefundByIdAndRestaurant] Refund not found or access denied: refundId=${refundId}, restaurantId=${user.restaurantId}`,
+      );
+      throw new OrchestrationException({
+        statusCode: EnumStatusCode.NOT_FOUND,
+        message: 'Refund not found',
+        code: 404,
+      });
+    }
+
+    const refundObject = refund.toObject();
+    const publicRefund = plainToInstance(RefundPublicOutputDto, refundObject, {
+      excludeExtraneousValues: true,
+    });
+
+    return OrchestrationResult.Success<RefundPublicOutputDto>({
+      statusCode: EnumStatusCode.RECOVERED_SUCCESSFULLY,
+      data: publicRefund,
+      message: 'Refund fetched successfully',
     });
   }
 
@@ -1182,6 +1338,150 @@ export class OrdersService {
     } catch (error) {
       this.logger.error(
         `[notifyOrderStatusChanged] Failed to send FCM notification: ${error.message}`,
+      );
+    }
+  }
+
+  private async notifyRefundFailureToAdmins(refund: RefundDocument) {
+    try {
+      const adminUsers = await this.userModel
+        .find({
+          role: EnumUserRole.ADMIN,
+          deleted: false,
+        })
+        .select('_id');
+      const adminUserIds = adminUsers.map((admin) => admin._id.toString());
+
+      this.logger.log(
+        `[notifyRefundFailureToAdmins] Found ${adminUserIds.length} admin(s) to notify for refund: id=${refund._id}`,
+      );
+
+      if (adminUserIds.length === 0) {
+        return;
+      }
+
+      const refundToSendToAdmin = plainToInstance(
+        RefundPrivateOutputDto,
+        refund.toObject(),
+        { excludeExtraneousValues: true },
+      );
+      const adminNotification: INotification<RefundPrivateOutputDto> = {
+        type: EnumNotificationType.REFUND_STATUS_CHANGED,
+        data: refundToSendToAdmin,
+      };
+      this.eventsGateway.emitToUsers({
+        userIds: adminUserIds,
+        event: EnumWebSocketEventType.ADMIN_APPLICATION,
+        data: adminNotification,
+      });
+
+      await this.sendRefundFcm(
+        refund,
+        adminUserIds,
+        EnumNotificationI18nType.REFUND_FAILED_ADMIN,
+        `${env.adminFrontendUrl}/refunds`,
+      );
+    } catch (error) {
+      this.logger.error(
+        `[notifyRefundFailureToAdmins] Failed to emit refund failure notification: ${error.message}`,
+      );
+    }
+  }
+
+  private async sendRefundFcm(
+    refund: RefundDocument,
+    userIds: string[],
+    i18nType: EnumNotificationI18nType,
+    clickAction: string,
+  ) {
+    if (userIds.length === 0) {
+      return;
+    }
+
+    try {
+      const installations = await this.fcmTokenModel
+        .find({
+          user: {
+            $in: userIds.map((id) => new Types.ObjectId(id)),
+          },
+        })
+        .populate<{ user: User }>('user')
+        .lean();
+
+      if (installations.length === 0) {
+        this.logger.log(
+          `[sendRefundFcm] No FCM installations for users of refund: id=${refund._id}`,
+        );
+        return;
+      }
+
+      const languageGroups = new Map<EnumUserLanguage, string[]>();
+      for (const installation of installations) {
+        const language = installation.user?.language ?? EnumUserLanguage.FR;
+        const ids = languageGroups.get(language) ?? [];
+        ids.push(installation.installationId);
+        languageGroups.set(language, ids);
+      }
+
+      const refundId = refund._id.toString();
+      const orderId = (refund.order as Types.ObjectId).toString();
+
+      for (const [language, installationIds] of languageGroups) {
+        const { title, body } = getNotificationMessage(i18nType, language);
+        const fcmResults = await this.fcmService.sendToDevices(
+          installationIds,
+          {
+            title,
+            body,
+            data: {
+              click_action: clickAction,
+              refundId,
+              orderId,
+            },
+          },
+        );
+        this.logger.log(
+          `[sendRefundFcm] FCM refund notification sent (${language}): ${JSON.stringify(fcmResults)}`,
+        );
+      }
+    } catch (error) {
+      this.logger.error(
+        `[sendRefundFcm] Failed to send FCM notification for refund: id=${refund._id}`,
+        error.message,
+      );
+    }
+  }
+
+  private async notifyRefundStatusChanged(refund: RefundDocument) {
+    const userId = refund.createdBy?.toString();
+
+    if (!userId) {
+      this.logger.warn(
+        `[notifyRefundStatusChanged] No user ID found for refund creator ${refund.createdBy} to notify`,
+      );
+      return;
+    }
+
+    try {
+      const refundToSendToClient = plainToInstance(
+        RefundPublicOutputDto,
+        refund.toObject(),
+        { excludeExtraneousValues: true },
+      );
+
+      const notification: INotification<RefundPublicOutputDto> = {
+        type: EnumNotificationType.REFUND_STATUS_CHANGED,
+        data: refundToSendToClient,
+      };
+
+      this.eventsGateway.emitToUser({
+        userId: userId,
+        event: EnumWebSocketEventType.CLIENT_APPLICATION,
+        data: notification,
+      });
+    } catch (error) {
+      this.logger.error(
+        `[notifyRefundStatusChanged] Failed to emit refund status event: ${error.message}`,
       );
     }
   }

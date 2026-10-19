@@ -114,6 +114,12 @@ export class TransferGroup extends BaseSchema {
   @Prop({ type: Number, required: true })
   totalTopupAmount: number;
 
+  @Prop({ type: String, required: true, unique: true })
+  currentTranzactionRef: string;
+
+  @Prop({ type: [String], required: true })
+  tranzactionRefs: string[];
+
   @Prop({ type: [Types.ObjectId], ref: 'Transfer' })
   transfers: Types.ObjectId[];
 

@@ -19,6 +19,7 @@ import { CurrentUser } from 'src/common/decorators/current-user.decorator';
 import type { ILoggedInUserTokenData } from 'src/common/interfaces/loggedin-user-token-data';
 import { CancelOrderDto } from './dto/input/cancel-order.dto';
 import { EnumOrderStatus } from 'src/common/enums/order-status';
+import { EnumRefundStatus } from 'src/common/enums/refund-statuses';
 import { EnumRestaurantMemberRole } from 'src/common/enums/restaurant-member-role';
 import { RestaurantRoles } from 'src/common/guards/restaurant-role.guard';
 
@@ -176,6 +177,46 @@ export class OrdersController {
       page: parsedPage,
       limit: parsedLimit,
     });
+  }
+
+  @Get('admin/refunds')
+  @HttpCode(HttpStatus.OK)
+  @UseGuards(AuthGuard, RoleGuard)
+  @Roles(EnumUserRole.ADMIN)
+  findAllRefundsForAdmin(
+    @Query('page') page: string,
+    @Query('limit') limit: string,
+    @Query('status') status?: EnumRefundStatus,
+  ) {
+    const parsedPage = page ? parseInt(page, 10) : 1;
+    const parsedLimit = limit ? parseInt(limit, 10) : 10;
+    return this.ordersService.findAllRefundsForAdmin({
+      page: parsedPage,
+      limit: parsedLimit,
+      status,
+    });
+  }
+
+  @Get('refunds/:refundId')
+  @HttpCode(HttpStatus.OK)
+  @UseGuards(AuthGuard, RoleGuard)
+  @Roles(EnumUserRole.CLIENT)
+  getRefundById(
+    @Param('refundId') refundId: string,
+    @CurrentUser() user: ILoggedInUserTokenData,
+  ) {
+    return this.ordersService.getRefundById(refundId, user);
+  }
+
+  @Get('refunds/:refundId/restaurant')
+  @HttpCode(HttpStatus.OK)
+  @UseGuards(AuthGuard, RoleGuard)
+  @Roles(EnumUserRole.RESTAURANT_MEMBER)
+  getRefundByIdAndRestaurant(
+    @Param('refundId') refundId: string,
+    @CurrentUser() user: ILoggedInUserTokenData,
+  ) {
+    return this.ordersService.getRefundByIdAndRestaurant(refundId, user);
   }
 
   @Get(':orderId/get-client')

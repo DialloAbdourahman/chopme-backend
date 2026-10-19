@@ -575,7 +575,7 @@ export class TranzakWebhookService {
     );
 
     const transferGroup = await this.transferGroupModel.findOne({
-      _id: webhookData.customTransactionRef,
+      currentTranzactionRef: webhookData.customTransactionRef,
       deleted: false,
     });
 
@@ -837,50 +837,13 @@ export class TranzakWebhookService {
       );
     }
 
-    try {
-      const clientId = refund.createdBy!.toString();
-      const installations = await this.fcmTokenModel
-        .find({ user: new Types.ObjectId(clientId) })
-        .populate<{ user: User }>('user')
-        .lean();
-
-      if (installations.length === 0) {
-        this.logger.log(
-          `[TranzakWebhookService] No FCM installations for refund creator: refundId=${refund._id}`,
-        );
-      } else {
-        const language = installations[0].user?.language ?? EnumUserLanguage.FR;
-        const { title, body } = getNotificationMessage(
-          EnumNotificationI18nType.REFUND_SUCCESSFUL_CLIENT,
-          language,
-        );
-        const installationIds = installations.map(
-          (installation) => installation.installationId,
-        );
-        const orderId = (refund.order as Types.ObjectId).toString();
-
-        const fcmResults = await this.fcmService.sendToDevices(
-          installationIds,
-          {
-            title,
-            body,
-            data: {
-              orderId,
-              refundId: refund._id.toString(),
-              status: refund.status,
-              click_action: `${env.clientFrontendUrl}/orders/${orderId}`,
-            },
-          },
-        );
-        this.logger.log(
-          `[TranzakWebhookService] Refund success client FCM results: ${JSON.stringify(fcmResults)}`,
-        );
-      }
-    } catch (error) {
-      this.logger.error(
-        `[TranzakWebhookService] Failed to send FCM notification to client for successful refund: ${error.message}`,
-      );
-    }
+    const orderId = (refund.order as Types.ObjectId).toString();
+    await this.sendRefundFcm(
+      refund,
+      [refund.createdBy!.toString()],
+      EnumNotificationI18nType.REFUND_SUCCESSFUL_CLIENT,
+      `${env.clientFrontendUrl}/orders/${orderId}`,
+    );
   }
 
   private async notifyRefundFailure(refund: RefundDocument) {

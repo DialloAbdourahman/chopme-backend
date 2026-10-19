@@ -40,6 +40,14 @@ import { RestaurantMember } from 'src/restaurant-members/entities/restaurant-mem
 import { WebSocketService } from 'src/web-socket/web-socket-service';
 import { User, UserDocument } from 'src/users/entities/user.entity';
 import { EnumUserRole } from 'src/common/enums/user-roles';
+import {
+  FcmToken,
+  FcmTokenDocument,
+} from 'src/fcm-tokens/entities/fcm-token.entity';
+import { FcmService } from 'src/fcm/fcm.service';
+import { EnumUserLanguage } from 'src/common/enums/user-language';
+import { EnumNotificationI18nType } from 'src/common/enums/notification-internationalization-type';
+import { getNotificationMessage } from 'src/common/utils/get-fcm-notification-message';
 
 @Injectable()
 export class TransfersService {
@@ -58,9 +66,12 @@ export class TransfersService {
     private readonly restaurantMemberModel: Model<RestaurantMember>,
     @InjectModel(User.name)
     private readonly userModel: Model<UserDocument>,
+    @InjectModel(FcmToken.name)
+    private readonly fcmTokenModel: Model<FcmTokenDocument>,
     @InjectConnection()
     private readonly connection: Connection,
     private readonly tranzakService: TranzakService,
+    private readonly fcmService: FcmService,
   ) {}
 
   async create(user: ILoggedInUserTokenData) {
@@ -152,11 +163,15 @@ export class TransfersService {
         `[createTransfer] Computed amounts: totalRestaurantAmount=${totalRestaurantAmount}, totalPlatformAmount=${totalPlatformAmount}, totalAmount=${totalAmount}, totalTopupAmount=${totalTopupAmount}`,
       );
 
+      const tranzactionRef = new Types.ObjectId().toString();
+
       transferGroup = new this.transferGroupModel({
         restaurantAmount: totalRestaurantAmount,
         platformAmount: totalPlatformAmount,
         totalAmount,
         totalTopupAmount,
+        currentTranzactionRef: tranzactionRef,
+        tranzactionRefs: [tranzactionRef],
         transfers: [],
         createdBy: new Types.ObjectId(user.id),
       });
@@ -790,10 +805,19 @@ export class TransfersService {
       );
       transfer.status = EnumTransferStatuses.FAILED_TO_INITIATE;
       await transfer.save();
+
+      this.notifyTransferInitiationFailureToAdmins(transfer).catch(
+        (notifyError) => {
+          this.logger.error(
+            `[initiateTransfer] Failed to emit transfer failure notification: id=${transfer._id}`,
+            notifyError.message,
+          );
+        },
+      );
     }
   }
 
-  private async ensureTopup(
+  async ensureTopup(
     transferGroupId: Types.ObjectId,
   ): Promise<TransferGroupDocument> {
     this.logger.log(
@@ -824,13 +848,22 @@ export class TransfersService {
       return transferGroup;
     }
 
+    // A previous topup attempt failed — rotate to a fresh transaction ref
+    // so Tranzak never receives a duplicate customTransactionRef.
+    if (transferGroup.topupStatus === EnumTranzakTopupStatus.FAILED) {
+      const nextTranzactionRef = new Types.ObjectId().toString();
+      transferGroup.tranzactionRefs.push(nextTranzactionRef);
+      transferGroup.currentTranzactionRef = nextTranzactionRef;
+      await transferGroup.save();
+    }
+
     // Create new topup
     try {
       const topupRequest: ITranzakCreateTopupRequestDto = {
         amount: transferGroup.totalTopupAmount,
         currencyCode: EnumTranzakCurrency.XAF,
         description: 'Payout account topup',
-        customTransactionRef: `${transferGroup._id}`,
+        customTransactionRef: transferGroup.currentTranzactionRef,
         payeeNote: 'Payout account topup',
       };
 
@@ -996,6 +1029,125 @@ export class TransfersService {
     } catch (error) {
       this.logger.error(
         `[notifyTransferSuccess] Failed to emit transfer status notification: ${error.message}`,
+      );
+    }
+  }
+
+  private async notifyTransferInitiationFailureToAdmins(
+    transfer: TransferDocument,
+  ) {
+    let adminUserIds: string[] = [];
+    try {
+      const adminUsers = await this.userModel
+        .find({
+          role: EnumUserRole.ADMIN,
+          deleted: false,
+        })
+        .select('_id');
+      adminUserIds = adminUsers.map((admin) => admin._id.toString());
+
+      this.logger.log(
+        `[notifyTransferInitiationFailureToAdmins] Found ${adminUserIds.length} admin(s) to notify for transfer: id=${transfer._id}`,
+      );
+    } catch (error) {
+      this.logger.error(
+        `[notifyTransferInitiationFailureToAdmins] Failed to find admin users: ${error.message}`,
+      );
+    }
+
+    if (adminUserIds.length > 0) {
+      try {
+        const populatedTransfer = await transfer.populate([
+          'restaurant',
+          'transferGroup',
+        ]);
+        const adminTransferToSend = plainToInstance(
+          TransferPrivateOutputDto,
+          populatedTransfer.toObject(),
+          { excludeExtraneousValues: true },
+        );
+        const adminNotification: INotification<TransferPrivateOutputDto> = {
+          type: EnumNotificationType.TRANSFER_STATUS_CHANGED,
+          data: adminTransferToSend,
+        };
+        this.eventsGateway.emitToUsers({
+          userIds: adminUserIds,
+          event: EnumWebSocketEventType.ADMIN_APPLICATION,
+          data: adminNotification,
+        });
+      } catch (error) {
+        this.logger.error(
+          `[notifyTransferInitiationFailureToAdmins] Failed to emit transfer failure notification: ${error.message}`,
+        );
+      }
+    }
+
+    await this.sendTransferFcm(
+      transfer,
+      adminUserIds,
+      EnumNotificationI18nType.TRANSFER_FAILED_ADMIN,
+      `${env.adminFrontendUrl}/transfers`,
+    );
+  }
+
+  private async sendTransferFcm(
+    transfer: TransferDocument,
+    userIds: string[],
+    i18nType: EnumNotificationI18nType,
+    clickAction: string,
+  ) {
+    if (userIds.length === 0) {
+      return;
+    }
+
+    try {
+      const installations = await this.fcmTokenModel
+        .find({
+          user: {
+            $in: userIds.map((id) => new Types.ObjectId(id)),
+          },
+        })
+        .populate<{ user: User }>('user')
+        .lean();
+
+      if (installations.length === 0) {
+        this.logger.log(
+          `[sendTransferFcm] No FCM installations for users of transfer: id=${transfer._id}`,
+        );
+        return;
+      }
+
+      const languageGroups = new Map<EnumUserLanguage, string[]>();
+      for (const installation of installations) {
+        const language = installation.user?.language ?? EnumUserLanguage.FR;
+        const ids = languageGroups.get(language) ?? [];
+        ids.push(installation.installationId);
+        languageGroups.set(language, ids);
+      }
+
+      const transferId = transfer._id.toString();
+
+      for (const [language, installationIds] of languageGroups) {
+        const { title, body } = getNotificationMessage(i18nType, language);
+        const fcmResults = await this.fcmService.sendToDevices(
+          installationIds,
+          {
+            title,
+            body,
+            data: {
+              click_action: clickAction,
+              transferId,
+            },
+          },
+        );
+        this.logger.log(
+          `[sendTransferFcm] FCM transfer notification sent (${language}): ${JSON.stringify(fcmResults)}`,
+        );
+      }
+    } catch (error) {
+      this.logger.error(
+        `[sendTransferFcm] Failed to send FCM notification for transfer: id=${transfer._id}`,
+        error.message,
       );
     }
   }

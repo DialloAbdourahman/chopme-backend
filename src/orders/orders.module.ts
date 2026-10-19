@@ -14,6 +14,7 @@ import {
   FcmToken,
   FcmTokenSchema,
 } from 'src/fcm-tokens/entities/fcm-token.entity';
+import { User, UserSchema } from 'src/users/entities/user.entity';
 
 @Module({
   imports: [
@@ -24,6 +25,7 @@ import {
       { name: Client.name, schema: MenuSchema },
       { name: Restaurant.name, schema: RestaurantSchema },
       { name: FcmToken.name, schema: FcmTokenSchema },
+      { name: User.name, schema: UserSchema },
     ]),
   ],
   controllers: [OrdersController],
