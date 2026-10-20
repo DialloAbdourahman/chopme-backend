@@ -81,6 +81,9 @@ export class RefundPublicOutputDto {
   orderId: string;
 
   @Expose()
+  amount: number;
+
+  @Expose()
   status: EnumRefundStatus;
 }
 

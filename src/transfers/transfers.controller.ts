@@ -20,7 +20,6 @@ import { EnumRestaurantMemberRole } from 'src/common/enums/restaurant-member-rol
 import { RestaurantRoles } from 'src/common/guards/restaurant-role.guard';
 import { EnumTransferStatuses } from 'src/common/enums/transfer-statuses';
 import { EnumTransferDirection } from 'src/common/enums/transfer-direction';
-import { Types } from 'mongoose';
 
 @Controller('transfers')
 export class TransfersController {
@@ -99,8 +98,6 @@ export class TransfersController {
   @UseGuards(AuthGuard, RoleGuard)
   @Roles(EnumUserRole.ADMIN)
   ensureTopup(@Param('transferGroupId') transferGroupId: string) {
-    return this.transfersService.ensureTopup(
-      new Types.ObjectId(transferGroupId),
-    );
+    return this.transfersService.ensureTransferGroupTopup(transferGroupId);
   }
 }

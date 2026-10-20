@@ -51,6 +51,9 @@ export class Refund extends BaseSchema {
   @Prop({ type: String, required: false, index: true })
   transactionId?: string;
 
+  @Prop({ type: Number, required: true })
+  amount: number;
+
   @Prop({
     enum: EnumRefundStatus,
     type: String,

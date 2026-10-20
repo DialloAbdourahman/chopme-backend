@@ -8,6 +8,7 @@ import {
   TransferPrivateOutputDto,
   TransferPublicOutputDto,
 } from './dto/output/transfer-output.dto';
+import { TransferGroupOutputDto } from './dto/output/transfer-group-output.dto';
 import { EnumOrderStatus } from 'src/common/enums/order-status';
 import { OrchestrationException } from 'src/common/exceptions/orchestration.exception';
 import { EnumStatusCode } from 'src/common/enums/response-status-code';
@@ -817,7 +818,29 @@ export class TransfersService {
     }
   }
 
-  async ensureTopup(
+  async ensureTransferGroupTopup(transferGroupId: string) {
+    this.logger.log(
+      `[ensureTransferGroupTopup] Admin triggered topup check for transferGroupId=${transferGroupId}`,
+    );
+
+    const transferGroup = await this.ensureTopup(
+      new Types.ObjectId(transferGroupId),
+    );
+
+    const transferGroupOutput = plainToInstance(
+      TransferGroupOutputDto,
+      transferGroup.toObject(),
+      { excludeExtraneousValues: true },
+    );
+
+    return OrchestrationResult.Success<TransferGroupOutputDto>({
+      statusCode: EnumStatusCode.STARTED_SUCCESSFULLY,
+      data: transferGroupOutput,
+      message: 'Transfer group topup ensured successfully',
+    });
+  }
+
+  private async ensureTopup(
     transferGroupId: Types.ObjectId,
   ): Promise<TransferGroupDocument> {
     this.logger.log(

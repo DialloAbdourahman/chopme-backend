@@ -639,6 +639,7 @@ export class OrdersService {
         restaurant: order.restaurant,
         transactionId:
           order?.paymentWebhookDetails?.transactionId?.toString() || '',
+        amount: order.pricing.totalAmountCollectedWithDelivery,
       });
       await refund.save({ session });
 
