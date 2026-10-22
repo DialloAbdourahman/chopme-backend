@@ -15,7 +15,6 @@ import {
   DefaultValuePipe,
   ParseIntPipe,
   ParseFloatPipe,
-  ParseBoolPipe,
 } from '@nestjs/common';
 import { FileInterceptor } from '@nestjs/platform-express';
 import { RestaurantsService } from './restaurants.service';
@@ -40,7 +39,6 @@ import { OrchestrationException } from 'src/common/exceptions/orchestration.exce
 import { EnumStatusCode } from 'src/common/enums/response-status-code';
 import { FindRestaurantDto } from './dto/input/find-restaurant.dto';
 import { AdminRestaurantsQueryDto } from './dto/input/admin-restaurants-query.dto';
-import { EnumRestaurantType } from 'src/common/enums/restaurant-types';
 
 @Controller('restaurants')
 export class RestaurantsController {

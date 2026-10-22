@@ -102,7 +102,6 @@ export class MenusService {
         typeof createMenuDto.available === 'boolean'
           ? createMenuDto.available
           : true,
-      location: restaurant.location,
     });
 
     await menu.populate(['category', 'restaurant']);
@@ -887,3 +886,96 @@ export class MenusService {
     });
   }
 }
+
+// const radiusKm = filters.radiusKm ?? 10;
+// const pipeline = [
+//   // 1. Find nearby restaurants and calculate distance
+//   {
+//     $geoNear: {
+//       near: {
+//         type: 'Point',
+//         coordinates: [
+//           Number(filters.longitude),
+//           Number(filters.latitude),
+//         ],
+//       },
+//       key: 'location',
+//       distanceField: 'distanceMeters',
+//       distanceMultiplier: 0.001, // meters -> kilometers
+//       maxDistance: radiusKm * 1000,
+//       spherical: true,
+//       query: {
+//         deleted: false,
+//       },
+//     },
+//   },
+
+//   // 2. Convert distance to kilometers
+//   {
+//     $addFields: {
+//       distanceKm: '$distanceMeters',
+//     },
+//   },
+
+//   // 3. Find the applicable delivery pricing bracket
+//   {
+//     $addFields: {
+//       applicableDeliveryPricing: {
+//         $filter: {
+//           input: '$deliveryPricingKm',
+//           as: 'pricing',
+//           cond: {
+//             $and: [
+//               { $lte: ['$$pricing.from', '$distanceKm'] },
+//               { $gte: ['$$pricing.to', '$distanceKm'] },
+//             ],
+//           },
+//         },
+//       },
+//     },
+//   },
+
+//   // 4. Keep restaurants that have a matching pricing bracket
+//   {
+//     $match: {
+//       'applicableDeliveryPricing.0': { $exists: true },
+//     },
+//   },
+
+//   // 5. Retrieve their menus
+//   {
+//     $lookup: {
+//       from: 'menus',
+//       localField: '_id',
+//       foreignField: 'restaurant',
+//       as: 'menus',
+//     },
+//   },
+
+//   // 6. One result per menu
+//   {
+//     $unwind: '$menus',
+//   },
+
+//   // 7. Keep available menus
+//   {
+//     $match: {
+//       'menus.available': true,
+//       'menus.deleted': false,
+//     },
+//   },
+
+//   // 8. Return the nearest restaurants' menus first
+//   {
+//     $sort: {
+//       distanceKm: 1,
+//       'menus._id': 1,
+//     },
+//   },
+
+//   // 9. Pagination
+//   { $skip: (page - 1) * limit },
+//   { $limit: limit },
+// ];
+
+// const menus = await this.restaurantModel.aggregate(pipeline);

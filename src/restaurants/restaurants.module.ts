@@ -8,7 +8,6 @@ import {
   RestaurantMemberSchema,
 } from 'src/restaurant-members/entities/restaurant-member.entity';
 import { User, UserSchema } from 'src/users/entities/user.entity';
-import { Menu, MenuSchema } from 'src/menus/entities/menu.entity';
 
 @Module({
   imports: [
@@ -16,7 +15,6 @@ import { Menu, MenuSchema } from 'src/menus/entities/menu.entity';
       { name: Restaurant.name, schema: RestaurantSchema },
       { name: RestaurantMember.name, schema: RestaurantMemberSchema },
       { name: User.name, schema: UserSchema },
-      { name: Menu.name, schema: MenuSchema },
     ]),
   ],
   controllers: [RestaurantsController],
